@@ -20,7 +20,9 @@ public class BankAccount : BaseEntity
         if (string.IsNullOrWhiteSpace(bankCode)) throw new ArgumentException("BankCode is required.", nameof(bankCode));
         if (string.IsNullOrWhiteSpace(accountNumber)) throw new ArgumentException("AccountNumber is required.", nameof(accountNumber));
         if (string.IsNullOrWhiteSpace(accountHolder)) throw new ArgumentException("AccountHolder is required.", nameof(accountHolder));
-
+        if (accountNumber.Any(ch => !char.IsDigit(ch)))
+            throw new ArgumentException("AccountNumber must be numeric.");
+            
         ProfileId = profileId;
         BankName = bankName.Trim();
         BankCode = bankCode.Trim().ToUpperInvariant();

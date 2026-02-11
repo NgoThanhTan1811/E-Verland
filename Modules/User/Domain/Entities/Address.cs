@@ -5,21 +5,21 @@ namespace Modules.User.Domain.Entities;
 
 public class Address : BaseEntity
 {
-    public Guid ProfileId { get; set; }
-    public required Profile Profile { get; set; } 
+    public Guid ProfileId { get; set; } = default!;
+    public  Profile Profile { get; set; } = default!;
 
     public LableAddress Label { get; set; } = LableAddress.Other;
-    public required string City { get; set; } 
-    public required string Ward { get; set; } 
-    public required string Detail { get; set; } 
-    public required string Street { get; set; } 
-    public required string District { get; set; } 
-    public required string Province { get; set; } 
+    public  string City { get; set; } = default!;
+    public  string Ward { get; set; } = default!;
+    public  string Detail { get; set; } = default!; 
+    public  string Street { get; set; } = default!;
+    public  string District { get; set; } = default!;
+    public  string Province { get; set; } = default!;
 
-    public bool IsDefault { get; set; }
+    public bool IsDefault { get; set; } = false;
 
     private Address() { }
-    public Address(Guid profileId, LableAddress label, string city, string ward, string detail, string street, string district, string province, bool isDefault)
+    public Address(Guid profileId, LableAddress label, string city, string province, string district, string ward, string street, string detail,  bool isDefault)
     {
 
         ProfileId = profileId;
@@ -30,7 +30,7 @@ public class Address : BaseEntity
         Street = street;
         District = district;
         Province = province;
-        IsDefault = false;
+        IsDefault = isDefault;
     }
 
     public void SetAsDefault() => IsDefault = true;

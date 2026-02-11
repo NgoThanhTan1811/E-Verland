@@ -3,6 +3,7 @@ using Modules.User.Application.Interfaces.Repositories;
 using Modules.User.Application.DTOs.Request;
 using Modules.User.Domain.Entities;
 using Modules.User.Infrastructure.Persistence;
+using SharedKernel;
 
 namespace Modules.User.Infrastructure;
 
@@ -15,7 +16,7 @@ public class AccountRepository : IAccountRepository
     public async Task CreateAsync(Account entity, CancellationToken cancellationToken = default)
     {
         await _db.Accounts.AddAsync(entity, cancellationToken);
-
+        await _db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<PageResult<Account>> SearchAsync(AccountFilter filter, CancellationToken ct)
@@ -43,8 +44,8 @@ public class AccountRepository : IAccountRepository
 
         var totalItems = await query.CountAsync(ct);
 
-        var page = filter.Page.GetValueOrDefault(1);
-        var limit = filter.Limit.GetValueOrDefault(20);
+        var page = filter.Page < 1 ? 1 : filter.Page;
+        var limit = filter.Limit < 1 ? 20 : filter.Limit;
         var skip = (page - 1) * limit;
 
         var items = await query
@@ -57,7 +58,7 @@ public class AccountRepository : IAccountRepository
         {
             Items = items,
             TotalItems = totalItems,
-            PageNumber = page,
+            Page = page,
             Limit = limit
         };
     }
@@ -106,6 +107,7 @@ public class AccountRepository : IAccountRepository
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (account == null) return false;
+        _db.Accounts.Remove(account);
 
         return true;
     }

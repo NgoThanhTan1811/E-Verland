@@ -7,11 +7,11 @@ namespace Modules.User.Domain.Entities;
 public class Account : BaseEntity
 {
     [EmailAddress]
-    public required string Email { get; set; } 
-    public required string Username { get; set; } 
+    public string Email { get; set; } = default!;
+    public string Username { get; set; } = default!;
     public string NormalizedUsername { get; private set; } = default!;
     public string NormalizedEmail { get; private set; } = default!;
-    public required string Password { get; set; } 
+    public string Password { get; set; } = default!;
     public RoleUser Role { get; set; } = RoleUser.User;
     public StatusUser Status { get; set; } = StatusUser.Active;
 

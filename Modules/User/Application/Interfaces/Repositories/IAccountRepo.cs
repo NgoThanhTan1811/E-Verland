@@ -2,6 +2,8 @@
 using Modules.User.Domain.Entities;
 using Modules.User.Application.DTOs.Request;
 using SharedKernel.Interfaces.Repository;
+using SharedKernel;
+
 namespace Modules.User.Application.Interfaces.Repositories
 {
     public interface IAccountRepository : IRepository<Account>

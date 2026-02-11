@@ -3,27 +3,27 @@ using Modules.User.Domain.Enums;
 
 namespace Modules.User.Application.DTOs.Request;
 
-public class CreateAccountReqDto
+public record CreateAccountReqDto
 {
-    public string Email { get; set; } = default!;
-    public string Username { get; set; } = default!;
-    public string Password { get; set; } = default!;
+    public required string Email ;
+    public required string Username ;
+    public required string Password ;
 
 }
 
-public class UpdateAccountReqDto
+public record UpdateAccountReqDto
 {
-    public string? Username { get; set; }
-    public string? Password { get; set; }
-    public RoleUser? Role { get; set; }
-    public StatusUser? Status { get; set; }
+    public string? Username ;
+    public string? Password ;
+    public RoleUser? Role ;
+    public StatusUser? Status ;
 }
-public class AccountFilter
+public record AccountFilter
 {
-    public string? Keyword { get; set; }
-    public StatusUser? Status { get; set; }
-    public RoleUser? Role { get; set; }
+    public string? Keyword ;
+    public StatusUser? Status ;
+    public RoleUser? Role ;
 
-    public int? Page { get; set; } = 1;
-    public int? Limit { get; set; } = 20;
+    public int Page  = 1;
+    public int Limit  = 20;
 }

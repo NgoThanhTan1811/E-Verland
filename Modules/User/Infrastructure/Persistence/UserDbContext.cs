@@ -1,9 +1,10 @@
 
 using Microsoft.EntityFrameworkCore;
 using Modules.User.Domain.Entities;
+using Modules.User.Application.Interfaces.Repositories;
 namespace Modules.User.Infrastructure.Persistence
 {
-      public class UserDbContext : DbContext
+      public class UserDbContext : DbContext, IUserDbContext
       {
             public UserDbContext()
             {
@@ -12,6 +13,7 @@ namespace Modules.User.Infrastructure.Persistence
             public DbSet<Profile> Profiles { get; set; }
             public DbSet<Address> Addresses { get; set; }
             public DbSet<BankAccount> BankAccounts { get; set; }
+            
 
 
             protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -177,7 +179,10 @@ namespace Modules.User.Infrastructure.Persistence
                               .IsRequired()
                               .HasMaxLength(200);
 
-                        entity.HasIndex(x => x.ProfileId);
+                     entity.HasIndex(x => x.ProfileId);
+
+                     entity.HasIndex(x => new { x.ProfileId, x.BankCode, x.AccountNumber })
+                  .IsUnique();
 
                         entity.Property<uint>("xmin")
                      .HasColumnName("xmin")
