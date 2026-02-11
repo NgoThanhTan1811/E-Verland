@@ -1,0 +1,6 @@
+@E_Verland_HostAddress = http://localhost:5038
+
+GET {{E_Verland_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
