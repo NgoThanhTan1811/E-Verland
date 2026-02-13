@@ -14,8 +14,7 @@ namespace Modules.User.Application.Commands
         string FirstName,
         string LastName,
         DateTime DateOfBirth,
-        string PhoneNumber,
-        string Email
+        string PhoneNumber
     ) : IRequest<ProfileResDto>;
 
     public class ProfileHandler : IRequestHandler<CreateProfileCommand, ProfileResDto>

@@ -5,7 +5,7 @@ using Modules.User.Domain.Entities;
 using Modules.User.Infrastructure.Persistence;
 using SharedKernel;
 
-namespace Modules.User.Infrastructure;
+namespace Modules.User.Infrastructure.Persistence;
 
 public class AccountRepository : IAccountRepository
 {

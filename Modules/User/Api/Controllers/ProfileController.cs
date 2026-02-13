@@ -31,8 +31,7 @@ public class ProfileController : ControllerBase
                 dto.FirstName,
                 dto.LastName,
                 DateTime.UtcNow,
-                dto.PhoneNumber,
-                null 
+                dto.PhoneNumber
             );
             var result = await _mediator.Send(command, ct);
             return CreatedAtAction(nameof(GetProfileById), new { id = result.Id }, result);
