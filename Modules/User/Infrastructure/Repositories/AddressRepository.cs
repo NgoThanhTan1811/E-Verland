@@ -13,7 +13,7 @@ namespace Modules.User.Infrastructure.Repositories
             return _db.Addresses.AddAsync(entity, cancellationToken).AsTask();
         }
 
-        public async Task<IReadOnlyCollection<Address>> GetAllAsync(CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyList<Address>> GetAllAsync(CancellationToken cancellationToken = default)
         {
             return await _db.Addresses.AsNoTracking()
                                      .ToListAsync(cancellationToken);
@@ -24,37 +24,42 @@ namespace Modules.User.Infrastructure.Repositories
             return await _db.Addresses.AsNoTracking()
                                     .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
         }
-
-        public async Task<Address?> GetByIdForProfileAsync(Guid addressId, Guid ProfileId, CancellationToken ct = default)
+        // Get address by id and profile id
+        public async Task<Address?> GetByIdForProfileAsync(Guid addressId, Guid profileId, CancellationToken ct = default)
         {
             return await _db.Addresses.AsNoTracking()
-                                    .FirstOrDefaultAsync(a => a.Id == addressId && a.ProfileId == ProfileId, ct);
+                .FirstOrDefaultAsync(a => a.Id == addressId && a.ProfileId == profileId, ct);
+
         }
 
-        public async Task<IReadOnlyCollection<Address>> GetByProfileIdAsync(Guid ProfileId, CancellationToken ct = default)
+        // Get all addresses by profile id
+        public async Task<IReadOnlyList<Address>> GetByProfileIdAsync(Guid profileId, CancellationToken ct = default)
+        {
+            return await _db.Addresses
+                        .AsNoTracking()
+                        .OrderByDescending(a => a.IsDefault)
+                        .Where(a => a.ProfileId == profileId)
+                        .ToListAsync(ct);
+        }
+
+        public async Task<Address?> GetDefaultAsync(Guid profileId, CancellationToken ct = default)
         {
             return await _db.Addresses.AsNoTracking()
-                .Where(a => a.ProfileId == ProfileId)
-                .ToListAsync(ct);
+                .FirstOrDefaultAsync(a => a.ProfileId == profileId && a.IsDefault, ct);
         }
 
-        public async Task<Address?> GetDefaultAsync(Guid ProfileId, CancellationToken ct = default)
-        {
-            return await _db.Addresses.AsNoTracking()
-                .FirstOrDefaultAsync(a => a.ProfileId == ProfileId && a.IsDefault, ct);
-        }
-
-        public async Task<bool> DeleteAsync(Guid id, Guid byId, CancellationToken cancellationToken = default)
+        public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
         {
             var existingAddress = await _db.Addresses
                 .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
             if (existingAddress == null) return false;
+            _db.Addresses.Remove(existingAddress);
 
             return true;
         }
 
-        public Task UnsetDefaultAsync(Guid ProfileId, CancellationToken ct = default)
+        public Task UnsetDefaultAsync(Guid profileId, CancellationToken ct = default)
         {
             return _db.Database.ExecuteSqlRawAsync(
                 """
@@ -64,7 +69,7 @@ namespace Modules.User.Infrastructure.Repositories
                 AND "IsDefault" = TRUE
                 AND "DeletedAt" IS NULL
                 """,
-                [ProfileId], ct);
+                profileId, ct);
         }
 
         public Task UpdateAsync(Address entity, CancellationToken cancellationToken = default)

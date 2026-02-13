@@ -10,6 +10,7 @@ namespace Modules.User.Application.Interfaces.Repositories
     {
 
         Task<PageResult<Account>> SearchAsync(AccountFilter filter, CancellationToken ct);
+
         Task<bool> ExistsByEmailAsync(string email, CancellationToken ct = default);
         Task<bool> ExistsByUsernameAsync(string username, CancellationToken ct = default);
 

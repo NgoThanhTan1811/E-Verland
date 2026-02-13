@@ -1,10 +1,11 @@
-
 using Modules.User.Application.Interfaces.Repositories;
 using Modules.User.Application.DTOs.Response;
 using MediatR;
 using Modules.User.Domain.Entities;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using Modules.User.Application.Validators;
+using System.ComponentModel.DataAnnotations;
 
 namespace Modules.User.Application.Commands;
 
@@ -12,7 +13,6 @@ public sealed record CreateAcountCommand(
     string Email,
     string Username,
     string Password
-
 ) : IRequest<AccountResDto>;
 
 public sealed class CreateAccountHandler : IRequestHandler<CreateAcountCommand, AccountResDto>
@@ -30,15 +30,26 @@ public sealed class CreateAccountHandler : IRequestHandler<CreateAcountCommand, 
 
     public async Task<AccountResDto> Handle(CreateAcountCommand request, CancellationToken ct)
     {
-        var email = (request.Email ?? "").Trim().ToLowerInvariant();
-        var username = (request.Username ?? "").Trim().ToLowerInvariant();
-        var password = BCrypt.Net.BCrypt.HashPassword((request.Password ?? "").Trim());
+        var validationResult = AccountValidator.CreateAccount.Validate(new DTOs.Request.CreateAccountReqDto
+        {
+            Email = request.Email,
+            Username = request.Username,
+            Password = request.Password
+        });
+
+        if (validationResult != ValidationResult.Success)
+            throw new ValidationException(validationResult?.ErrorMessage);
+
+        var email = request.Email.Trim().ToLowerInvariant();
+        var username = request.Username.Trim().ToLowerInvariant();
 
         var existsMail = await _repo.ExistsByEmailAsync(email, ct);
-        var exiistsUsername = await _repo.ExistsByUsernameAsync(username, ct);
+        var existsUsername = await _repo.ExistsByUsernameAsync(username, ct);
 
-        if (existsMail || exiistsUsername) throw new InvalidOperationException("Account already exists with given email or username.");
+        if (existsMail || existsUsername)
+            throw new InvalidOperationException("Account already exists with given email or username.");
 
+        var password = BCrypt.Net.BCrypt.HashPassword(request.Password.Trim());
         var entity = new Account(email, username, password);
 
         await _repo.CreateAsync(entity, ct);
@@ -49,9 +60,9 @@ public sealed class CreateAccountHandler : IRequestHandler<CreateAcountCommand, 
         }
         catch (DbUpdateException)
         {
-            throw new InvalidOperationException("Account already exists with given email or username.");
+            throw new InvalidOperationException("Account creation failed due to database constraint.");
         }
-        return _mapper.Map<AccountResDto>(entity);
 
+        return _mapper.Map<AccountResDto>(entity);
     }
 }

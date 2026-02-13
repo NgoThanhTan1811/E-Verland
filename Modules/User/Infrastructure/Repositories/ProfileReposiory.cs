@@ -17,7 +17,7 @@ namespace Modules.User.Infrastructure.Repositories
             return _db.Profiles.AddAsync(entity, cancellationToken).AsTask();
         }
 
-        public async Task<IReadOnlyCollection<Domain.Entities.Profile>> GetAllAsync(CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyList<Domain.Entities.Profile>> GetAllAsync(CancellationToken cancellationToken = default)
         {
             return await _db.Profiles.AsNoTracking()
                                  .ToListAsync(cancellationToken);
@@ -31,39 +31,21 @@ namespace Modules.User.Infrastructure.Repositories
 
         public async Task<Domain.Entities.Profile?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            return await _db.Profiles.AsNoTracking()
-                                 .FirstOrDefaultAsync(up => up.Id == id, cancellationToken);
+            return await _db.Profiles
+                                .Include(p => p.Account)
+                                .Include(p => p.Addresses)
+                                .Include(p => p.BankAccounts)
+                                .FirstOrDefaultAsync(up => up.Id == id, cancellationToken);
         }
 
-        public async Task<Domain.Entities.Profile?> GetFullAsync(Guid accountId, CancellationToken ct = default)
-        {
-            return await _db.Profiles.AsNoTracking()
-                                 .Include(up => up.Addresses)
-                                 .Include(up => up.BankAccounts)
-                                 .FirstOrDefaultAsync(up => up.AccountId == accountId, ct);
-        }
-
-        public async Task<Domain.Entities.Profile?> GetWithAddressesAsync(Guid accountId, CancellationToken ct = default)
-        {
-            return await _db.Profiles.AsNoTracking()
-                                 .Include(up => up.Addresses)
-                                 .FirstOrDefaultAsync(up => up.AccountId == accountId, ct);
-        }
-
-        public async Task<Domain.Entities.Profile?> GetWithBankAccountsAsync(Guid accountId, CancellationToken ct = default)
-        {
-            return await _db.Profiles.AsNoTracking()
-                                 .Include(up => up.BankAccounts)
-                                 .FirstOrDefaultAsync(up => up.AccountId == accountId, ct);
-        }
-
-        public async Task<bool> DeleteAsync(Guid id, Guid byId, CancellationToken ct = default)
+        public async Task<bool> DeleteAsync(Guid id, CancellationToken ct = default)
         {
             var existingProfile = await _db.Profiles
                 .FirstOrDefaultAsync(up => up.Id == id, ct);
 
             if (existingProfile == null) return false;
 
+            _db.Profiles.Remove(existingProfile);
             return true;
         }
 

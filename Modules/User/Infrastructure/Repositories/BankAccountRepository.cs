@@ -18,44 +18,44 @@ namespace Modules.User.Infrastructure.Repositories
             return _db.BankAccounts.AddAsync(entity, cancellationToken).AsTask();
         }
 
-        public async Task<bool> ExistsAccountNumberAsync(Guid ProfileId, string accountNumber, CancellationToken ct = default)
+        public async Task<bool> ExistsAccountNumberAsync(Guid ProfileId, string accountNumber, Guid excludeBankAccountId, CancellationToken ct = default)
         {
-            return await _db.BankAccounts.AnyAsync(ba => ba.ProfileId == ProfileId && ba.AccountNumber == accountNumber, ct);
+            return await _db.BankAccounts.AnyAsync(ba => ba.ProfileId == ProfileId && ba.AccountNumber == accountNumber && ba.Id != excludeBankAccountId, ct);
 
         }
 
-        public async Task<IReadOnlyCollection<Domain.Entities.BankAccount>> GetAllAsync(CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyList<Domain.Entities.BankAccount>> GetAllAsync(CancellationToken cancellationToken = default)
         {
             return await _db.BankAccounts.AsNoTracking()
                                  .ToListAsync(cancellationToken);
         }
 
-        public Task<Domain.Entities.BankAccount?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+        public async Task<Domain.Entities.BankAccount?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
         {
-            return _db.BankAccounts.AsNoTracking()
+            return await _db.BankAccounts.AsNoTracking()
                                  .FirstOrDefaultAsync(ba => ba.Id == id, cancellationToken);
         }
-
-        public Task<Domain.Entities.BankAccount?> GetByIdForProfileAsync(Guid bankAccountId, Guid ProfileId, CancellationToken ct = default)
+        // Get bank account by id and profile id
+        public async Task<Domain.Entities.BankAccount?> GetByIdForProfileAsync(Guid bankAccountId, Guid ProfileId, CancellationToken ct = default)
         {
-            return _db.BankAccounts.AsNoTracking()
+            return await _db.BankAccounts.AsNoTracking()
                                  .FirstOrDefaultAsync(ba => ba.Id == bankAccountId && ba.ProfileId == ProfileId, ct);
         }
-
-        public async Task<IReadOnlyCollection<Domain.Entities.BankAccount>> GetByProfileIdAsync(Guid ProfileId, CancellationToken ct = default)
+        // Get bank accounts by profile id
+        public async Task<IReadOnlyList<Domain.Entities.BankAccount>> GetByProfileIdAsync(Guid ProfileId, CancellationToken ct = default)
         {
             return await _db.BankAccounts.AsNoTracking()
                 .Where(ba => ba.ProfileId == ProfileId)
                 .ToListAsync(ct);
         }
 
-        public async Task<bool> DeleteAsync(Guid id, Guid byId, CancellationToken cancellationToken = default)
+        public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
         {
             var existingBankAccount = await _db.BankAccounts
                  .FirstOrDefaultAsync(ba => ba.Id == id, cancellationToken);
 
             if (existingBankAccount == null) return false;
-
+            _db.BankAccounts.Remove(existingBankAccount);
             return true;
         }
 
@@ -64,5 +64,15 @@ namespace Modules.User.Infrastructure.Repositories
             _db.BankAccounts.Update(entity);
             return Task.CompletedTask;
         }
+
+        public async Task<bool> DeleteBankAccountAsync(Guid bankAccountId, Guid profileId, CancellationToken ct)
+        {
+            var affected = await _db.BankAccounts
+                .Where(x => x.Id == bankAccountId && x.ProfileId == profileId)
+                .ExecuteDeleteAsync(ct);
+
+            return affected > 0;
+        }
+
     }
 }

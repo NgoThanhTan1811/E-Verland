@@ -1,31 +1,65 @@
 using System.ComponentModel.DataAnnotations;
 using Modules.User.Application.DTOs.Request;
+
 namespace Modules.User.Application.Validators
 {
-    public class AddressValidator
+    public static class AddressValidator
     {
-        public static ValidationResult Validate(string address)
+        private static bool ValidateAddressField(string? value, int minLength = 2)
         {
-            if (string.IsNullOrWhiteSpace(address) || address.Length < 5)
-                return new ValidationResult("Address must be at least 5 characters long.", [nameof(address)]);
-
-            return ValidationResult.Success!;
+            return value != null && !string.IsNullOrWhiteSpace(value) && value.Trim().Length >= minLength;
         }
 
-        public static ValidationResult ValidateUpdate(string? address)
+        public static class CreateAddress
         {
-            if (address != null && (string.IsNullOrWhiteSpace(address) || address.Length < 5))
-                return new ValidationResult("Address must be at least 5 characters long.", [nameof(address)]);
+            public static ValidationResult Validate(CreateAddressReqDto dto)
+            {
+                if (!ValidateAddressField(dto.City))
+                    return new ValidationResult("City is required and must be at least 2 characters.", [nameof(dto.City)]);
 
-            return ValidationResult.Success!;
+                if (!ValidateAddressField(dto.Province))
+                    return new ValidationResult("Province is required and must be at least 2 characters.", [nameof(dto.Province)]);
+
+                if (!ValidateAddressField(dto.District))
+                    return new ValidationResult("District is required and must be at least 2 characters.", [nameof(dto.District)]);
+
+                if (!ValidateAddressField(dto.Ward))
+                    return new ValidationResult("Ward is required and must be at least 2 characters.", [nameof(dto.Ward)]);
+
+                if (!ValidateAddressField(dto.Street))
+                    return new ValidationResult("Street is required and must be at least 2 characters.", [nameof(dto.Street)]);
+
+                if (!ValidateAddressField(dto.Detail, 5))
+                    return new ValidationResult("Detail is required and must be at least 5 characters.", [nameof(dto.Detail)]);
+
+                return ValidationResult.Success!;
+            }
         }
 
-        public static bool ValidateAddress(string? address)
+        public static class UpdateAddress
         {
-            if (address != null && (string.IsNullOrWhiteSpace(address) || address.Length < 5))
-                return false;
+            public static ValidationResult Validate(UpdateAddressReqDto dto)
+            {
+                if (dto.City != null && !ValidateAddressField(dto.City))
+                    return new ValidationResult("City must be at least 2 characters.", [nameof(dto.City)]);
 
-            return true;
+                if (dto.Province != null && !ValidateAddressField(dto.Province))
+                    return new ValidationResult("Province must be at least 2 characters.", [nameof(dto.Province)]);
+
+                if (dto.District != null && !ValidateAddressField(dto.District))
+                    return new ValidationResult("District must be at least 2 characters.", [nameof(dto.District)]);
+
+                if (dto.Ward != null && !ValidateAddressField(dto.Ward))
+                    return new ValidationResult("Ward must be at least 2 characters.", [nameof(dto.Ward)]);
+
+                if (dto.Street != null && !ValidateAddressField(dto.Street))
+                    return new ValidationResult("Street must be at least 2 characters.", [nameof(dto.Street)]);
+
+                if (dto.Detail != null && !ValidateAddressField(dto.Detail, 5))
+                    return new ValidationResult("Detail must be at least 5 characters.", [nameof(dto.Detail)]);
+
+                return ValidationResult.Success!;
+            }
         }
     }
 }

@@ -78,12 +78,6 @@ public class AccountRepository : IAccountRepository
         return await _db.Accounts.AnyAsync(a => a.NormalizedUsername == normalized, ct);
     }
 
-    public async Task<IReadOnlyCollection<Account>> GetAllAsync(CancellationToken cancellationToken = default)
-    {
-        var accounts = await _db.Accounts.AsNoTracking().ToListAsync(cancellationToken);
-        return accounts;
-    }
-
     public async Task<Account?> GetByEmailAsync(string email, CancellationToken ct = default)
     {
         var normalized = email.Trim().ToUpperInvariant();
@@ -101,7 +95,7 @@ public class AccountRepository : IAccountRepository
         return await _db.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.NormalizedUsername == normalized, ct);
     }
 
-    public async Task<bool> DeleteAsync(Guid id, Guid byId, CancellationToken cancellationToken = default)
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var account = await _db.Accounts
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);

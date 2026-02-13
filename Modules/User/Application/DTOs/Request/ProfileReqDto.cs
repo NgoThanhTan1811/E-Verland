@@ -1,3 +1,4 @@
+using Modules.User.Domain.Enums;
 
 namespace Modules.User.Application.DTOs.Request
 {
@@ -8,7 +9,7 @@ namespace Modules.User.Application.DTOs.Request
         public string PhoneNumber { get; set; } = default!;
 
     }
-    
+
     public class UpdateProfileReqDto
     {
         public string? FirstName { get; set; }
@@ -16,6 +17,7 @@ namespace Modules.User.Application.DTOs.Request
         public DateTime? DateOfBirth { get; set; }
         public string? PhoneNumber { get; set; }
         public string? AvatarUrl { get; set; }
+        public Gender? Gender { get; set; }
         public string? Bio { get; set; }
     }
 }

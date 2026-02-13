@@ -9,7 +9,7 @@ public class Account : BaseEntity
     [EmailAddress]
     public string Email { get; set; } = default!;
     public string Username { get; set; } = default!;
-    public string NormalizedUsername { get; private set; } = default!;
+    public string NormalizedUsername { get; set; } = default!;
     public string NormalizedEmail { get; private set; } = default!;
     public string Password { get; set; } = default!;
     public RoleUser Role { get; set; } = RoleUser.User;
@@ -18,7 +18,7 @@ public class Account : BaseEntity
     public Profile Profile { get; set; } = default!;
 
 
-    private Account() { } 
+    private Account() { }
     public Account(string email, string username, string password)
     {
         if (string.IsNullOrWhiteSpace(email)) throw new ArgumentException("Email is required.", nameof(email));
@@ -31,5 +31,6 @@ public class Account : BaseEntity
         NormalizedUsername = username.Trim().ToUpperInvariant();
         Password = password;
     }
+
 }
 

@@ -4,6 +4,8 @@ using Modules.User.Domain.Entities;
 using MediatR;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+using Modules.User.Application.Validators;
 
 namespace Modules.User.Application.Commands
 {
@@ -14,7 +16,6 @@ namespace Modules.User.Application.Commands
         DateTime DateOfBirth,
         string PhoneNumber,
         string Email
-
     ) : IRequest<ProfileResDto>;
 
     public class ProfileHandler : IRequestHandler<CreateProfileCommand, ProfileResDto>
@@ -32,13 +33,24 @@ namespace Modules.User.Application.Commands
 
         public async Task<ProfileResDto> Handle(CreateProfileCommand request, CancellationToken ct)
         {
-            var entity = new Domain.Entities.Profile
-            (
+            var validationResult = ProfileValidator.CreateProfile.Validate(new DTOs.Request.CreateProfileReqDto
+            {
+                FirstName = request.FirstName,
+                LastName = request.LastName,
+                PhoneNumber = request.PhoneNumber
+            });
+
+            if (validationResult != ValidationResult.Success)
+                throw new ValidationException(validationResult?.ErrorMessage);
+
+            var entity = new Domain.Entities.Profile(
                 request.AccountId,
                 request.FirstName,
                 request.LastName,
                 request.DateOfBirth
             );
+
+            entity.PhoneNumber = request.PhoneNumber?.Trim();
 
             await _repo.CreateAsync(entity, ct);
 
@@ -52,7 +64,5 @@ namespace Modules.User.Application.Commands
             }
             return _mapper.Map<ProfileResDto>(entity);
         }
-
     }
-
 }

@@ -5,12 +5,12 @@ namespace Modules.User.Application.Interfaces.Repositories
 {
     public interface IAddressRepository : IRepository<Address>
     {
-        Task<IReadOnlyCollection<Address>> GetByProfileIdAsync(Guid ProfileId, CancellationToken ct = default);
+        Task<IReadOnlyList<Address>> GetAllAsync(CancellationToken ct = default);
+        Task<IReadOnlyList<Address>> GetByProfileIdAsync(Guid profileId, CancellationToken ct = default);
 
-        Task<Address?> GetDefaultAsync(Guid ProfileId, CancellationToken ct = default);
+        Task<Address?> GetDefaultAsync(Guid profileId, CancellationToken ct = default);
+        Task<Address?> GetByIdForProfileAsync(Guid addressId, Guid profileId, CancellationToken ct = default);
 
-        Task<Address?> GetByIdForProfileAsync(Guid addressId, Guid ProfileId, CancellationToken ct = default);
-
-        Task UnsetDefaultAsync(Guid ProfileId, CancellationToken ct = default);
+        Task UnsetDefaultAsync(Guid profileId, CancellationToken ct = default);
     }
 }

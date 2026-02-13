@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using Modules.User.Application.DTOs.Request;
+using ValidationResult = System.ComponentModel.DataAnnotations.ValidationResult;
 
 namespace Modules.User.Application.Validators
 {
@@ -10,7 +11,6 @@ namespace Modules.User.Application.Validators
             if (!string.IsNullOrWhiteSpace(email))
                 return new EmailAddressAttribute().IsValid(email);
             return false;
-
         }
 
         private static bool ValidateUsername(string username)
@@ -29,7 +29,7 @@ namespace Modules.User.Application.Validators
 
         public static class CreateAccount
         {
-            public static ValidationResult Validation(CreateAccountReqDto dto)
+            public static ValidationResult Validate(CreateAccountReqDto dto)
             {
                 if (!ValidateEmail(dto.Email))
                     return new ValidationResult("Invalid email format.", [nameof(dto.Email)]);
@@ -42,12 +42,11 @@ namespace Modules.User.Application.Validators
 
                 return ValidationResult.Success!;
             }
-
         }
 
         public static class UpdateAccount
         {
-            public static ValidationResult Validation(UpdateAccountReqDto dto)
+            public static ValidationResult Validate(UpdateAccountReqDto dto)
             {
                 if (dto.Password != null && !ValidatePassword(dto.Password))
                     return new ValidationResult("Password must be at least 6 characters long.", [nameof(dto.Password)]);
@@ -56,13 +55,6 @@ namespace Modules.User.Application.Validators
                     return new ValidationResult("Username must be at least 3 characters long.", [nameof(dto.Username)]);
 
                 return ValidationResult.Success!;
-            }
-
-            private static bool ValidatePassword(string password)
-            {
-                if (!string.IsNullOrWhiteSpace(password) && password.Length >= 6)
-                    return true;
-                return false;
             }
         }
     }
