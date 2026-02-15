@@ -3,7 +3,7 @@ using Modules.User.Application.Interfaces.Repositories;
 using Modules.User.Application.DTOs.Request;
 using Modules.User.Domain.Entities;
 using Modules.User.Infrastructure.Persistence;
-using SharedKernel;
+using SharedKernel.Pagination;
 
 namespace Modules.User.Infrastructure.Persistence;
 
@@ -44,9 +44,7 @@ public class AccountRepository : IAccountRepository
 
         var totalItems = await query.CountAsync(ct);
 
-        var page = filter.Page < 1 ? 1 : filter.Page;
-        var limit = filter.Limit < 1 ? 20 : filter.Limit;
-        var skip = (page - 1) * limit;
+        var (page, limit, skip) = Pagination.Normalize(filter);
 
         var items = await query
             .OrderBy(a => a.CreatedAt)

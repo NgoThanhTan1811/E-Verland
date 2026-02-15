@@ -1,10 +1,12 @@
 using Modules.User.Domain.Entities;
+using SharedKernel.Pagination;
 using SharedKernel.Interfaces.Repository;
 namespace Modules.User.Application.Interfaces.Repositories
 {
     public interface IBankAccountRepository : IRepository<BankAccount>
-    {   
-        Task <IReadOnlyList<BankAccount>> GetAllAsync(CancellationToken ct = default);
+    {
+        Task<PageResult<BankAccount>> GetPagedAsync(PagingFilter filter, CancellationToken ct = default);
+        Task<IReadOnlyList<BankAccount>> GetAllAsync(CancellationToken ct = default);
         Task<IReadOnlyList<BankAccount>> GetByProfileIdAsync(Guid ProfileId, CancellationToken ct = default);
 
         Task<BankAccount?> GetByIdForProfileAsync(Guid bankAccountId, Guid ProfileId, CancellationToken ct = default);

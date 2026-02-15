@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Modules.User.Application.Interfaces.Repositories;
 using Modules.User.Infrastructure.Persistence;
+using SharedKernel.Pagination;
 
 namespace Modules.User.Infrastructure.Repositories
 {
@@ -21,6 +22,28 @@ namespace Modules.User.Infrastructure.Repositories
         {
             return await _db.Profiles.AsNoTracking()
                                  .ToListAsync(cancellationToken);
+        }
+
+        public async Task<PageResult<Domain.Entities.Profile>> GetPagedAsync(PagingFilter filter, CancellationToken ct = default)
+        {
+            var query = _db.Profiles.AsNoTracking().AsQueryable();
+            var totalItems = await query.CountAsync(ct);
+
+            var (page, limit, skip) = filter.Normalize();
+
+            var items = await query
+                .OrderBy(p => p.CreatedAt)
+                .Skip(skip)
+                .Take(limit)
+                .ToListAsync(ct);
+
+            return new PageResult<Domain.Entities.Profile>
+            {
+                Items = items,
+                TotalItems = totalItems,
+                Page = page,
+                Limit = limit
+            };
         }
 
         public async Task<Domain.Entities.Profile?> GetByAccountIdAsync(Guid accountId, CancellationToken ct = default)

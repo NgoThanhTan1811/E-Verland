@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Modules.User.Application.Interfaces.Repositories;
 using Modules.User.Infrastructure.Persistence;
+using SharedKernel.Pagination;
 
 namespace Modules.User.Infrastructure.Repositories
 {
@@ -28,6 +29,28 @@ namespace Modules.User.Infrastructure.Repositories
         {
             return await _db.BankAccounts.AsNoTracking()
                                  .ToListAsync(cancellationToken);
+        }
+
+        public async Task<PageResult<Domain.Entities.BankAccount>> GetPagedAsync(PagingFilter filter, CancellationToken ct = default)
+        {
+            var query = _db.BankAccounts.AsNoTracking().AsQueryable();
+            var totalItems = await query.CountAsync(ct);
+
+            var (page, limit, skip) = filter.Normalize();
+
+            var items = await query
+                .OrderBy(ba => ba.CreatedAt)
+                .Skip(skip)
+                .Take(limit)
+                .ToListAsync(ct);
+
+            return new PageResult<Domain.Entities.BankAccount>
+            {
+                Items = items,
+                TotalItems = totalItems,
+                Page = page,
+                Limit = limit
+            };
         }
 
         public async Task<Domain.Entities.BankAccount?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)

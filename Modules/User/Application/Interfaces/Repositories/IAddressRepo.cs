@@ -1,3 +1,4 @@
+using SharedKernel.Pagination;
 using SharedKernel.Interfaces.Repository;
 using Modules.User.Domain.Entities;
 
@@ -5,6 +6,7 @@ namespace Modules.User.Application.Interfaces.Repositories
 {
     public interface IAddressRepository : IRepository<Address>
     {
+        Task<PageResult<Address>> GetPagedAsync(PagingFilter filter, CancellationToken ct = default);
         Task<IReadOnlyList<Address>> GetAllAsync(CancellationToken ct = default);
         Task<IReadOnlyList<Address>> GetByProfileIdAsync(Guid profileId, CancellationToken ct = default);
 

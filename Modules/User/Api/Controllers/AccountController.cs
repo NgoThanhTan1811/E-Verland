@@ -5,6 +5,7 @@ using Modules.User.Application.DTOs.Request;
 using Modules.User.Application.DTOs.Response;
 using Modules.User.Application.Queries;
 using Modules.User.Application.Queries.Account;
+using SharedKernel.Pagination;
 
 namespace Modules.User.Api.Controllers;
 
@@ -93,8 +94,8 @@ public class AccountController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<AccountResDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<AccountResDto>>> GetAccounts([FromQuery] AccountFilter filter, CancellationToken ct)
+    [ProducesResponseType(typeof(PageResult<AccountResDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PageResult<AccountResDto>>> GetAccounts([FromQuery] AccountFilter filter, CancellationToken ct)
     {
         try
         {

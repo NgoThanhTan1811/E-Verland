@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Modules.User.Infrastructure.Persistence;
-using Modules.User.Domain.Entities;
 using Modules.User.Application.Interfaces.Repositories;
+using Modules.User.Domain.Entities;
+using Modules.User.Infrastructure.Persistence;
+using SharedKernel.Pagination;
 namespace Modules.User.Infrastructure.Repositories
 {
     public class AddressRepository : IAddressRepository
@@ -17,6 +18,28 @@ namespace Modules.User.Infrastructure.Repositories
         {
             return await _db.Addresses.AsNoTracking()
                                      .ToListAsync(cancellationToken);
+        }
+
+        public async Task<PageResult<Address>> GetPagedAsync(PagingFilter filter, CancellationToken ct = default)
+        {
+            var query = _db.Addresses.AsNoTracking().AsQueryable();
+            var totalItems = await query.CountAsync(ct);
+
+            var (page, limit, skip) = filter.Normalize();
+
+            var items = await query
+                .OrderBy(a => a.CreatedAt)
+                .Skip(skip)
+                .Take(limit)
+                .ToListAsync(ct);
+
+            return new PageResult<Address>
+            {
+                Items = items,
+                TotalItems = totalItems,
+                Page = page,
+                Limit = limit
+            };
         }
 
         public async Task<Address?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)

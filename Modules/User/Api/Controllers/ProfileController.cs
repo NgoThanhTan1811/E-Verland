@@ -5,6 +5,7 @@ using Modules.User.Application.DTOs.Request;
 using Modules.User.Application.DTOs.Response;
 using Modules.User.Application.Queries.Profile;
 using Modules.User.Domain.Enums;
+using SharedKernel.Pagination;
 
 namespace Modules.User.Api.Controllers;
 
@@ -81,12 +82,12 @@ public class ProfileController : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(IReadOnlyList<ProfileResDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<ProfileResDto>>> GetProfiles(CancellationToken ct)
+    [ProducesResponseType(typeof(PageResult<ProfileResDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PageResult<ProfileResDto>>> GetProfiles([FromQuery] PagingFilter filter, CancellationToken ct)
     {
         try
         {
-            var query = new GetManyProfileByQuery();
+            var query = new GetManyProfileByQuery(filter);
             var result = await _mediator.Send(query, ct);
             return Ok(result);
         }

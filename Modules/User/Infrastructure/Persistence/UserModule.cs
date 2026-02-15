@@ -10,12 +10,9 @@ public static class UserModule
 {
     public static IServiceCollection AddUserModule(this IServiceCollection services, IConfiguration configuration)
     {
-        var conn =
-            Environment.GetEnvironmentVariable("USER_DB_CONNECTION")
-            ?? configuration.GetConnectionString("UserDb");
-
+        var conn = Environment.GetEnvironmentVariable("USER_DB_CONNECTION");
         if (string.IsNullOrWhiteSpace(conn))
-            throw new InvalidOperationException("User DB connection is not configured. Set USER_DB_CONNECTION or ConnectionStrings:UserDb.");
+            throw new InvalidOperationException("Missing USER_DB_CONNECTION");
 
         services.AddDbContext<UserDbContext>(options =>
         {
