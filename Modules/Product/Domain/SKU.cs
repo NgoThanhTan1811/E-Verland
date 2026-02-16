@@ -8,12 +8,14 @@ namespace Modules.Product.Domain
 {
     public class SKU : BaseEntity
     {
-        public string Value { get; set; } = default!;
+        public string SkuCode { get; set; } = default!;
         public Guid ProductId { get; set; }
         public Product Product { get; set; } = default!;
         public decimal Price { get; set; } = default!;
         public int Stock { get; set; } = default!;
         public string Url { get; set; } = default!;
+        public bool IsActive { get; set; } = true;
+        public Dictionary<string, string> OptionValues { get; set; } = [];
 
     }
 }

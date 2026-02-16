@@ -14,7 +14,7 @@ public record PagingFilter : IPagingFilter
 
 public sealed class PageResult<T>
 {
-    public IReadOnlyCollection<T> Items { get; init; } = Array.Empty<T>();
+    public IReadOnlyCollection<T> Items { get; init; } = [];
 
     public int TotalItems { get; init; }
 
