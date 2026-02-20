@@ -3,6 +3,12 @@ using SharedKernel.Pagination;
 
 namespace Modules.Product.Application.DTOs.Request
 {
+    public record ProductVariantDto
+    {
+        public string Key { get; set; } = default!; // "Color", "Size"
+        public List<string> Values { get; set; } = []; // ["Red", "Blue"]
+    }
+
     public record CreateProductRequestDto
     {
         public string Name { get; set; } = default!;
@@ -10,11 +16,14 @@ namespace Modules.Product.Application.DTOs.Request
         public decimal BasePrice { get; set; }
         public decimal VirtualPrice { get; set; }
         public string Slug { get; set; } = default!;
-        public List<string> ImageUrls { get; set; } = new List<string>();
-        public Dictionary<string, string> Attributes { get; set; } = new Dictionary<string, string>();
+        public List<string> ImageUrls { get; set; } = [];
+        public Dictionary<string, string> Attributes { get; set; } = [];
         public Guid? BrandId { get; set; }
-        public List<Guid> CategoryIds { get; set; } = new List<Guid>();
+        public List<Guid> CategoryIds { get; set; } = [];
         public ProductStatus Status { get; set; } = ProductStatus.Pending;
+
+        // For SKU auto-generation
+        public List<ProductVariantDto>? Variants { get; set; }
     }
 
     public record UpdateProductRequestDto

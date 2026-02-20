@@ -1,5 +1,6 @@
 using DotNetEnv;
 using Modules.User;
+using Modules.Product.Infrastructure.Perhesistences;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
@@ -99,6 +100,7 @@ builder.Configuration
     .AddEnvironmentVariables();
 
 builder.Services.AddUserModule(builder.Configuration);
+builder.Services.AddProductModule(builder.Configuration);
 
 
 var app = builder.Build();
