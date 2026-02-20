@@ -6,9 +6,9 @@ using SharedKernel.Pagination;
 
 namespace Modules.Product.Application.Queries;
 
-public sealed record SearchBrandQuery(SearchBrandRequestDto Filter) : IRequest<PaginationResult<BrandListItemDto>>;
+public sealed record SearchBrandQuery(SearchBrandRequestDto Filter) : IRequest<PageResult<BrandListItemDto>>;
 
-public sealed class SearchBrandHandler : IRequestHandler<SearchBrandQuery, PaginationResult<BrandListItemDto>>
+public sealed class SearchBrandHandler : IRequestHandler<SearchBrandQuery, PageResult<BrandListItemDto>>
 {
     private readonly IBrandRepository _brandRepository;
 
@@ -17,7 +17,7 @@ public sealed class SearchBrandHandler : IRequestHandler<SearchBrandQuery, Pagin
         _brandRepository = brandRepository;
     }
 
-    public async Task<PaginationResult<BrandListItemDto>> Handle(SearchBrandQuery request, CancellationToken cancellationToken)
+    public async Task<PageResult<BrandListItemDto>> Handle(SearchBrandQuery request, CancellationToken cancellationToken)
     {
         var query = (await _brandRepository.GetAllWithProductsAsync(cancellationToken))
             .AsQueryable();
@@ -44,13 +44,6 @@ public sealed class SearchBrandHandler : IRequestHandler<SearchBrandQuery, Pagin
             CreatedAt = b.CreatedAt
         }).ToList();
 
-        return new PaginationResult<BrandListItemDto>
-        {
-            Items = dtos,
-            TotalCount = totalCount,
-            Page = request.Filter.Page,
-            Limit = request.Filter.Limit,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)request.Filter.Limit)
-        };
+        return Pagination.PaginationResult(dtos, totalCount, request.Filter);
     }
 }

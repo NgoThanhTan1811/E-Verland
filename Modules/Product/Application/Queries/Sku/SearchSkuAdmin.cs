@@ -6,9 +6,9 @@ using SharedKernel.Pagination;
 
 namespace Modules.Product.Application.Queries;
 
-public sealed record SearchSkuAdminQuery(SearchSkuAdminRequestDto Filter) : IRequest<PaginationResult<SkuAdminListItemDto>>;
+public sealed record SearchSkuAdminQuery(SearchSkuAdminRequestDto Filter) : IRequest<PageResult<SkuAdminListItemDto>>;
 
-public sealed class SearchSkuAdminHandler : IRequestHandler<SearchSkuAdminQuery, PaginationResult<SkuAdminListItemDto>>
+public sealed class SearchSkuAdminHandler : IRequestHandler<SearchSkuAdminQuery, PageResult<SkuAdminListItemDto>>
 {
     private readonly ISkuRepository _skuRepository;
 
@@ -17,7 +17,7 @@ public sealed class SearchSkuAdminHandler : IRequestHandler<SearchSkuAdminQuery,
         _skuRepository = skuRepository;
     }
 
-    public async Task<PaginationResult<SkuAdminListItemDto>> Handle(SearchSkuAdminQuery request, CancellationToken cancellationToken)
+    public async Task<PageResult<SkuAdminListItemDto>> Handle(SearchSkuAdminQuery request, CancellationToken cancellationToken)
     {
         var skus = await _skuRepository.GetAllWithProductAsync(cancellationToken);
         var query = skus.AsQueryable();
@@ -77,13 +77,6 @@ public sealed class SearchSkuAdminHandler : IRequestHandler<SearchSkuAdminQuery,
             ProductName = s.Product?.Name ?? string.Empty
         }).ToList();
 
-        return new PaginationResult<SkuAdminListItemDto>
-        {
-            Items = dtos,
-            TotalCount = totalCount,
-            Page = request.Filter.Page,
-            Limit = request.Filter.Limit,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)request.Filter.Limit)
-        };
+        return Pagination.PaginationResult(dtos, totalCount, request.Filter);
     }
 }

@@ -6,9 +6,9 @@ using SharedKernel.Pagination;
 
 namespace Modules.Product.Application.Queries;
 
-public sealed record SearchProductCustomerQuery(FilterProductCustomerRequestDto Filter) : IRequest<PaginationResult<ProductListItemDto>>;
+public sealed record SearchProductCustomerQuery(FilterProductCustomerRequestDto Filter) : IRequest<PageResult<ProductListItemDto>>;
 
-public sealed class SearchProductCustomerHandler : IRequestHandler<SearchProductCustomerQuery, PaginationResult<ProductListItemDto>>
+public sealed class SearchProductCustomerHandler : IRequestHandler<SearchProductCustomerQuery, PageResult<ProductListItemDto>>
 {
     private readonly IProductRepository _productRepository;
 
@@ -17,7 +17,7 @@ public sealed class SearchProductCustomerHandler : IRequestHandler<SearchProduct
         _productRepository = productRepository;
     }
 
-    public async Task<PaginationResult<ProductListItemDto>> Handle(SearchProductCustomerQuery request, CancellationToken cancellationToken)
+    public async Task<PageResult<ProductListItemDto>> Handle(SearchProductCustomerQuery request, CancellationToken cancellationToken)
     {
         var products = await _productRepository.GetSearchProductsCustomerAsync(request.Filter, cancellationToken);
         var productList = products.ToList();
@@ -39,13 +39,6 @@ public sealed class SearchProductCustomerHandler : IRequestHandler<SearchProduct
             Status = p.Status
         }).ToList();
 
-        return new PaginationResult<ProductListItemDto>
-        {
-            Items = dtos,
-            TotalCount = totalCount,
-            Page = request.Filter.Page,
-            Limit = request.Filter.Limit,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)request.Filter.Limit)
-        };
+        return Pagination.PaginationResult(dtos, totalCount, request.Filter);
     }
 }
