@@ -1,16 +1,16 @@
 using DotNetEnv;
 using Modules.User;
-using Modules.Product.Infrastructure.Perhesistences;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
 using System.Threading.RateLimiting;
-// using Microsoft.OpenApi.Models;
+using Modules.Product;
+using Modules.Cart;
+using Microsoft.OpenApi;
 
 
 
 
-Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,33 +20,33 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddTransient<ApiExceptionMiddleware>();
 
 // Swagger Configuration
-// builder.Services.AddSwaggerGen(options =>
-// {
-//     options.SwaggerDoc("v1", new OpenApiInfo { Title = "API", Version = "v1" });
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo { Title = "API", Version = "v1" });
 
-//     options.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
-//     {
-//         Name = "Authorization",
-//         Type = SecuritySchemeType.Http,
-//         Scheme = "bearer",
-//         BearerFormat = "JWT",
-//         In = ParameterLocation.Header
-//     });
-//     options.AddSecurityRequirement(new OpenApiSecurityRequirement
-//     {
-//         {
-//             new OpenApiSecurityScheme
-//             {
-//                 Reference = new OpenApiReference
-//                 {
-//                     Type = ReferenceType.SecurityScheme,
-//                     Id = "bearer"
-//                 }
-//             },
-//             Array.Empty<string>()
-//         }
-//     });
-// });
+    options.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header
+    });
+    // options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    // {
+    //     {
+    //         new OpenApiSecurityScheme
+    //         {
+    //             Reference = new OpenApiReference
+    //             {
+    //                 Type = ReferenceType.SecurityScheme,
+    //                 Id = "bearer"
+    //             }
+    //         },
+    //         Array.Empty<string>()
+    //     }
+    // });
+});
 
 // JWT Configuration
 // var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")?.Split('\n', '\r')[0].Trim()
@@ -95,12 +95,11 @@ builder.Services.AddTransient<ApiExceptionMiddleware>();
 // });
 
 
-builder.Configuration
-    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-    .AddEnvironmentVariables();
 
+// Add Modules
 builder.Services.AddUserModule(builder.Configuration);
 builder.Services.AddProductModule(builder.Configuration);
+builder.Services.AddCartModule(builder.Configuration);
 
 
 var app = builder.Build();
@@ -113,14 +112,14 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ApiExceptionMiddleware>();
 
-app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
+// app.UseHttpsRedirection();
+// app.UseAuthentication();
+// app.UseAuthorization();
 
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.UseRateLimiter();
+// app.UseRateLimiter();
 
 app.MapControllers();
 app.Run();
