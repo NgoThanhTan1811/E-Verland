@@ -1,5 +1,5 @@
 using MediatR;
-using Modules.Product.Application.Abtracsts;
+using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.DTOs.Response;
 

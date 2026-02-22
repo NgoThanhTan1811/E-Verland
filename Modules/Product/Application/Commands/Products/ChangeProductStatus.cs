@@ -1,5 +1,5 @@
 using MediatR;
-using Modules.Product.Application.Abtracsts;
+using Modules.Product.Application.Contracts;
 using Modules.Product.Domain;
 
 namespace Modules.Product.Application.Commands;

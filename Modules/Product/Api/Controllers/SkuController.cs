@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Modules.Product.Application.Commands;
 using Modules.Product.Application.DTOs.Request;
@@ -13,6 +14,7 @@ public class SkuController(IMediator mediator) : ControllerBase
     private readonly IMediator _mediator = mediator;
 
     [HttpPost]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CreateSku([FromBody] CreateSkuRequestDto request, CancellationToken cancellationToken)
     {
         var command = new CreateSkuCommand(request);
@@ -21,13 +23,15 @@ public class SkuController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> UpdateSku(Guid id, [FromBody] UpdateSkuRequestDto request, CancellationToken cancellationToken)
     {
         var command = new UpdateSkuCommand(id, request);
         var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);
     }
-
+    
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteSku(Guid id, CancellationToken cancellationToken)
     {
@@ -46,6 +50,7 @@ public class SkuController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpGet("admin/search")]
     public async Task<IActionResult> SearchSkus([FromQuery] SearchSkuAdminRequestDto filter, CancellationToken cancellationToken)
     {

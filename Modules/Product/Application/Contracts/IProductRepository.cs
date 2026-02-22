@@ -2,7 +2,7 @@
 using SharedKernel.Interfaces.Repository;
 using Modules.Product.Application.DTOs.Request;
 
-namespace Modules.Product.Application.Abtracsts
+namespace Modules.Product.Application.Contracts
 {
     public interface IProductRepository : IRepository<Domain.Product>
     {
@@ -10,7 +10,7 @@ namespace Modules.Product.Application.Abtracsts
         Task<IEnumerable<Domain.Product>> GetSearchProductsCustomerAsync(FilterProductCustomerRequestDto filter, CancellationToken ct = default);
 
         Task<bool> IsActiveProductAsync(Guid productId, CancellationToken ct = default);
-    
+
         Task<int> CountProductsAsync(CancellationToken ct = default);
     }
 }

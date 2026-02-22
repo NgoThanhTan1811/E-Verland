@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Modules.Product.Infrastructure.Perhesistences
+namespace Modules.Cart.Application
 {
-    public class ProductModule
+    public class CartApplicationMarker
     {
         
     }

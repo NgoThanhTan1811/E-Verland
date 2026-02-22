@@ -1,6 +1,6 @@
 using SharedKernel.Interfaces.Repository;
 
-namespace Modules.Product.Application.Abtracsts;
+namespace Modules.Product.Application.Contracts;
 
 public interface ISkuRepository : IRepository<Domain.SKU>
 {

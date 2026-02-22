@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Modules.Product.Application.Commands;
 using Modules.Product.Application.DTOs.Request;
@@ -11,7 +12,7 @@ namespace Modules.Product.Api.Controllers;
 public class BrandController(IMediator mediator) : ControllerBase
 {
     private readonly IMediator _mediator = mediator;
-
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<IActionResult> CreateBrand([FromBody] CreateBrandRequestDto request, CancellationToken cancellationToken)
     {
@@ -20,6 +21,7 @@ public class BrandController(IMediator mediator) : ControllerBase
         return CreatedAtAction(nameof(GetBrandById), new { id = result.Id }, result);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateBrand(Guid id, [FromBody] UpdateBrandRequestDto request, CancellationToken cancellationToken)
     {
@@ -28,6 +30,7 @@ public class BrandController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteBrand(Guid id, CancellationToken cancellationToken)
     {
@@ -46,7 +49,7 @@ public class BrandController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("search")]
+    [HttpGet("search/brand")]
     public async Task<IActionResult> SearchBrands([FromQuery] SearchBrandRequestDto filter, CancellationToken cancellationToken)
     {
         var query = new SearchBrandQuery(filter);

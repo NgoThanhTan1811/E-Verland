@@ -10,15 +10,15 @@ public static class UserModule
 {
     public static IServiceCollection AddUserModule(this IServiceCollection services, IConfiguration configuration)
     {
-        var conn = Environment.GetEnvironmentVariable("USER_DB_CONNECTION");
+        var conn = configuration.GetConnectionString("UserDb");
         if (string.IsNullOrWhiteSpace(conn))
-            throw new InvalidOperationException("Missing USER_DB_CONNECTION");
+            throw new InvalidOperationException("Missing ConnectionStrings__UserDb");
 
         services.AddDbContext<UserDbContext>(options =>
         {
             options.UseNpgsql(conn, npgsql =>
             {
-                npgsql.MigrationsAssembly(typeof(UserDbContext).Assembly.FullName);
+                npgsql.MigrationsAssembly(typeof(UserDbContext).Assembly.GetName().Name);
             });
         });
 

@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Modules.Product.Application.Abtracsts;
+using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Domain;
-using Modules.Product.Infrastructure.Perhesistences;
+using Modules.Product.Infrastructure.Persistence;
 
 namespace Modules.Product.Infrastructure.Repositories;
 

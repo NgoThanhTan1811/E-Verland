@@ -1,10 +1,10 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Modules.Product.Application.Abtracsts;
+using Modules.Product.Application.Contracts;
 using Modules.Product.Domain;
 
-namespace Modules.Product.Infrastructure.Perhesistences;
+namespace Modules.Product.Infrastructure.Persistence;
 
 public class ProductDbContext : DbContext, IProductDbContext
 {
@@ -85,7 +85,7 @@ public class ProductDbContext : DbContext, IProductDbContext
                 .HasConversion<string>()
                 .IsRequired();
 
-            _ = entity.Property(x => x.ImageUrls)
+            entity.Property(x => x.ImageUrls)
                 .HasConversion(imageUrlsConverter)
                 .HasColumnType("jsonb");
 

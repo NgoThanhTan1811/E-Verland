@@ -1,23 +1,22 @@
-using Microsoft.Extensions.DependencyInjection;
-using MediatR;
 using Modules.Product.Application.Services;
 using Modules.Product.Application;
 using Modules.Product.Infrastructure.Repositories;
-using Modules.Product.Application.Abtracsts;
+using Modules.Product.Application.Contracts;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
+using Modules.Product.Infrastructure.Persistence;
 
-namespace Modules.Product.Infrastructure.Perhesistences;
+namespace Modules.Product;
 
 public static class ProductModuleExtensions
 {
     public static IServiceCollection AddProductModule(this IServiceCollection services, IConfiguration configuration)
     {
         // Add DbContext
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
-        services.AddDbContext<ProductDbContext>(options =>
-            options.UseNpgsql(connectionString ?? throw new InvalidOperationException("ConnectionString not found")));
+        var conn = configuration.GetConnectionString("ProductDb")
+                ?? throw new InvalidOperationException("Missing ConnectionStrings:ProductDb");
 
+        services.AddDbContext<ProductDbContext>(options =>
+            options.UseNpgsql(conn));
         // Add Repositories
         services.AddScoped<IBrandRepository, BrandRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();

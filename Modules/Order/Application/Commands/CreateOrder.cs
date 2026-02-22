@@ -1,0 +1,110 @@
+using AutoMapper;
+using MediatR;
+using Microsoft.EntityFrameworkCore;
+using Modules.Order.Application.Contracts;
+using Modules.Order.Application.DTOs.Request;
+using Modules.Order.Application.DTOs.Response;
+using Modules.Order.Domain;
+
+namespace Modules.Order.Application.Commands;
+
+public sealed record CreateOrderCommand(
+    Guid UserId,
+    ReceiverRequestDto Receiver,
+    PaymentMethod PaymentMethod,
+    decimal? Discount,
+    List<CreateOrderItemRequestDto> Items
+) : IRequest<CreateOrderResponseDto>;
+
+public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, CreateOrderResponseDto>
+{
+    private readonly IOrderRepository _repo;
+    private readonly IOrderDbContext _db;
+    private readonly IProductService _productService;
+    private readonly IMapper _mapper;
+
+    public CreateOrderHandler(IOrderRepository repo, IOrderDbContext db, IProductService productService, IMapper mapper)
+    {
+        _repo = repo;
+        _db = db;
+        _productService = productService;
+        _mapper = mapper;
+    }
+
+    public async Task<CreateOrderResponseDto> Handle(CreateOrderCommand request, CancellationToken ct)
+    {
+        if (request.Items == null || request.Items.Count == 0)
+            throw new ArgumentException("Order must have at least one item");
+
+        var receiverSnapshot = ReceiverSnapshot.Create(
+            request.Receiver.Name,
+            request.Receiver.Phone,
+            request.Receiver.Address
+        );
+
+        var order = new Domain.Order
+        {
+            UserId = request.UserId,
+            Code = await GenerateOrderCodeAsync(ct),
+            Receiver = receiverSnapshot,
+            PaymentMethod = request.PaymentMethod,
+            Discount = request.Discount,
+            Status = OrderStatus.Pending,
+            PaymentStatus = PaymentStatus.Pending,
+            Items = []
+        };
+
+        decimal totalPrice = 0;
+        foreach (var itemDto in request.Items)
+        {
+            var product = await _productService.GetProductAsync(itemDto.ProductId, ct);
+            if (product == null)
+                throw new ArgumentException($"Product with ID {itemDto.ProductId} not found");
+
+            var orderItem = new OrderItem(
+                itemDto.ProductId,
+                itemDto.SkuId,
+                product.Name,
+                (int)product.Price,
+                itemDto.Quantity
+            );
+
+            order.Items.Add(orderItem);
+            totalPrice += orderItem.TotalPrice;
+        }
+
+        order.TotalPrice = totalPrice;
+
+        await _repo.CreateAsync(order, ct);
+
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            throw new InvalidOperationException("Order creation failed due to database error.");
+        }
+
+        return new CreateOrderResponseDto(order.Id, order.Code);
+    }
+
+    private async Task<string> GenerateOrderCodeAsync(CancellationToken ct)
+    {
+        string code;
+        int attempt = 0;
+        const int maxAttempts = 10;
+
+        do
+        {
+            code = $"ORD-{DateTime.UtcNow:ddMMyyyy}-{Random.Shared.Next(1000, 9999)}";
+            attempt++;
+
+            if (attempt >= maxAttempts)
+                throw new InvalidOperationException("Failed to generate unique order code");
+
+        } while (await _repo.CodeExistsAsync(code, ct));
+
+        return code;
+    }
+}

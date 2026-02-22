@@ -7,6 +7,7 @@ using System.Threading.RateLimiting;
 using Modules.Product;
 using Modules.Cart;
 using Microsoft.OpenApi;
+using Modules.Order;
 
 
 
@@ -94,12 +95,11 @@ builder.Services.AddSwaggerGen(options =>
 //     });
 // });
 
-
-
 // Add Modules
 builder.Services.AddUserModule(builder.Configuration);
 builder.Services.AddProductModule(builder.Configuration);
 builder.Services.AddCartModule(builder.Configuration);
+builder.Services.AddOrderModule(builder.Configuration);
 
 
 var app = builder.Build();

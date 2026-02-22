@@ -1,4 +1,4 @@
-namespace Modules.Product.Application.Abtracsts;
+namespace Modules.Product.Application.Contracts;
 
 public interface IProductDbContext
 {

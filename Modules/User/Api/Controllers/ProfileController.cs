@@ -83,6 +83,7 @@ public class ProfileController : ControllerBase
 
     [HttpGet]
     [ProducesResponseType(typeof(PageResult<ProfileResDto>), StatusCodes.Status200OK)]
+    // [Authorize(Roles = "Admin")]
     public async Task<ActionResult<PageResult<ProfileResDto>>> GetProfiles([FromQuery] PagingFilter filter, CancellationToken ct)
     {
         try
@@ -135,6 +136,7 @@ public class ProfileController : ControllerBase
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    // [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteProfile(Guid id, CancellationToken ct)
     {
         try
