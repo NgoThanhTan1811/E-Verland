@@ -9,16 +9,10 @@ namespace Modules.User.Application.Queries.BankAccount
 {
     public sealed record GetManyBankAccountByQuery(PagingFilter Filter) : IRequest<PageResult<BankAccountResDto>>;
 
-    public sealed class GetManyBankAccountHandler : IRequestHandler<GetManyBankAccountByQuery, PageResult<BankAccountResDto>>
+    public sealed class GetManyBankAccountHandler(IBankAccountRepository repo, IMapper mapper) : IRequestHandler<GetManyBankAccountByQuery, PageResult<BankAccountResDto>>
     {
-        private readonly IBankAccountRepository _repo;
-        private readonly IMapper _mapper;
-
-        public GetManyBankAccountHandler(IBankAccountRepository repo, IMapper mapper)
-        {
-            _repo = repo;
-            _mapper = mapper;
-        }
+        private readonly IBankAccountRepository _repo = repo;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<PageResult<BankAccountResDto>> Handle(GetManyBankAccountByQuery request, CancellationToken ct)
         {

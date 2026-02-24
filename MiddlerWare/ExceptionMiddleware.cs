@@ -1,11 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 
-public sealed class ApiExceptionMiddleware : IMiddleware
+public sealed class ApiExceptionMiddleware(ILogger<ApiExceptionMiddleware> logger) : IMiddleware
 {
-    private readonly ILogger<ApiExceptionMiddleware> _logger;
-
-    public ApiExceptionMiddleware(ILogger<ApiExceptionMiddleware> logger)
-        => _logger = logger;
+    private readonly ILogger<ApiExceptionMiddleware> _logger = logger;
 
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
     {

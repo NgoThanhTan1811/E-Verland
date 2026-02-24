@@ -6,14 +6,9 @@ namespace Modules.Product.Application.Queries;
 
 public sealed record GetAllCategoriesQuery() : IRequest<List<CategoryDetailDto>>;
 
-public sealed class GetAllCategoriesHandler : IRequestHandler<GetAllCategoriesQuery, List<CategoryDetailDto>>
+public sealed class GetAllCategoriesHandler(ICategoryRepository categoryRepository) : IRequestHandler<GetAllCategoriesQuery, List<CategoryDetailDto>>
 {
-    private readonly ICategoryRepository _categoryRepository;
-
-    public GetAllCategoriesHandler(ICategoryRepository categoryRepository)
-    {
-        _categoryRepository = categoryRepository;
-    }
+    private readonly ICategoryRepository _categoryRepository = categoryRepository;
 
     public async Task<List<CategoryDetailDto>> Handle(GetAllCategoriesQuery request, CancellationToken cancellationToken)
     {

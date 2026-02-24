@@ -8,24 +8,16 @@ namespace Modules.Cart.Application.Commands;
 
 public sealed record UpdateCartItemCommand(UpdateCartItemRequestDto Request) : IRequest<CartResponseDto>;
 
-public sealed class UpdateCartItemHandler : IRequestHandler<UpdateCartItemCommand, CartResponseDto>
+public sealed class UpdateCartItemHandler(
+    ICartRepository cartRepository,
+    ICartItemRepository cartItemRepository,
+    ICartDbContext dbContext,
+    IMapper mapper) : IRequestHandler<UpdateCartItemCommand, CartResponseDto>
 {
-    private readonly ICartRepository _cartRepository;
-    private readonly ICartItemRepository _cartItemRepository;
-    private readonly ICartDbContext _dbContext;
-    private readonly IMapper _mapper;
-
-    public UpdateCartItemHandler(
-        ICartRepository cartRepository,
-        ICartItemRepository cartItemRepository,
-        ICartDbContext dbContext,
-        IMapper mapper)
-    {
-        _cartRepository = cartRepository;
-        _cartItemRepository = cartItemRepository;
-        _dbContext = dbContext;
-        _mapper = mapper;
-    }
+    private readonly ICartRepository _cartRepository = cartRepository;
+    private readonly ICartItemRepository _cartItemRepository = cartItemRepository;
+    private readonly ICartDbContext _dbContext = dbContext;
+    private readonly IMapper _mapper = mapper;
 
     public async Task<CartResponseDto> Handle(UpdateCartItemCommand request, CancellationToken cancellationToken)
     {

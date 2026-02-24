@@ -26,7 +26,7 @@ namespace Modules.Cart.Infrastructure.Repositorise
             return true;
         }
 
-        public Task<CartItem?> GetByCartIdAndProductIdAsync(Guid cartId, Guid skuId, CancellationToken ct = default)
+        public Task<CartItem?> GetByCartIdAndSkuIdAsync(Guid cartId, Guid skuId, CancellationToken ct = default)
         {
             return _db.CartItems.AsNoTracking()
                 .FirstOrDefaultAsync(c => c.CartId == cartId && c.SkuId == skuId, ct);

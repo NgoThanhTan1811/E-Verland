@@ -6,14 +6,9 @@ namespace Modules.User.Application.Commands
 {
     public sealed record DeleteProfileCommand(Guid ProfileId) : IRequest<bool>;
 
-    public sealed class DeleteProfileHandler : IRequestHandler<DeleteProfileCommand, bool>
+    public sealed class DeleteProfileHandler(IProfileRepository repo) : IRequestHandler<DeleteProfileCommand, bool>
     {
-        private readonly IProfileRepository _repo;
-
-        public DeleteProfileHandler(IProfileRepository repo)
-        {
-            _repo = repo;
-        }
+        private readonly IProfileRepository _repo = repo;
 
         public async Task<bool> Handle(DeleteProfileCommand request, CancellationToken ct)
         {

@@ -5,11 +5,9 @@ using Modules.Product.Infrastructure.Persistence;
 
 namespace Modules.Product.Infrastructure.Repositories;
 
-public class SkuRepository : ISkuRepository
+public class SkuRepository(ProductDbContext db) : ISkuRepository
 {
-    private readonly ProductDbContext _db;
-
-    public SkuRepository(ProductDbContext db) => _db = db;
+    private readonly ProductDbContext _db = db;
 
     public Task CreateAsync(SKU entity, CancellationToken cancellationToken = default)
     {

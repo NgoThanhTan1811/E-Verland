@@ -9,16 +9,10 @@ namespace Modules.User.Application.Queries;
 
 public sealed record GetAccountsQuery(AccountFilter Filter) : IRequest<PageResult<AccountResDto>>;
 
-public sealed class GetAccountsHandler : IRequestHandler<GetAccountsQuery, PageResult<AccountResDto>>
+public sealed class GetAccountsHandler(IAccountRepository repo, IMapper mapper) : IRequestHandler<GetAccountsQuery, PageResult<AccountResDto>>
 {
-    private readonly IAccountRepository _repo;
-    private readonly IMapper _mapper;
-
-    public GetAccountsHandler(IAccountRepository repo, IMapper mapper)
-    {
-        _repo = repo;
-        _mapper = mapper;
-    }
+    private readonly IAccountRepository _repo = repo;
+    private readonly IMapper _mapper = mapper;
 
     public async Task<PageResult<AccountResDto>> Handle(GetAccountsQuery request, CancellationToken ct)
     {

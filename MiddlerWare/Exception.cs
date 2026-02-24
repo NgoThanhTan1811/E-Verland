@@ -1,9 +1,7 @@
-public sealed class NotFoundException : Exception
+public sealed class NotFoundException(string message) : Exception(message)
 {
-    public NotFoundException(string message) : base(message) { }
 }
 
-public sealed class ConflictException : Exception
+public sealed class ConflictException(string message) : Exception(message)
 {
-    public ConflictException(string message) : base(message) { }
 }

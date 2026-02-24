@@ -7,16 +7,10 @@ namespace Modules.Product.Application.Commands;
 
 public sealed record CreateBrandCommand(CreateBrandRequestDto Request) : IRequest<BrandDetailDto>;
 
-public sealed class CreateBrandHandler : IRequestHandler<CreateBrandCommand, BrandDetailDto>
+public sealed class CreateBrandHandler(IBrandRepository brandRepository, IProductDbContext dbContext) : IRequestHandler<CreateBrandCommand, BrandDetailDto>
 {
-    private readonly IBrandRepository _brandRepository;
-    private readonly IProductDbContext _dbContext;
-
-    public CreateBrandHandler(IBrandRepository brandRepository, IProductDbContext dbContext)
-    {
-        _brandRepository = brandRepository;
-        _dbContext = dbContext;
-    }
+    private readonly IBrandRepository _brandRepository = brandRepository;
+    private readonly IProductDbContext _dbContext = dbContext;
 
     public async Task<BrandDetailDto> Handle(CreateBrandCommand request, CancellationToken cancellationToken)
     {

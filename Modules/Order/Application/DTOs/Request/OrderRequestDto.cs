@@ -5,7 +5,7 @@ namespace Modules.Order.Application.DTOs.Request;
 public sealed record CreateOrderRequestDto(
     ReceiverRequestDto Receiver,
     PaymentMethod PaymentMethod,
-    decimal? Discount,
+    decimal? VoucherCode,
     List<CreateOrderItemRequestDto> Items
 );
 

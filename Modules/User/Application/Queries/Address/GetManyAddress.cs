@@ -9,16 +9,10 @@ namespace Modules.User.Application.Queries.Address
 {
     public sealed record GetManyAddressByQuery(PagingFilter Filter) : IRequest<PageResult<AddressResDto>>;
 
-    public sealed class GetManyAddressHandler : IRequestHandler<GetManyAddressByQuery, PageResult<AddressResDto>>
+    public sealed class GetManyAddressHandler(IAddressRepository repo, IMapper mapper) : IRequestHandler<GetManyAddressByQuery, PageResult<AddressResDto>>
     {
-        private readonly IAddressRepository _repo;
-        private readonly IMapper _mapper;
-
-        public GetManyAddressHandler(IAddressRepository repo, IMapper mapper)
-        {
-            _repo = repo;
-            _mapper = mapper;
-        }
+        private readonly IAddressRepository _repo = repo;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<PageResult<AddressResDto>> Handle(GetManyAddressByQuery request, CancellationToken ct)
         {

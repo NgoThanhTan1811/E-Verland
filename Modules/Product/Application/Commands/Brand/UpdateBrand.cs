@@ -7,16 +7,10 @@ namespace Modules.Product.Application.Commands;
 
 public sealed record UpdateBrandCommand(Guid Id, UpdateBrandRequestDto Request) : IRequest<BrandDetailDto>;
 
-public sealed class UpdateBrandHandler : IRequestHandler<UpdateBrandCommand, BrandDetailDto>
+public sealed class UpdateBrandHandler(IBrandRepository brandRepository, IProductDbContext dbContext) : IRequestHandler<UpdateBrandCommand, BrandDetailDto>
 {
-    private readonly IBrandRepository _brandRepository;
-    private readonly IProductDbContext _dbContext;
-
-    public UpdateBrandHandler(IBrandRepository brandRepository, IProductDbContext dbContext)
-    {
-        _brandRepository = brandRepository;
-        _dbContext = dbContext;
-    }
+    private readonly IBrandRepository _brandRepository = brandRepository;
+    private readonly IProductDbContext _dbContext = dbContext;
 
     public async Task<BrandDetailDto> Handle(UpdateBrandCommand request, CancellationToken cancellationToken)
     {

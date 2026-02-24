@@ -13,16 +13,10 @@ public sealed record FilterOrdersUserQuery(
     FilterOrdersUserRequestDto Filter
 ) : IRequest<PageResult<OrderOverviewResponseDto>>;
 
-public sealed class FilterOrdersUserHandler : IRequestHandler<FilterOrdersUserQuery, PageResult<OrderOverviewResponseDto>>
+public sealed class FilterOrdersUserHandler(IOrderRepository repo, IMapper mapper) : IRequestHandler<FilterOrdersUserQuery, PageResult<OrderOverviewResponseDto>>
 {
-    private readonly IOrderRepository _repo;
-    private readonly IMapper _mapper;
-
-    public FilterOrdersUserHandler(IOrderRepository repo, IMapper mapper)
-    {
-        _repo = repo;
-        _mapper = mapper;
-    }
+    private readonly IOrderRepository _repo = repo;
+    private readonly IMapper _mapper = mapper;
 
     public async Task<PageResult<OrderOverviewResponseDto>> Handle(FilterOrdersUserQuery request, CancellationToken ct)
     {

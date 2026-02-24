@@ -6,14 +6,9 @@ namespace Modules.Product.Application.Queries;
 
 public sealed record GetCategoryByIdQuery(Guid Id) : IRequest<CategoryDetailDto?>;
 
-public sealed class GetCategoryByIdHandler : IRequestHandler<GetCategoryByIdQuery, CategoryDetailDto?>
+public sealed class GetCategoryByIdHandler(ICategoryRepository categoryRepository) : IRequestHandler<GetCategoryByIdQuery, CategoryDetailDto?>
 {
-    private readonly ICategoryRepository _categoryRepository;
-
-    public GetCategoryByIdHandler(ICategoryRepository categoryRepository)
-    {
-        _categoryRepository = categoryRepository;
-    }
+    private readonly ICategoryRepository _categoryRepository = categoryRepository;
 
     public async Task<CategoryDetailDto?> Handle(GetCategoryByIdQuery request, CancellationToken cancellationToken)
     {

@@ -8,16 +8,10 @@ namespace Modules.User.Application.Queries.Profile
 {
     public sealed record GetProfileByAccountQuery(Guid AccountId) : IRequest<ProfileResDto>;
 
-    public sealed class GetProfileByAccountHandler : IRequestHandler<GetProfileByAccountQuery, ProfileResDto>
+    public sealed class GetProfileByAccountHandler(IProfileRepository repo, IMapper mapper) : IRequestHandler<GetProfileByAccountQuery, ProfileResDto>
     {
-        private readonly IProfileRepository _repo;
-        private readonly IMapper _mapper;
-
-        public GetProfileByAccountHandler(IProfileRepository repo, IMapper mapper)
-        {
-            _repo = repo;
-            _mapper = mapper;
-        }
+        private readonly IProfileRepository _repo = repo;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<ProfileResDto> Handle(GetProfileByAccountQuery request, CancellationToken ct)
         {

@@ -5,16 +5,10 @@ namespace Modules.Product.Application.Commands;
 
 public sealed record DeleteCategoryCommand(Guid Id) : IRequest<bool>;
 
-public sealed class DeleteCategoryHandler : IRequestHandler<DeleteCategoryCommand, bool>
+public sealed class DeleteCategoryHandler(ICategoryRepository categoryRepository, IProductDbContext dbContext) : IRequestHandler<DeleteCategoryCommand, bool>
 {
-    private readonly ICategoryRepository _categoryRepository;
-    private readonly IProductDbContext _dbContext;
-
-    public DeleteCategoryHandler(ICategoryRepository categoryRepository, IProductDbContext dbContext)
-    {
-        _categoryRepository = categoryRepository;
-        _dbContext = dbContext;
-    }
+    private readonly ICategoryRepository _categoryRepository = categoryRepository;
+    private readonly IProductDbContext _dbContext = dbContext;
 
     public async Task<bool> Handle(DeleteCategoryCommand request, CancellationToken cancellationToken)
     {

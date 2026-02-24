@@ -11,14 +11,9 @@ namespace Modules.User.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class AccountController : ControllerBase
+public class AccountController(IMediator mediator) : ControllerBase
 {
-    private readonly IMediator _mediator;
-
-    public AccountController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
+    private readonly IMediator _mediator = mediator;
 
     [HttpPost]
     [ProducesResponseType(typeof(AccountResDto), StatusCodes.Status201Created)]

@@ -15,18 +15,11 @@ public sealed record CreateAcountCommand(
     string Password
 ) : IRequest<AccountResDto>;
 
-public sealed class CreateAccountHandler : IRequestHandler<CreateAcountCommand, AccountResDto>
+public sealed class CreateAccountHandler(IAccountRepository repo, IMapper mapper, IUserDbContext db) : IRequestHandler<CreateAcountCommand, AccountResDto>
 {
-    private readonly IAccountRepository _repo;
-    private readonly IMapper _mapper;
-    private readonly IUserDbContext _db;
-
-    public CreateAccountHandler(IAccountRepository repo, IMapper mapper, IUserDbContext db)
-    {
-        _repo = repo;
-        _mapper = mapper;
-        _db = db;
-    }
+    private readonly IAccountRepository _repo = repo;
+    private readonly IMapper _mapper = mapper;
+    private readonly IUserDbContext _db = db;
 
     public async Task<AccountResDto> Handle(CreateAcountCommand request, CancellationToken ct)
     {

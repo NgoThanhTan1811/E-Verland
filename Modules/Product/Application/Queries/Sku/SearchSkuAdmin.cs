@@ -8,14 +8,9 @@ namespace Modules.Product.Application.Queries;
 
 public sealed record SearchSkuAdminQuery(SearchSkuAdminRequestDto Filter) : IRequest<PageResult<SkuAdminListItemDto>>;
 
-public sealed class SearchSkuAdminHandler : IRequestHandler<SearchSkuAdminQuery, PageResult<SkuAdminListItemDto>>
+public sealed class SearchSkuAdminHandler(ISkuRepository skuRepository) : IRequestHandler<SearchSkuAdminQuery, PageResult<SkuAdminListItemDto>>
 {
-    private readonly ISkuRepository _skuRepository;
-
-    public SearchSkuAdminHandler(ISkuRepository skuRepository)
-    {
-        _skuRepository = skuRepository;
-    }
+    private readonly ISkuRepository _skuRepository = skuRepository;
 
     public async Task<PageResult<SkuAdminListItemDto>> Handle(SearchSkuAdminQuery request, CancellationToken cancellationToken)
     {

@@ -5,10 +5,10 @@ using Modules.User.Infrastructure.Persistence;
 using SharedKernel.Pagination;
 namespace Modules.User.Infrastructure.Repositories
 {
-    public class AddressRepository : IAddressRepository
+    public class AddressRepository(UserDbContext db) : IAddressRepository
     {
-        private readonly UserDbContext _db;
-        public AddressRepository(UserDbContext db) => _db = db;
+        private readonly UserDbContext _db = db;
+
         public Task CreateAsync(Address entity, CancellationToken cancellationToken = default)
         {
             return _db.Addresses.AddAsync(entity, cancellationToken).AsTask();

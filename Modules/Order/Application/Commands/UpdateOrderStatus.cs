@@ -12,18 +12,12 @@ public sealed record UpdateOrderStatusCommand(
     OrderStatus Status
 ) : IRequest<OrderOverviewResponseDto>;
 
-public sealed class UpdateOrderStatusHandler : IRequestHandler<UpdateOrderStatusCommand, OrderOverviewResponseDto>
+public sealed class UpdateOrderStatusHandler(IOrderRepository repo, IOrderDbContext db, IMapper mapper) 
+            : IRequestHandler<UpdateOrderStatusCommand, OrderOverviewResponseDto>
 {
-    private readonly IOrderRepository _repo;
-    private readonly IOrderDbContext _db;
-    private readonly IMapper _mapper;
-
-    public UpdateOrderStatusHandler(IOrderRepository repo, IOrderDbContext db, IMapper mapper)
-    {
-        _repo = repo;
-        _db = db;
-        _mapper = mapper;
-    }
+    private readonly IOrderRepository _repo = repo;
+    private readonly IOrderDbContext _db = db;
+    private readonly IMapper _mapper = mapper;
 
     public async Task<OrderOverviewResponseDto> Handle(UpdateOrderStatusCommand request, CancellationToken ct)
     {

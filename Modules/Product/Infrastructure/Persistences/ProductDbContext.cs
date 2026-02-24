@@ -6,13 +6,8 @@ using Modules.Product.Domain;
 
 namespace Modules.Product.Infrastructure.Persistence;
 
-public class ProductDbContext : DbContext, IProductDbContext
+public class ProductDbContext(DbContextOptions<ProductDbContext> options) : DbContext(options), IProductDbContext
 {
-    public ProductDbContext(DbContextOptions<ProductDbContext> options)
-        : base(options)
-    {
-    }
-
     public DbSet<Brand> Brands => Set<Brand>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Domain.Product> Products => Set<Domain.Product>();

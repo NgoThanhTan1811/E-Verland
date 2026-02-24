@@ -17,18 +17,11 @@ namespace Modules.User.Application.Commands
         string PhoneNumber
     ) : IRequest<ProfileResDto>;
 
-    public class ProfileHandler : IRequestHandler<CreateProfileCommand, ProfileResDto>
+    public class ProfileHandler(IProfileRepository repo, IMapper mapper, IUserDbContext db) : IRequestHandler<CreateProfileCommand, ProfileResDto>
     {
-        private readonly IProfileRepository _repo;
-        private readonly IUserDbContext _db;
-        private readonly IMapper _mapper;
-
-        public ProfileHandler(IProfileRepository repo, IMapper mapper, IUserDbContext db)
-        {
-            _repo = repo;
-            _mapper = mapper;
-            _db = db;
-        }
+        private readonly IProfileRepository _repo = repo;
+        private readonly IUserDbContext _db = db;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<ProfileResDto> Handle(CreateProfileCommand request, CancellationToken ct)
         {

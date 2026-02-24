@@ -6,14 +6,9 @@ namespace Modules.Product.Application.Queries;
 
 public sealed record GetProductByIdQuery(Guid Id) : IRequest<ProductDetailDto?>;
 
-public sealed class GetProductByIdHandler : IRequestHandler<GetProductByIdQuery, ProductDetailDto?>
+public sealed class GetProductByIdHandler(IProductRepository productRepository) : IRequestHandler<GetProductByIdQuery, ProductDetailDto?>
 {
-    private readonly IProductRepository _productRepository;
-
-    public GetProductByIdHandler(IProductRepository productRepository)
-    {
-        _productRepository = productRepository;
-    }
+    private readonly IProductRepository _productRepository = productRepository;
 
     public async Task<ProductDetailDto?> Handle(GetProductByIdQuery request, CancellationToken cancellationToken)
     {

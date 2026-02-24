@@ -22,19 +22,12 @@ namespace Modules.User.Application.Commands
 
     ) : IRequest<ProfileResDto>;
 
-    public sealed class UpdateProfileHandler
-        : IRequestHandler<UpdateProfileCommand, ProfileResDto>
+    public sealed class UpdateProfileHandler(IProfileRepository repo, IMapper mapper, IUserDbContext db)
+                : IRequestHandler<UpdateProfileCommand, ProfileResDto>
     {
-        private readonly IProfileRepository _repo;
-        private readonly IUserDbContext _db;
-        private readonly IMapper _mapper;
-
-        public UpdateProfileHandler(IProfileRepository repo, IMapper mapper, IUserDbContext db)
-        {
-            _repo = repo;
-            _mapper = mapper;
-            _db = db;
-        }
+        private readonly IProfileRepository _repo = repo;
+        private readonly IUserDbContext _db = db;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<ProfileResDto> Handle(UpdateProfileCommand request, CancellationToken ct)
         {

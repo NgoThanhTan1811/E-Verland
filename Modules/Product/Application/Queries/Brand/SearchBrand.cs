@@ -8,14 +8,9 @@ namespace Modules.Product.Application.Queries;
 
 public sealed record SearchBrandQuery(SearchBrandRequestDto Filter) : IRequest<PageResult<BrandListItemDto>>;
 
-public sealed class SearchBrandHandler : IRequestHandler<SearchBrandQuery, PageResult<BrandListItemDto>>
+public sealed class SearchBrandHandler(IBrandRepository brandRepository) : IRequestHandler<SearchBrandQuery, PageResult<BrandListItemDto>>
 {
-    private readonly IBrandRepository _brandRepository;
-
-    public SearchBrandHandler(IBrandRepository brandRepository)
-    {
-        _brandRepository = brandRepository;
-    }
+    private readonly IBrandRepository _brandRepository = brandRepository;
 
     public async Task<PageResult<BrandListItemDto>> Handle(SearchBrandQuery request, CancellationToken cancellationToken)
     {

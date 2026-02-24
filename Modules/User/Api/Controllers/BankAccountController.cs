@@ -9,14 +9,9 @@ namespace Modules.User.Api.Controllers;
 
 [ApiController]
 [Route("api/profile/{profileId}/[controller]")]
-public class BankAccountController : ControllerBase
+public class BankAccountController(IMediator mediator) : ControllerBase
 {
-    private readonly IMediator _mediator;
-
-    public BankAccountController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
+    private readonly IMediator _mediator = mediator;
 
     [HttpPost]
     [ProducesResponseType(typeof(BankAccountResDto), StatusCodes.Status201Created)]

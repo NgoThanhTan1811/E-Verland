@@ -5,11 +5,9 @@ using Modules.Product.Infrastructure.Persistence;
 
 namespace Modules.Product.Infrastructure.Repositories;
 
-public class CategoryRepository : ICategoryRepository
+public class CategoryRepository(ProductDbContext db) : ICategoryRepository
 {
-    private readonly ProductDbContext _db;
-
-    public CategoryRepository(ProductDbContext db) => _db = db;
+    private readonly ProductDbContext _db = db;
 
     public Task CreateAsync(Category entity, CancellationToken cancellationToken = default)
     {

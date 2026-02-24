@@ -5,13 +5,8 @@ using Modules.User.Application.Interfaces.Repositories;
 
 namespace Modules.User.Infrastructure.Persistence
 {
-   public class UserDbContext : DbContext, IUserDbContext
+   public class UserDbContext(DbContextOptions<UserDbContext> options) : DbContext(options), IUserDbContext
    {
-      public UserDbContext(DbContextOptions<UserDbContext> options)
-  : base(options)
-      {
-      }
-
       public DbSet<Account> Accounts { get; set; }
       public DbSet<Profile> Profiles { get; set; }
       public DbSet<Address> Addresses { get; set; }

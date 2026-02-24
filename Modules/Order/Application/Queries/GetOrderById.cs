@@ -10,16 +10,10 @@ public sealed record GetOrderByIdQuery(
     Guid UserId
 ) : IRequest<OrderDetailResponseDto>;
 
-public sealed class GetOrderByIdHandler : IRequestHandler<GetOrderByIdQuery, OrderDetailResponseDto>
+public sealed class GetOrderByIdHandler(IOrderRepository repo, IMapper mapper) : IRequestHandler<GetOrderByIdQuery, OrderDetailResponseDto>
 {
-    private readonly IOrderRepository _repo;
-    private readonly IMapper _mapper;
-
-    public GetOrderByIdHandler(IOrderRepository repo, IMapper mapper)
-    {
-        _repo = repo;
-        _mapper = mapper;
-    }
+    private readonly IOrderRepository _repo = repo;
+    private readonly IMapper _mapper = mapper;
 
     public async Task<OrderDetailResponseDto> Handle(GetOrderByIdQuery request, CancellationToken ct)
     {

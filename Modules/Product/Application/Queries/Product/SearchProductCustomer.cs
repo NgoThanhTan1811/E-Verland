@@ -8,14 +8,9 @@ namespace Modules.Product.Application.Queries;
 
 public sealed record SearchProductCustomerQuery(FilterProductCustomerRequestDto Filter) : IRequest<PageResult<ProductListItemDto>>;
 
-public sealed class SearchProductCustomerHandler : IRequestHandler<SearchProductCustomerQuery, PageResult<ProductListItemDto>>
+public sealed class SearchProductCustomerHandler(IProductRepository productRepository) : IRequestHandler<SearchProductCustomerQuery, PageResult<ProductListItemDto>>
 {
-    private readonly IProductRepository _productRepository;
-
-    public SearchProductCustomerHandler(IProductRepository productRepository)
-    {
-        _productRepository = productRepository;
-    }
+    private readonly IProductRepository _productRepository = productRepository;
 
     public async Task<PageResult<ProductListItemDto>> Handle(SearchProductCustomerQuery request, CancellationToken cancellationToken)
     {

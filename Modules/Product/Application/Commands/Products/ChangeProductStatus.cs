@@ -6,16 +6,10 @@ namespace Modules.Product.Application.Commands;
 
 public sealed record ChangeProductStatusCommand(Guid ProductId, ProductStatus Status) : IRequest<bool>;
 
-public sealed class ChangeProductStatusHandler : IRequestHandler<ChangeProductStatusCommand, bool>
+public sealed class ChangeProductStatusHandler(IProductRepository productRepository, IProductDbContext dbContext) : IRequestHandler<ChangeProductStatusCommand, bool>
 {
-    private readonly IProductRepository _productRepository;
-    private readonly IProductDbContext _dbContext;
-
-    public ChangeProductStatusHandler(IProductRepository productRepository, IProductDbContext dbContext)
-    {
-        _productRepository = productRepository;
-        _dbContext = dbContext;
-    }
+    private readonly IProductRepository _productRepository = productRepository;
+    private readonly IProductDbContext _dbContext = dbContext;
 
     public async Task<bool> Handle(ChangeProductStatusCommand request, CancellationToken cancellationToken)
     {

@@ -7,24 +7,16 @@ namespace Modules.Cart.Application.Commands;
 
 public sealed record ClearCartCommand(Guid CartId) : IRequest<CartResponseDto>;
 
-public sealed class ClearCartHandler : IRequestHandler<ClearCartCommand, CartResponseDto>
+public sealed class ClearCartHandler(
+    ICartRepository cartRepository,
+    ICartItemRepository cartItemRepository,
+    ICartDbContext dbContext,
+    IMapper mapper) : IRequestHandler<ClearCartCommand, CartResponseDto>
 {
-    private readonly ICartRepository _cartRepository;
-    private readonly ICartItemRepository _cartItemRepository;
-    private readonly ICartDbContext _dbContext;
-    private readonly IMapper _mapper;
-
-    public ClearCartHandler(
-        ICartRepository cartRepository,
-        ICartItemRepository cartItemRepository,
-        ICartDbContext dbContext,
-        IMapper mapper)
-    {
-        _cartRepository = cartRepository;
-        _cartItemRepository = cartItemRepository;
-        _dbContext = dbContext;
-        _mapper = mapper;
-    }
+    private readonly ICartRepository _cartRepository = cartRepository;
+    private readonly ICartItemRepository _cartItemRepository = cartItemRepository;
+    private readonly ICartDbContext _dbContext = dbContext;
+    private readonly IMapper _mapper = mapper;
 
     public async Task<CartResponseDto> Handle(ClearCartCommand request, CancellationToken cancellationToken)
     {

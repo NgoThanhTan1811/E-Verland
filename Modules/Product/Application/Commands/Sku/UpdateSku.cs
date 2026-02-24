@@ -7,18 +7,11 @@ namespace Modules.Product.Application.Commands;
 
 public sealed record UpdateSkuCommand(Guid Id, UpdateSkuRequestDto Request) : IRequest<SkuDetailDto>;
 
-public sealed class UpdateSkuHandler : IRequestHandler<UpdateSkuCommand, SkuDetailDto>
+public sealed class UpdateSkuHandler(ISkuRepository skuRepository, IProductRepository productRepository, IProductDbContext dbContext) : IRequestHandler<UpdateSkuCommand, SkuDetailDto>
 {
-    private readonly ISkuRepository _skuRepository;
-    private readonly IProductRepository _productRepository;
-    private readonly IProductDbContext _dbContext;
-
-    public UpdateSkuHandler(ISkuRepository skuRepository, IProductRepository productRepository, IProductDbContext dbContext)
-    {
-        _skuRepository = skuRepository;
-        _productRepository = productRepository;
-        _dbContext = dbContext;
-    }
+    private readonly ISkuRepository _skuRepository = skuRepository;
+    private readonly IProductRepository _productRepository = productRepository;
+    private readonly IProductDbContext _dbContext = dbContext;
 
     public async Task<SkuDetailDto> Handle(UpdateSkuCommand request, CancellationToken cancellationToken)
     {

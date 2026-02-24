@@ -9,11 +9,11 @@ using SharedKernel.Pagination;
 
 namespace Modules.User.Infrastructure.Repositories
 {
-    public class BankAccountRepository : IBankAccountRepository
+    public class BankAccountRepository(UserDbContext db) : IBankAccountRepository
 
     {
-        private readonly UserDbContext _db;
-        public BankAccountRepository(UserDbContext db) => _db = db;
+        private readonly UserDbContext _db = db;
+
         public Task CreateAsync(Domain.Entities.BankAccount entity, CancellationToken cancellationToken = default)
         {
             return _db.BankAccounts.AddAsync(entity, cancellationToken).AsTask();

@@ -12,24 +12,17 @@ public sealed record CreateOrderCommand(
     Guid UserId,
     ReceiverRequestDto Receiver,
     PaymentMethod PaymentMethod,
-    decimal? Discount,
+    decimal? VoucherCode,
     List<CreateOrderItemRequestDto> Items
 ) : IRequest<CreateOrderResponseDto>;
 
-public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, CreateOrderResponseDto>
+public sealed class CreateOrderHandler(IOrderRepository repo, IOrderDbContext db, IProductService productService, IMapper mapper) 
+        : IRequestHandler<CreateOrderCommand, CreateOrderResponseDto>
 {
-    private readonly IOrderRepository _repo;
-    private readonly IOrderDbContext _db;
-    private readonly IProductService _productService;
-    private readonly IMapper _mapper;
-
-    public CreateOrderHandler(IOrderRepository repo, IOrderDbContext db, IProductService productService, IMapper mapper)
-    {
-        _repo = repo;
-        _db = db;
-        _productService = productService;
-        _mapper = mapper;
-    }
+    private readonly IOrderRepository _repo = repo;
+    private readonly IOrderDbContext _db = db;
+    private readonly IProductService _productService = productService;
+    private readonly IMapper _mapper = mapper;
 
     public async Task<CreateOrderResponseDto> Handle(CreateOrderCommand request, CancellationToken ct)
     {
@@ -48,10 +41,10 @@ public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, Cre
             Code = await GenerateOrderCodeAsync(ct),
             Receiver = receiverSnapshot,
             PaymentMethod = request.PaymentMethod,
-            Discount = request.Discount,
             Status = OrderStatus.Pending,
             PaymentStatus = PaymentStatus.Pending,
-            Items = []
+            Items = [],
+            Discount = request.VoucherCode
         };
 
         decimal totalPrice = 0;
@@ -93,7 +86,7 @@ public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, Cre
     {
         string code;
         int attempt = 0;
-        const int maxAttempts = 10;
+        const int maxAttempts = 5;
 
         do
         {

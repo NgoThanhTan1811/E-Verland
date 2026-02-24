@@ -8,24 +8,16 @@ namespace Modules.Cart.Application.Commands;
 
 public sealed record AddToCartCommand(Guid UserId, AddToCartRequestDto Request) : IRequest<CartResponseDto>;
 
-public sealed class AddToCartHandler : IRequestHandler<AddToCartCommand, CartResponseDto>
+public sealed class AddToCartHandler(
+    ICartRepository cartRepository,
+    ICartItemRepository cartItemRepository,
+    ICartDbContext dbContext,
+    IMapper mapper) : IRequestHandler<AddToCartCommand, CartResponseDto>
 {
-    private readonly ICartRepository _cartRepository;
-    private readonly ICartItemRepository _cartItemRepository;
-    private readonly ICartDbContext _dbContext;
-    private readonly IMapper _mapper;
-
-    public AddToCartHandler(
-        ICartRepository cartRepository,
-        ICartItemRepository cartItemRepository,
-        ICartDbContext dbContext,
-        IMapper mapper)
-    {
-        _cartRepository = cartRepository;
-        _cartItemRepository = cartItemRepository;
-        _dbContext = dbContext;
-        _mapper = mapper;
-    }
+    private readonly ICartRepository _cartRepository = cartRepository;
+    private readonly ICartItemRepository _cartItemRepository = cartItemRepository;
+    private readonly ICartDbContext _dbContext = dbContext;
+    private readonly IMapper _mapper = mapper;
 
     public async Task<CartResponseDto> Handle(AddToCartCommand request, CancellationToken cancellationToken)
     {
@@ -43,7 +35,7 @@ public sealed class AddToCartHandler : IRequestHandler<AddToCartCommand, CartRes
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        var existingItem = await _cartItemRepository.GetByCartIdAndProductIdAsync(
+        var existingItem = await _cartItemRepository.GetByCartIdAndSkuIdAsync(
             cart.Id, request.Request.SkuId, cancellationToken);
 
         if (existingItem != null)

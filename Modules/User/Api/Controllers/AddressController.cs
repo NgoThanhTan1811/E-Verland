@@ -10,14 +10,9 @@ namespace Modules.User.Api.Controllers;
 
 [ApiController]
 [Route("api/profile/{profileId}/[controller]")]
-public class AddressController : ControllerBase
+public class AddressController(IMediator mediator) : ControllerBase
 {
-    private readonly IMediator _mediator;
-
-    public AddressController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
+    private readonly IMediator _mediator = mediator;
 
     [HttpPost]
     [ProducesResponseType(typeof(AddressResDto), StatusCodes.Status201Created)]

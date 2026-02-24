@@ -23,19 +23,12 @@ namespace Modules.User.Application.Commands
         bool? IsDefault
     ) : IRequest<AddressResDto>;
 
-    public sealed class UpdateAddressHandler
-        : IRequestHandler<UpdateAddressCommand, AddressResDto>
+    public sealed class UpdateAddressHandler(IAddressRepository repo, IMapper mapper, IUserDbContext db)
+                : IRequestHandler<UpdateAddressCommand, AddressResDto>
     {
-        private readonly IAddressRepository _repo;
-        private readonly IUserDbContext _db;
-        private readonly IMapper _mapper;
-
-        public UpdateAddressHandler(IAddressRepository repo, IMapper mapper, IUserDbContext db)
-        {
-            _repo = repo;
-            _mapper = mapper;
-            _db = db;
-        }
+        private readonly IAddressRepository _repo = repo;
+        private readonly IUserDbContext _db = db;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<AddressResDto> Handle(UpdateAddressCommand request, CancellationToken ct)
         {

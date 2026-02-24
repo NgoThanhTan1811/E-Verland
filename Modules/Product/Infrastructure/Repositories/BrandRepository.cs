@@ -5,11 +5,9 @@ using Modules.Product.Infrastructure.Persistence;
 
 namespace Modules.Product.Infrastructure.Repositories;
 
-public class BrandRepository : IBrandRepository
+public class BrandRepository(ProductDbContext db) : IBrandRepository
 {
-    private readonly ProductDbContext _db;
-
-    public BrandRepository(ProductDbContext db) => _db = db;
+    private readonly ProductDbContext _db = db;
 
     public Task CreateAsync(Brand entity, CancellationToken cancellationToken = default)
     {

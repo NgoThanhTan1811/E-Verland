@@ -5,16 +5,10 @@ namespace Modules.Product.Application.Commands;
 
 public sealed record DeleteProductCommand(Guid Id) : IRequest<bool>;
 
-public sealed class DeleteProductHandler : IRequestHandler<DeleteProductCommand, bool>
+public sealed class DeleteProductHandler(IProductRepository productRepository, IProductDbContext dbContext) : IRequestHandler<DeleteProductCommand, bool>
 {
-    private readonly IProductRepository _productRepository;
-    private readonly IProductDbContext _dbContext;
-
-    public DeleteProductHandler(IProductRepository productRepository, IProductDbContext dbContext)
-    {
-        _productRepository = productRepository;
-        _dbContext = dbContext;
-    }
+    private readonly IProductRepository _productRepository = productRepository;
+    private readonly IProductDbContext _dbContext = dbContext;
 
     public async Task<bool> Handle(DeleteProductCommand request, CancellationToken cancellationToken)
     {

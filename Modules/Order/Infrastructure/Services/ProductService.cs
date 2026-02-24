@@ -4,14 +4,9 @@ using Modules.Product.Infrastructure.Persistence;
 
 namespace Modules.Order.Infrastructure.Services;
 
-public class ProductService : IProductService
+public class ProductService(ProductDbContext productDbContext) : IProductService
 {
-    private readonly ProductDbContext _productDbContext;
-
-    public ProductService(ProductDbContext productDbContext)
-    {
-        _productDbContext = productDbContext;
-    }
+    private readonly ProductDbContext _productDbContext = productDbContext;
 
     public async Task<ProductDto?> GetProductAsync(Guid productId, CancellationToken ct = default)
     {

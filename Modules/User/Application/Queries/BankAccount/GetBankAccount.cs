@@ -8,16 +8,10 @@ namespace Modules.User.Application.Queries.BankAccount
 {
     public sealed record GetBankAccountByQuery(Guid Id) : IRequest<BankAccountResDto>;
 
-    public sealed class GetBankAccountHandler : IRequestHandler<GetBankAccountByQuery, BankAccountResDto>
+    public sealed class GetBankAccountHandler(IBankAccountRepository repo, IMapper mapper) : IRequestHandler<GetBankAccountByQuery, BankAccountResDto>
     {
-        private readonly IBankAccountRepository _repo;
-        private readonly IMapper _mapper;
-
-        public GetBankAccountHandler(IBankAccountRepository repo, IMapper mapper)
-        {
-            _repo = repo;
-            _mapper = mapper;
-        }
+        private readonly IBankAccountRepository _repo = repo;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<BankAccountResDto> Handle(GetBankAccountByQuery request, CancellationToken ct)
         {

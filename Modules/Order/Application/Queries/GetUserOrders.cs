@@ -11,16 +11,10 @@ public sealed record GetUserOrdersQuery(
     PagingFilter Filter
 ) : IRequest<PageResult<OrderOverviewResponseDto>>;
 
-public sealed class GetUserOrdersHandler : IRequestHandler<GetUserOrdersQuery, PageResult<OrderOverviewResponseDto>>
+public sealed class GetUserOrdersHandler(IOrderRepository repo, IMapper mapper) : IRequestHandler<GetUserOrdersQuery, PageResult<OrderOverviewResponseDto>>
 {
-    private readonly IOrderRepository _repo;
-    private readonly IMapper _mapper;
-
-    public GetUserOrdersHandler(IOrderRepository repo, IMapper mapper)
-    {
-        _repo = repo;
-        _mapper = mapper;
-    }
+    private readonly IOrderRepository _repo = repo;
+    private readonly IMapper _mapper = mapper;
 
     public async Task<PageResult<OrderOverviewResponseDto>> Handle(GetUserOrdersQuery request, CancellationToken ct)
     {

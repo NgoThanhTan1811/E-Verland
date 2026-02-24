@@ -6,14 +6,9 @@ namespace Modules.User.Application.Commands
 {
     public sealed record DeleteAccountCommand(Guid AccountId) : IRequest<bool>;
 
-    public sealed class DeleteAccountHandler : IRequestHandler<DeleteAccountCommand, bool>
+    public sealed class DeleteAccountHandler(IAccountRepository repo) : IRequestHandler<DeleteAccountCommand, bool>
     {
-        private readonly IAccountRepository _repo;
-
-        public DeleteAccountHandler(IAccountRepository repo)
-        {
-            _repo = repo;
-        }
+        private readonly IAccountRepository _repo = repo;
 
         public async Task<bool> Handle(DeleteAccountCommand request, CancellationToken ct)
         {

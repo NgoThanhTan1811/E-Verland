@@ -6,14 +6,9 @@ namespace Modules.Product.Application.Queries;
 
 public sealed record GetBrandByIdQuery(Guid Id) : IRequest<BrandDetailDto?>;
 
-public sealed class GetBrandByIdHandler : IRequestHandler<GetBrandByIdQuery, BrandDetailDto?>
+public sealed class GetBrandByIdHandler(IBrandRepository brandRepository) : IRequestHandler<GetBrandByIdQuery, BrandDetailDto?>
 {
-    private readonly IBrandRepository _brandRepository;
-
-    public GetBrandByIdHandler(IBrandRepository brandRepository)
-    {
-        _brandRepository = brandRepository;
-    }
+    private readonly IBrandRepository _brandRepository = brandRepository;
 
     public async Task<BrandDetailDto?> Handle(GetBrandByIdQuery request, CancellationToken cancellationToken)
     {

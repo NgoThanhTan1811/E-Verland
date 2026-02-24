@@ -17,19 +17,12 @@ namespace Modules.User.Application.Commands
         StatusUser? Status
     ) : IRequest<AccountResDto>;
 
-    public sealed class UpdateAccountHandler
-        : IRequestHandler<UpdateAccountCommand, AccountResDto>
+    public sealed class UpdateAccountHandler(IAccountRepository repo, IMapper mapper, IUserDbContext db)
+                : IRequestHandler<UpdateAccountCommand, AccountResDto>
     {
-        private readonly IAccountRepository _repo;
-        private readonly IUserDbContext _db;
-        private readonly IMapper _mapper;
-
-        public UpdateAccountHandler(IAccountRepository repo, IMapper mapper, IUserDbContext db)
-        {
-            _repo = repo;
-            _mapper = mapper;
-            _db = db;
-        }
+        private readonly IAccountRepository _repo = repo;
+        private readonly IUserDbContext _db = db;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<AccountResDto> Handle(UpdateAccountCommand request, CancellationToken ct)
         {

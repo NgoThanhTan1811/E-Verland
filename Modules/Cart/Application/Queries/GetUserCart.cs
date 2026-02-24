@@ -7,16 +7,10 @@ namespace Modules.Cart.Application.Queries;
 
 public sealed record GetUserCartQuery(Guid UserId) : IRequest<CartResponseDto?>;
 
-public sealed class GetUserCartHandler : IRequestHandler<GetUserCartQuery, CartResponseDto?>
+public sealed class GetUserCartHandler(ICartRepository cartRepository, IMapper mapper) : IRequestHandler<GetUserCartQuery, CartResponseDto?>
 {
-    private readonly ICartRepository _cartRepository;
-    private readonly IMapper _mapper;
-
-    public GetUserCartHandler(ICartRepository cartRepository, IMapper mapper)
-    {
-        _cartRepository = cartRepository;
-        _mapper = mapper;
-    }
+    private readonly ICartRepository _cartRepository = cartRepository;
+    private readonly IMapper _mapper = mapper;
 
     public async Task<CartResponseDto?> Handle(GetUserCartQuery request, CancellationToken cancellationToken)
     {

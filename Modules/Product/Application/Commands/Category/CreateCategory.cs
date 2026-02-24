@@ -7,16 +7,10 @@ namespace Modules.Product.Application.Commands;
 
 public sealed record CreateCategoryCommand(CreateCategoryRequestDto Request) : IRequest<CategoryDetailDto>;
 
-public sealed class CreateCategoryHandler : IRequestHandler<CreateCategoryCommand, CategoryDetailDto>
+public sealed class CreateCategoryHandler(ICategoryRepository categoryRepository, IProductDbContext dbContext) : IRequestHandler<CreateCategoryCommand, CategoryDetailDto>
 {
-    private readonly ICategoryRepository _categoryRepository;
-    private readonly IProductDbContext _dbContext;
-
-    public CreateCategoryHandler(ICategoryRepository categoryRepository, IProductDbContext dbContext)
-    {
-        _categoryRepository = categoryRepository;
-        _dbContext = dbContext;
-    }
+    private readonly ICategoryRepository _categoryRepository = categoryRepository;
+    private readonly IProductDbContext _dbContext = dbContext;
 
     public async Task<CategoryDetailDto> Handle(CreateCategoryCommand request, CancellationToken cancellationToken)
     {

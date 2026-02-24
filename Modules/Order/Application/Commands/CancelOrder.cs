@@ -10,16 +10,10 @@ public sealed record CancelOrderCommand(
     Guid UserId
 ) : IRequest<Unit>;
 
-public sealed class CancelOrderHandler : IRequestHandler<CancelOrderCommand, Unit>
+public sealed class CancelOrderHandler(IOrderRepository repo, IOrderDbContext db) : IRequestHandler<CancelOrderCommand, Unit>
 {
-    private readonly IOrderRepository _repo;
-    private readonly IOrderDbContext _db;
-
-    public CancelOrderHandler(IOrderRepository repo, IOrderDbContext db)
-    {
-        _repo = repo;
-        _db = db;
-    }
+    private readonly IOrderRepository _repo = repo;
+    private readonly IOrderDbContext _db = db;
 
     public async Task<Unit> Handle(CancelOrderCommand request, CancellationToken ct)
     {

@@ -7,16 +7,10 @@ namespace Modules.Product.Application.Commands;
 
 public sealed record UpdateCategoryCommand(Guid Id, UpdateCategoryRequestDto Request) : IRequest<CategoryDetailDto>;
 
-public sealed class UpdateCategoryHandler : IRequestHandler<UpdateCategoryCommand, CategoryDetailDto>
+public sealed class UpdateCategoryHandler(ICategoryRepository categoryRepository, IProductDbContext dbContext) : IRequestHandler<UpdateCategoryCommand, CategoryDetailDto>
 {
-    private readonly ICategoryRepository _categoryRepository;
-    private readonly IProductDbContext _dbContext;
-
-    public UpdateCategoryHandler(ICategoryRepository categoryRepository, IProductDbContext dbContext)
-    {
-        _categoryRepository = categoryRepository;
-        _dbContext = dbContext;
-    }
+    private readonly ICategoryRepository _categoryRepository = categoryRepository;
+    private readonly IProductDbContext _dbContext = dbContext;
 
     public async Task<CategoryDetailDto> Handle(UpdateCategoryCommand request, CancellationToken cancellationToken)
     {

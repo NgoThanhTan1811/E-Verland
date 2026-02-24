@@ -7,18 +7,11 @@ namespace Modules.Product.Application.Commands;
 
 public sealed record UpdateProductCommand(Guid Id, UpdateProductRequestDto Request) : IRequest<ProductDetailDto>;
 
-public sealed class UpdateProductHandler : IRequestHandler<UpdateProductCommand, ProductDetailDto>
+public sealed class UpdateProductHandler(IProductRepository productRepository, ICategoryRepository categoryRepository, IProductDbContext dbContext) : IRequestHandler<UpdateProductCommand, ProductDetailDto>
 {
-    private readonly IProductRepository _productRepository;
-    private readonly ICategoryRepository _categoryRepository;
-    private readonly IProductDbContext _dbContext;
-
-    public UpdateProductHandler(IProductRepository productRepository, ICategoryRepository categoryRepository, IProductDbContext dbContext)
-    {
-        _productRepository = productRepository;
-        _categoryRepository = categoryRepository;
-        _dbContext = dbContext;
-    }
+    private readonly IProductRepository _productRepository = productRepository;
+    private readonly ICategoryRepository _categoryRepository = categoryRepository;
+    private readonly IProductDbContext _dbContext = dbContext;
 
     public async Task<ProductDetailDto> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
     {

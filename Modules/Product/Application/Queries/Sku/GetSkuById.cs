@@ -6,14 +6,9 @@ namespace Modules.Product.Application.Queries;
 
 public sealed record GetSkuByIdQuery(Guid Id) : IRequest<SkuDetailDto?>;
 
-public sealed class GetSkuByIdHandler : IRequestHandler<GetSkuByIdQuery, SkuDetailDto?>
+public sealed class GetSkuByIdHandler(ISkuRepository skuRepository) : IRequestHandler<GetSkuByIdQuery, SkuDetailDto?>
 {
-    private readonly ISkuRepository _skuRepository;
-
-    public GetSkuByIdHandler(ISkuRepository skuRepository)
-    {
-        _skuRepository = skuRepository;
-    }
+    private readonly ISkuRepository _skuRepository = skuRepository;
 
     public async Task<SkuDetailDto?> Handle(GetSkuByIdQuery request, CancellationToken cancellationToken)
     {

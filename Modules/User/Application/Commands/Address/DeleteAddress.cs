@@ -6,14 +6,9 @@ namespace Modules.User.Application.Commands
 {
     public sealed record DeleteAddressCommand(Guid AddressId) : IRequest<bool>;
 
-    public sealed class DeleteAddressHandler : IRequestHandler<DeleteAddressCommand, bool>
+    public sealed class DeleteAddressHandler(IAddressRepository repo) : IRequestHandler<DeleteAddressCommand, bool>
     {
-        private readonly IAddressRepository _repo;
-
-        public DeleteAddressHandler(IAddressRepository repo)
-        {
-            _repo = repo;
-        }
+        private readonly IAddressRepository _repo = repo;
 
         public async Task<bool> Handle(DeleteAddressCommand request, CancellationToken ct)
         {

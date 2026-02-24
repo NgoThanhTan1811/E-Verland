@@ -7,16 +7,10 @@ namespace Modules.User.Application.Queries;
 
 public sealed record GetAccountQuery(Guid Id) : IRequest<AccountResDto>;
 
-public sealed class GetAccountHandler : IRequestHandler<GetAccountQuery, AccountResDto>
+public sealed class GetAccountHandler(IAccountRepository repo, IMapper mapper) : IRequestHandler<GetAccountQuery, AccountResDto>
 {
-    private readonly IAccountRepository _repo;
-    private readonly IMapper _mapper;
-
-    public GetAccountHandler(IAccountRepository repo, IMapper mapper)
-    {
-        _repo = repo;
-        _mapper = mapper;
-    }
+    private readonly IAccountRepository _repo = repo;
+    private readonly IMapper _mapper = mapper;
 
     public async Task<AccountResDto> Handle(GetAccountQuery request, CancellationToken ct)
     {

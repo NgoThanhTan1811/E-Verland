@@ -5,16 +5,10 @@ namespace Modules.Product.Application.Commands;
 
 public sealed record DeleteBrandCommand(Guid Id) : IRequest<bool>;
 
-public sealed class DeleteBrandHandler : IRequestHandler<DeleteBrandCommand, bool>
+public sealed class DeleteBrandHandler(IBrandRepository brandRepository, IProductDbContext dbContext) : IRequestHandler<DeleteBrandCommand, bool>
 {
-    private readonly IBrandRepository _brandRepository;
-    private readonly IProductDbContext _dbContext;
-
-    public DeleteBrandHandler(IBrandRepository brandRepository, IProductDbContext dbContext)
-    {
-        _brandRepository = brandRepository;
-        _dbContext = dbContext;
-    }
+    private readonly IBrandRepository _brandRepository = brandRepository;
+    private readonly IProductDbContext _dbContext = dbContext;
 
     public async Task<bool> Handle(DeleteBrandCommand request, CancellationToken cancellationToken)
     {

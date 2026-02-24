@@ -11,14 +11,9 @@ namespace Modules.User.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ProfileController : ControllerBase
+public class ProfileController(IMediator mediator) : ControllerBase
 {
-    private readonly IMediator _mediator;
-
-    public ProfileController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
+    private readonly IMediator _mediator = mediator;
 
     [HttpPost]
     [ProducesResponseType(typeof(ProfileResDto), StatusCodes.Status201Created)]

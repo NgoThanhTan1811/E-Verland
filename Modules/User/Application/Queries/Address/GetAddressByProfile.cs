@@ -8,16 +8,10 @@ namespace Modules.User.Application.Queries.Address
 {
     public sealed record GetAddressByProfileQuery( Guid ProfileId) : IRequest<IReadOnlyList<AddressResDto>>;
 
-    public sealed class GetAddressByProfileHandler : IRequestHandler<GetAddressByProfileQuery, IReadOnlyList<AddressResDto>>
+    public sealed class GetAddressByProfileHandler(IAddressRepository repo, IMapper mapper) : IRequestHandler<GetAddressByProfileQuery, IReadOnlyList<AddressResDto>>
     {
-        private readonly IAddressRepository _repo;
-        private readonly IMapper _mapper;
-
-        public GetAddressByProfileHandler(IAddressRepository repo, IMapper mapper)
-        {
-            _repo = repo;
-            _mapper = mapper;
-        }
+        private readonly IAddressRepository _repo = repo;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<IReadOnlyList<AddressResDto>> Handle(GetAddressByProfileQuery request, CancellationToken ct)
         {

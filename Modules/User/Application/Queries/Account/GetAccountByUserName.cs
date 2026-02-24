@@ -8,16 +8,10 @@ namespace Modules.User.Application.Queries.Account
 {
     public sealed record GetAccountByUserNameQuery(string UserName) : IRequest<IEnumerable<AccountResDto>>;
 
-    public sealed class GetAccountByUserNameHandler : IRequestHandler<GetAccountByUserNameQuery, IEnumerable<AccountResDto>>
+    public sealed class GetAccountByUserNameHandler(IAccountRepository repo, IMapper mapper) : IRequestHandler<GetAccountByUserNameQuery, IEnumerable<AccountResDto>>
     {
-        private readonly IAccountRepository _repo;
-        private readonly IMapper _mapper;
-
-        public GetAccountByUserNameHandler(IAccountRepository repo, IMapper mapper)
-        {
-            _repo = repo;
-            _mapper = mapper;
-        }
+        private readonly IAccountRepository _repo = repo;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<IEnumerable<AccountResDto>> Handle(GetAccountByUserNameQuery request, CancellationToken ct)
         {

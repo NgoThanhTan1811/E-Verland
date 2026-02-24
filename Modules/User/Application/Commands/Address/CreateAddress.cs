@@ -22,18 +22,11 @@ public sealed record CreateAddressCommand(
     bool IsDefault
 ) : IRequest<AddressResDto>;
 
-public sealed class CreateAddressHandler : IRequestHandler<CreateAddressCommand, AddressResDto>
+public sealed class CreateAddressHandler(IAddressRepository repo, IMapper mapper, IUserDbContext db) : IRequestHandler<CreateAddressCommand, AddressResDto>
 {
-    private readonly IAddressRepository _repo;
-    private readonly IMapper _mapper;
-    private readonly IUserDbContext _db;
-
-    public CreateAddressHandler(IAddressRepository repo, IMapper mapper, IUserDbContext db)
-    {
-        _repo = repo;
-        _mapper = mapper;
-        _db = db;
-    }
+    private readonly IAddressRepository _repo = repo;
+    private readonly IMapper _mapper = mapper;
+    private readonly IUserDbContext _db = db;
 
     public async Task<AddressResDto> Handle(CreateAddressCommand request, CancellationToken ct)
     {

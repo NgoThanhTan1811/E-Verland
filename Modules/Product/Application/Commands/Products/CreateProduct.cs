@@ -8,27 +8,18 @@ namespace Modules.Product.Application.Commands;
 
 public sealed record CreateProductCommand(CreateProductRequestDto Request) : IRequest<ProductDetailDto>;
 
-public sealed class CreateProductHandler : IRequestHandler<CreateProductCommand, ProductDetailDto>
+public sealed class CreateProductHandler(
+    IProductRepository productRepository,
+    ICategoryRepository categoryRepository,
+    ISkuRepository skuRepository,
+    IProductDbContext dbContext,
+    SKUGeneratorService skuGenerator) : IRequestHandler<CreateProductCommand, ProductDetailDto>
 {
-    private readonly IProductRepository _productRepository;
-    private readonly ICategoryRepository _categoryRepository;
-    private readonly ISkuRepository _skuRepository;
-    private readonly IProductDbContext _dbContext;
-    private readonly SKUGeneratorService _skuGenerator;
-
-    public CreateProductHandler(
-        IProductRepository productRepository,
-        ICategoryRepository categoryRepository,
-        ISkuRepository skuRepository,
-        IProductDbContext dbContext,
-        SKUGeneratorService skuGenerator)
-    {
-        _productRepository = productRepository;
-        _categoryRepository = categoryRepository;
-        _skuRepository = skuRepository;
-        _dbContext = dbContext;
-        _skuGenerator = skuGenerator;
-    }
+    private readonly IProductRepository _productRepository = productRepository;
+    private readonly ICategoryRepository _categoryRepository = categoryRepository;
+    private readonly ISkuRepository _skuRepository = skuRepository;
+    private readonly IProductDbContext _dbContext = dbContext;
+    private readonly SKUGeneratorService _skuGenerator = skuGenerator;
 
     public async Task<ProductDetailDto> Handle(CreateProductCommand request, CancellationToken cancellationToken)
     {

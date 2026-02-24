@@ -13,15 +13,9 @@ namespace Modules.Order.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class OrderController : ControllerBase
+public class OrderController(IMediator mediator) : ControllerBase
 {
-    private readonly IMediator _mediator;
-
-    public OrderController(IMediator mediator)
-    {
-        _mediator = mediator;
-    }
-
+    private readonly IMediator _mediator = mediator;
 
     [Authorize]
     [HttpPost]
@@ -38,7 +32,7 @@ public class OrderController : ControllerBase
                 userId,
                 dto.Receiver,
                 dto.PaymentMethod,
-                dto.Discount,
+                dto.VoucherCode,
                 dto.Items
             );
 
@@ -109,7 +103,7 @@ public class OrderController : ControllerBase
 
 
     [Authorize(Roles = "Admin")]
-    [HttpGet("admin/filter")]
+    [HttpGet("admin/order")]
     [ProducesResponseType(typeof(PageResult<OrderOverviewResponseDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PageResult<OrderOverviewResponseDto>>> FilterOrdersAdmin(
         [FromQuery] Guid? userId,

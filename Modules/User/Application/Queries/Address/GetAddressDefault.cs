@@ -8,16 +8,10 @@ namespace Modules.User.Application.Queries.Address
 {
     public sealed record GetAddressDefault(Guid AccountId) : IRequest<AddressResDto>;
 
-    public sealed class GetAddressDefaultHandler : IRequestHandler<GetAddressDefault, AddressResDto>
+    public sealed class GetAddressDefaultHandler(IAddressRepository repo, IMapper mapper) : IRequestHandler<GetAddressDefault, AddressResDto>
     {
-        private readonly IAddressRepository _repo;
-        private readonly IMapper _mapper;
-
-        public GetAddressDefaultHandler(IAddressRepository repo, IMapper mapper)
-        {
-            _repo = repo;
-            _mapper = mapper;
-        }
+        private readonly IAddressRepository _repo = repo;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<AddressResDto> Handle(GetAddressDefault request, CancellationToken ct)
         {

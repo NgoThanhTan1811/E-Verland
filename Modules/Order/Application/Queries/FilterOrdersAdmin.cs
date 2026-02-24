@@ -12,16 +12,10 @@ public sealed record FilterOrdersAdminQuery(
     FilterOrdersAdminRequestDto Filter
 ) : IRequest<PageResult<OrderOverviewResponseDto>>;
 
-public sealed class FilterOrdersAdminHandler : IRequestHandler<FilterOrdersAdminQuery, PageResult<OrderOverviewResponseDto>>
+public sealed class FilterOrdersAdminHandler(IOrderRepository repo, IMapper mapper) : IRequestHandler<FilterOrdersAdminQuery, PageResult<OrderOverviewResponseDto>>
 {
-    private readonly IOrderRepository _repo;
-    private readonly IMapper _mapper;
-
-    public FilterOrdersAdminHandler(IOrderRepository repo, IMapper mapper)
-    {
-        _repo = repo;
-        _mapper = mapper;
-    }
+    private readonly IOrderRepository _repo = repo;
+    private readonly IMapper _mapper = mapper;
 
     public async Task<PageResult<OrderOverviewResponseDto>> Handle(FilterOrdersAdminQuery request, CancellationToken ct)
     {

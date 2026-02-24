@@ -17,19 +17,12 @@ namespace Modules.User.Application.Commands
         string AccountHolderName
     ) : IRequest<BankAccountResDto>;
 
-    public sealed class CreateBankAccountHandler
-        : IRequestHandler<CreateBankAccountCommand, BankAccountResDto>
+    public sealed class CreateBankAccountHandler(IBankAccountRepository repo, IMapper mapper, IUserDbContext db)
+                : IRequestHandler<CreateBankAccountCommand, BankAccountResDto>
     {
-        private readonly IBankAccountRepository _repo;
-        private readonly IUserDbContext _db;
-        private readonly IMapper _mapper;
-
-        public CreateBankAccountHandler(IBankAccountRepository repo, IMapper mapper, IUserDbContext db)
-        {
-            _repo = repo;
-            _mapper = mapper;
-            _db = db;
-        }
+        private readonly IBankAccountRepository _repo = repo;
+        private readonly IUserDbContext _db = db;
+        private readonly IMapper _mapper = mapper;
 
         public async Task<BankAccountResDto> Handle(CreateBankAccountCommand request, CancellationToken ct)
         {

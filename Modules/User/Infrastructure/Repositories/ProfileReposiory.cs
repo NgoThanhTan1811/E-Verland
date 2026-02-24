@@ -9,10 +9,10 @@ using SharedKernel.Pagination;
 
 namespace Modules.User.Infrastructure.Repositories
 {
-    public class ProfileRepository : IProfileRepository
+    public class ProfileRepository(UserDbContext db) : IProfileRepository
     {
-        private readonly UserDbContext _db;
-        public ProfileRepository(UserDbContext db) => _db = db;
+        private readonly UserDbContext _db = db;
+
         public Task CreateAsync(Domain.Entities.Profile entity, CancellationToken cancellationToken = default)
         {
             return _db.Profiles.AddAsync(entity, cancellationToken).AsTask();

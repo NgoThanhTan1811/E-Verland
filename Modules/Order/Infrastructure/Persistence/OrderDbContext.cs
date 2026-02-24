@@ -6,10 +6,8 @@ using Modules.Order.Domain;
 
 namespace Modules.Order.Infrastructure.Persistence;
 
-public class OrderDbContext : DbContext, IOrderDbContext
+public class OrderDbContext(DbContextOptions<OrderDbContext> options) : DbContext(options), IOrderDbContext
 {
-    public OrderDbContext(DbContextOptions<OrderDbContext> options) : base(options) { }
-
     public DbSet<Domain.Order> Orders => Set<Domain.Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
 

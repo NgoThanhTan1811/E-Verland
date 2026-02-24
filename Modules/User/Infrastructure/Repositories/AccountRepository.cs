@@ -7,11 +7,9 @@ using SharedKernel.Pagination;
 
 namespace Modules.User.Infrastructure.Persistence;
 
-public class AccountRepository : IAccountRepository
+public class AccountRepository(UserDbContext db) : IAccountRepository
 {
-    private readonly UserDbContext _db;
-    public AccountRepository(UserDbContext db) => _db = db;
-
+    private readonly UserDbContext _db = db;
 
     public async Task CreateAsync(Account entity, CancellationToken cancellationToken = default)
     {
