@@ -10,6 +10,8 @@ using Modules.Order;
 using Modules.Payment;
 using Modules.Redis.Infrastructure;
 using Modules.Auth.Infrastructure.Persistence;
+using Modules.Chat.Infrastructure.Persistence;
+using Modules.Notification.Infrastructure;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -92,6 +94,8 @@ builder.Services.AddCartModule(builder.Configuration);
 builder.Services.AddOrderModule(builder.Configuration);
 builder.Services.AddAuthModule(builder.Configuration);
 builder.Services.AddPaymentModule(builder.Configuration);
+builder.Services.AddChatModule(builder.Configuration);
+builder.Services.AddNotificationModule(builder.Configuration);
 
 
 var app = builder.Build();

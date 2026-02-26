@@ -98,6 +98,36 @@ public static class RateLimitingExtensions
                 });
             });
 
+            // Chat Module
+            options.AddPolicy("chat", context =>
+            {
+                var userId = context.User?.FindFirst("sub")?.Value;
+                var key = userId ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+                return RateLimitPartition.GetTokenBucketLimiter(key, _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 50,
+                    TokensPerPeriod = 50,
+                    ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                    AutoReplenishment = true,
+                    QueueLimit = 2
+                });
+            });
+
+            // Notification Module
+            options.AddPolicy("notification", context =>
+            {
+                var userId = context.User?.FindFirst("sub")?.Value;
+                var key = userId ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+                return RateLimitPartition.GetTokenBucketLimiter(key, _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 100,
+                    TokensPerPeriod = 100,
+                    ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                    AutoReplenishment = true,
+                    QueueLimit = 5
+                });
+            });
+
 
             options.AddPolicy("default", context =>
             {
