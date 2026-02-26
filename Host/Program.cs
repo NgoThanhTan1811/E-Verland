@@ -1,16 +1,15 @@
-using DotNetEnv;
-using Modules.User;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Text;
-using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using EVerland.Middleware;
+using Modules.User;
 using Modules.Product;
 using Modules.Cart;
-using Microsoft.OpenApi;
 using Modules.Order;
-
-
-
+using Modules.Payment;
+using Modules.Redis.Infrastructure;
+using Modules.Auth.Infrastructure.Persistence;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,7 +17,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddTransient<ApiExceptionMiddleware>();
 
 // Swagger Configuration
 builder.Services.AddSwaggerGen(options =>
@@ -33,73 +31,67 @@ builder.Services.AddSwaggerGen(options =>
         BearerFormat = "JWT",
         In = ParameterLocation.Header
     });
-    // options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    // {
-    //     {
-    //         new OpenApiSecurityScheme
-    //         {
-    //             Reference = new OpenApiReference
-    //             {
-    //                 Type = ReferenceType.SecurityScheme,
-    //                 Id = "bearer"
-    //             }
-    //         },
-    //         Array.Empty<string>()
-    //     }
-    // });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
 });
 
+builder.Services.AddTransient<ApiExceptionMiddleware>();
+
 // JWT Configuration
-// var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")?.Split('\n', '\r')[0].Trim()
-//     ?? builder.Configuration["Jwt:Key"];
-// if (string.IsNullOrEmpty(jwtKey)) throw new InvalidOperationException("JWT Key is not configured. Set JWT_KEY environment variable or Jwt:Key in appsettings.json");
-// var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? builder.Configuration["Jwt:Issuer"];
-// var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? builder.Configuration["Jwt:Audience"];
+var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")?.Split('\n', '\r')[0].Trim()
+    ?? builder.Configuration["Jwt:Key"];
 
-// builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-//     .AddJwtBearer(options =>
-//     {
-//         var key = Encoding.UTF8.GetBytes(jwtKey);
+if (string.IsNullOrWhiteSpace(jwtKey))
+    throw new InvalidOperationException("JWT Key is not configured. Set JWT_KEY env var or Jwt:Key in appsettings.json");
 
-//         options.TokenValidationParameters = new TokenValidationParameters
-//         {
-//             ValidateIssuer = true,
-//             ValidateAudience = true,
-//             ValidateLifetime = true,
-//             ValidateIssuerSigningKey = true,
-//             ValidIssuer = jwtIssuer,
-//             ValidAudience = jwtAudience,
-//             IssuerSigningKey = new SymmetricSecurityKey(key),
-//             ClockSkew = TimeSpan.Zero
-//         };
-//     });
+var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? builder.Configuration["Jwt:Issuer"];
+var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? builder.Configuration["Jwt:Audience"];
 
-// // Rate Limiting Configuration
-// builder.Services.AddRateLimiter(options =>
-// {
-//     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        var key = Encoding.UTF8.GetBytes(jwtKey);
 
-//     options.AddPolicy("per-user", context =>
-//     {
-//         var userId = context.User?.FindFirst("sub")?.Value;
-//         var key = userId ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous";
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(key),
+            ClockSkew = TimeSpan.Zero
+        };
+    });
 
-//         return RateLimitPartition.GetTokenBucketLimiter(key, _ => new TokenBucketRateLimiterOptions
-//         {
-//             TokenLimit = 30,
-//             TokensPerPeriod = 30,
-//             ReplenishmentPeriod = TimeSpan.FromMinutes(1),
-//             AutoReplenishment = true,
-//             QueueLimit = 0
-//         });
-//     });
-// });
+// Rate Limiting & Authorization Configuration
+builder.Services.AddCustomRateLimiting();
+builder.Services.AddCustomAuthorization();
+
 
 // Add Modules
+builder.Services.AddRedisModule(builder.Configuration);
 builder.Services.AddUserModule(builder.Configuration);
 builder.Services.AddProductModule(builder.Configuration);
 builder.Services.AddCartModule(builder.Configuration);
 builder.Services.AddOrderModule(builder.Configuration);
+builder.Services.AddAuthModule(builder.Configuration);
+builder.Services.AddPaymentModule(builder.Configuration);
 
 
 var app = builder.Build();
@@ -107,19 +99,18 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.UseMiddleware<ApiExceptionMiddleware>();
 
-// app.UseHttpsRedirection();
-// app.UseAuthentication();
-// app.UseAuthorization();
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseRateLimiter();
+app.UseAuthorization();
 
-app.UseSwagger();
-app.UseSwaggerUI();
-
-// app.UseRateLimiter();
 
 app.MapControllers();
 app.Run();
