@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Modules.Product.Application.Commands;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.Queries;
@@ -8,6 +9,7 @@ using Modules.Product.Application.Queries;
 namespace Modules.Product.Api.Controllers;
 
 [ApiController]
+[EnableRateLimiting("product")]
 [Route("api/[controller]")]
 public class SkuController(IMediator mediator) : ControllerBase
 {
@@ -30,7 +32,7 @@ public class SkuController(IMediator mediator) : ControllerBase
         var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);
     }
-    
+
     [Authorize(Roles = "Admin")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteSku(Guid id, CancellationToken cancellationToken)

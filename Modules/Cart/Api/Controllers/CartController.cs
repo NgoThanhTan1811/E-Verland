@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Modules.Cart.Application.Commands;
 using Modules.Cart.Application.DTOs.Request;
 using Modules.Cart.Application.DTOs.Response;
@@ -8,6 +9,7 @@ using Modules.Cart.Application.Queries;
 namespace Modules.Cart.Api.Controllers;
 
 [ApiController]
+[EnableRateLimiting("cart")]
 [Route("api/[controller]")]
 public class CartController(IMediator mediator) : ControllerBase
 {

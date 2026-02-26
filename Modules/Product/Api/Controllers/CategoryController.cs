@@ -4,10 +4,12 @@ using Modules.Product.Application.Commands;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.Queries;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Modules.Product.Api.Controllers;
 
 [ApiController]
+[EnableRateLimiting("product")]
 [Route("api/[controller]")]
 public class CategoryController(IMediator mediator) : ControllerBase
 {

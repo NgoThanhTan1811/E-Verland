@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Modules.Order.Application.Commands;
 using Modules.Order.Application.DTOs.Request;
 using Modules.Order.Application.DTOs.Response;
@@ -12,6 +13,7 @@ using System.Security.Claims;
 namespace Modules.Order.Api.Controllers;
 
 [ApiController]
+[EnableRateLimiting("order")]
 [Route("api/[controller]")]
 public class OrderController(IMediator mediator) : ControllerBase
 {

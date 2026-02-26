@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Modules.Payment.Application.Commands;
 using Modules.Payment.Application.DTOs.Request;
 using Modules.Payment.Application.DTOs.Response;
@@ -10,6 +11,7 @@ using Modules.Payment.Domain;
 namespace Modules.Payment.Api.Controllers;
 
 [ApiController]
+[EnableRateLimiting("payment")]
 [Route("api/[controller]")]
 public class PaymentController(IMediator mediator) : ControllerBase
 {

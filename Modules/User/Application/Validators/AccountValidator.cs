@@ -22,7 +22,7 @@ namespace Modules.User.Application.Validators
 
         private static bool ValidatePassword(string password)
         {
-            if (!string.IsNullOrWhiteSpace(password) && password.Length >= 6)
+            if (!string.IsNullOrWhiteSpace(password) && password.Length > 3)
                 return true;
             return false;
         }
@@ -35,7 +35,7 @@ namespace Modules.User.Application.Validators
                     return new ValidationResult("Invalid email format.", [nameof(dto.Email)]);
 
                 if (!ValidatePassword(dto.Password))
-                    return new ValidationResult("Password must be at least 6 characters long.", [nameof(dto.Password)]);
+                    return new ValidationResult("Password must be longer than 3 characters.", [nameof(dto.Password)]);
 
                 if (!ValidateUsername(dto.Username))
                     return new ValidationResult("Username must be at least 3 characters long.", [nameof(dto.Username)]);
@@ -49,7 +49,7 @@ namespace Modules.User.Application.Validators
             public static ValidationResult Validate(UpdateAccountReqDto dto)
             {
                 if (dto.Password != null && !ValidatePassword(dto.Password))
-                    return new ValidationResult("Password must be at least 6 characters long.", [nameof(dto.Password)]);
+                    return new ValidationResult("Password must be longer than 3 characters.", [nameof(dto.Password)]);
 
                 if (dto.Username != null && !ValidateUsername(dto.Username))
                     return new ValidationResult("Username must be at least 3 characters long.", [nameof(dto.Username)]);

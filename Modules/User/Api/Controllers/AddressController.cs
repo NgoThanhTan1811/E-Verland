@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Modules.User.Application.Commands;
 using Modules.User.Application.DTOs.Request;
 using Modules.User.Application.DTOs.Response;
@@ -9,6 +10,7 @@ using Modules.User.Domain.Enums;
 namespace Modules.User.Api.Controllers;
 
 [ApiController]
+[EnableRateLimiting("user")]
 [Route("api/profile/{profileId}/[controller]")]
 public class AddressController(IMediator mediator) : ControllerBase
 {
