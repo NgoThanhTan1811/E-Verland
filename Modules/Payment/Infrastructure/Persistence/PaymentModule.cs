@@ -15,7 +15,11 @@ public static class PaymentModuleExtensions
                 ?? throw new InvalidOperationException("Missing ConnectionStrings:PaymentDb");
 
         services.AddDbContext<PaymentDbContext>(options =>
-            options.UseNpgsql(conn));
+            options.UseNpgsql(conn, npgsql =>
+            {
+                npgsql.MigrationsAssembly(typeof(PaymentDbContext).Assembly.GetName().Name);
+            }));
+
         // Add Repositories
         services.AddScoped<IPaymentRepository, PaymentRepository>();
 

@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EVerland.Migrations
 {
     [DbContext(typeof(PaymentDbContext))]
-    [Migration("20260226071033_Init_PayemntDb")]
-    partial class Init_PayemntDb
+    [Migration("20260227070921_Init_PaymentDb")]
+    partial class Init_PaymentDb
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

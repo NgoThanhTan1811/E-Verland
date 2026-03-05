@@ -1,8 +1,9 @@
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Modules.Chat.Infrastructure.Persistence.Migrations
+namespace EVerland.Migrations
 {
     /// <inheritdoc />
     public partial class Init_ChatDb : Migration
@@ -49,13 +50,13 @@ namespace Modules.Chat.Infrastructure.Persistence.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "ix_conversation_userid_adminid",
+                name: "IX_Conversations_UserId_AdminId",
                 table: "Conversations",
                 columns: new[] { "UserId", "AdminId" },
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "idx_message_conversationid",
+                name: "IX_Messages_ConversationId",
                 table: "Messages",
                 column: "ConversationId");
         }

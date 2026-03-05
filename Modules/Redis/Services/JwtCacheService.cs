@@ -2,9 +2,6 @@ using Modules.Redis.Infrastructure;
 
 namespace Modules.Redis.Services;
 
-/// <summary>
-/// JWT token cache service implementation
-/// </summary>
 public sealed class JwtCacheService : IJwtCacheService
 {
     private readonly ICacheService _cacheService;

@@ -8,7 +8,8 @@ namespace Modules.Auth.Infrastructure.Persistence
     {
         public static IServiceCollection AddAuthModule(this IServiceCollection services, IConfiguration configuration)
         {
-            var conn = configuration.GetConnectionString("AuthDb");
+            var conn = configuration.GetConnectionString("AuthDb")
+                ?? Environment.GetEnvironmentVariable("ConnectionStrings__AuthDb");
             if (string.IsNullOrWhiteSpace(conn))
                 throw new InvalidOperationException("Missing ConnectionStrings__AuthDb");
 

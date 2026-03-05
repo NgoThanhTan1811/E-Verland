@@ -16,27 +16,21 @@ namespace Modules.Auth.Application.Services
         Task InvalidateOtpAsync(string email);
     }
 
-    public class OtpService : IOtpService
+    public class OtpService(
+        AuthDbContext dbContext,
+        IEmailService emailService,
+        ILogger<OtpService> logger) : IOtpService
     {
-        private readonly AuthDbContext _dbContext;
-        private readonly IEmailService _emailService;
-        private readonly ILogger<OtpService> _logger;
-
-        public OtpService(
-            AuthDbContext dbContext,
-            IEmailService emailService,
-            ILogger<OtpService> logger)
-        {
-            _dbContext = dbContext;
-            _emailService = emailService;
-            _logger = logger;
-        }
-
+        private readonly AuthDbContext _dbContext = dbContext;
+        private readonly IEmailService _emailService = emailService;
+        private readonly ILogger<OtpService> _logger = logger;
 
         public async Task<(bool success, string message)> SendOtpAsync(string email)
         {
             try
             {
+                var timeToTry = DateTime.UtcNow.AddSeconds(30);
+
                 if (string.IsNullOrWhiteSpace(email))
                     return (false, "Email không hợp lệ");
 
@@ -46,9 +40,9 @@ namespace Modules.Auth.Application.Services
                     .OrderByDescending(o => o.CreatedAt)
                     .FirstOrDefaultAsync();
 
-                if (existingOtp != null && (DateTime.UtcNow - existingOtp.CreatedAt).TotalSeconds < 60)
+                if (existingOtp != null && (DateTime.UtcNow - existingOtp.CreatedAt).TotalSeconds < timeToTry.Second)
                 {
-                    return (false, "Vui lòng đợi 60 giây trước khi gửi lại OTP");
+                    return (false, $"Vui lòng đợi {timeToTry.Second} giây trước khi gửi lại OTP");
                 }
 
                 // Tạo OTP code 6 số

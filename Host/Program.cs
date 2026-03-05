@@ -12,10 +12,12 @@ using Modules.Redis.Infrastructure;
 using Modules.Auth.Infrastructure.Persistence;
 using Modules.Chat.Infrastructure.Persistence;
 using Modules.Notification.Infrastructure;
-
+using DotNetEnv;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var envPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", ".env"));
+Env.Load(envPath);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -23,6 +25,43 @@ builder.Services.AddEndpointsApiExplorer();
 // Swagger Configuration
 builder.Services.AddSwaggerGen(options =>
 {
+    options.CustomSchemaIds(type =>
+    {
+        // Helper: prefix theo module để tránh trùng enum/class cùng tên
+        static string PrefixByModule(Type t, string baseName)
+        {
+            var ns = t.Namespace ?? "";
+            if (ns.StartsWith("Modules.Payment")) return "Payment_" + baseName;
+            if (ns.StartsWith("Modules.Order")) return "Order_" + baseName;
+            if (ns.StartsWith("Modules.User")) return "User_" + baseName;
+            if (ns.StartsWith("SharedKernel")) return "Shared_" + baseName;
+            return baseName;
+        }
+
+        if (!type.IsGenericType)
+        {
+            // Non-generic: dùng Name + prefix module
+            return PrefixByModule(type, type.Name);
+        }
+
+        // Generic: PageResult_OrderOverviewResponseDto (có prefix module của generic type)
+        var genericName = type.GetGenericTypeDefinition().Name.Split('`')[0];
+        genericName = PrefixByModule(type, genericName);
+
+        var args = string.Join("_",
+            type.GetGenericArguments().Select(a =>
+            {
+                // mỗi generic arg cũng nên unique (lỡ arg trùng tên giữa module)
+                var argBase = a.IsGenericType
+                    ? a.GetGenericTypeDefinition().Name.Split('`')[0]
+                    : a.Name;
+
+                return PrefixByModule(a, argBase);
+            }));
+
+        return $"{genericName}_{args}";
+    });
+
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "API", Version = "v1" });
 
     options.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
@@ -53,14 +92,12 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddTransient<ApiExceptionMiddleware>();
 
 // JWT Configuration
-var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY")?.Split('\n', '\r')[0].Trim()
-    ?? builder.Configuration["Jwt:Key"];
+var jwtKey = builder.Configuration["JWT_KEY"] ?? builder.Configuration["Jwt:Key"];
+var jwtIssuer = builder.Configuration["JWT_ISSUER"] ?? builder.Configuration["Jwt:Issuer"];
+var jwtAudience = builder.Configuration["JWT_AUDIENCE"] ?? builder.Configuration["Jwt:Audience"];
 
 if (string.IsNullOrWhiteSpace(jwtKey))
     throw new InvalidOperationException("JWT Key is not configured. Set JWT_KEY env var or Jwt:Key in appsettings.json");
-
-var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? builder.Configuration["Jwt:Issuer"];
-var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? builder.Configuration["Jwt:Audience"];
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -87,7 +124,7 @@ builder.Services.AddCustomAuthorization();
 
 
 // Add Modules
-builder.Services.AddRedisModule(builder.Configuration);
+// builder.Services.AddRedisModule(builder.Configuration);
 builder.Services.AddUserModule(builder.Configuration);
 builder.Services.AddProductModule(builder.Configuration);
 builder.Services.AddCartModule(builder.Configuration);
@@ -104,13 +141,13 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
 
-    app.UseSwagger();
-    app.UseSwaggerUI();
 }
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseMiddleware<ApiExceptionMiddleware>();
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();

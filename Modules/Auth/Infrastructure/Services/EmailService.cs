@@ -21,14 +21,23 @@ namespace Modules.Auth.Infrastructure.Services
             _logger = logger;
 
             var smtpSettings = _configuration.GetSection("Email:Smtp");
-            var smtpHost = smtpSettings["Host"] ?? Environment.GetEnvironmentVariable("SMTP_HOST");
-            var smtpPort = int.Parse(smtpSettings["Port"] ?? Environment.GetEnvironmentVariable("SMTP_PORT") ?? "587");
-            var smtpUser = smtpSettings["Username"] ?? Environment.GetEnvironmentVariable("SMTP_USERNAME");
-            var smtpPassword = smtpSettings["Password"] ?? Environment.GetEnvironmentVariable("SMTP_PASSWORD");
+            var smtpHost = smtpSettings["Host"] ?? Environment.GetEnvironmentVariable("Email__Smtp__Host");
+            var smtpPort = int.Parse(smtpSettings["Port"] ?? Environment.GetEnvironmentVariable("Email__Smtp__Port") ?? "587");
+            var smtpUser = smtpSettings["UserName"]
+                ?? Environment.GetEnvironmentVariable("Email__Smtp__UserName");
+            var smtpPassword = smtpSettings["Password"] ?? Environment.GetEnvironmentVariable("Email__Smtp__Password");
             var enableSsl = bool.Parse(smtpSettings["EnableSsl"] ?? "true");
+
+            if (string.IsNullOrWhiteSpace(smtpHost)
+                || string.IsNullOrWhiteSpace(smtpUser)
+                || string.IsNullOrWhiteSpace(smtpPassword))
+            {
+                _logger.LogError("SMTP configuration is incomplete.");
+            }
 
             _smtpClient = new SmtpClient(smtpHost, smtpPort)
             {
+                UseDefaultCredentials = false,
                 Credentials = new NetworkCredential(smtpUser, smtpPassword),
                 EnableSsl = enableSsl
             };
@@ -38,7 +47,7 @@ namespace Modules.Auth.Infrastructure.Services
         {
             try
             {
-                var appName = _configuration["App:Name"] ?? "E-Verland";
+                var appName = _configuration["Email:Smtp:FromName"] ?? Environment.GetEnvironmentVariable("Email__Smtp__FromName") ?? "E-Verland";
 
                 var htmlBody = $@"
 <!DOCTYPE html>
@@ -150,11 +159,18 @@ namespace Modules.Auth.Infrastructure.Services
         {
             try
             {
-                var senderEmail = _configuration["Email:Sender"] ?? Environment.GetEnvironmentVariable("SENDER_EMAIL");
+                var senderEmail = _configuration["Email:Smtp:UserName"]
+                    ?? Environment.GetEnvironmentVariable("Email__Smtp__UserName");
+
+                if (string.IsNullOrWhiteSpace(senderEmail))
+                {
+                    _logger.LogError($"Sender email is not configured.");
+                    return false;
+                }
 
                 var mailMessage = new MailMessage
                 {
-                    From = new MailAddress(senderEmail!, "E-Verland"),
+                    From = new MailAddress(senderEmail, "E-Verland"),
                     Subject = subject,
                     Body = htmlBody,
                     IsBodyHtml = true

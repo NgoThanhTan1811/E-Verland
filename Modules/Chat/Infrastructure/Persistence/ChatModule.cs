@@ -24,10 +24,10 @@ public static class ChatModuleExtensions
 
         // Add MediatR
         services.AddMediatR(config =>
-            config.RegisterServicesFromAssembly(typeof(Chat.Application.ChatApplicationMarker).Assembly));
+            config.RegisterServicesFromAssembly(typeof(Application.ChatApplicationMarker).Assembly));
 
         // Add AutoMapper
-        services.AddAutoMapper(typeof(Chat.Application.ChatApplicationMarker).Assembly);
+        services.AddAutoMapper(typeof(Application.ChatApplicationMarker).Assembly);
 
         return services;
     }

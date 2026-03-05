@@ -1,3 +1,4 @@
+using System.Security.Authentication;
 using Modules.Redis.Services;
 using StackExchange.Redis;
 
@@ -8,9 +9,8 @@ public static class RedisModuleExtensions
     public static IServiceCollection AddRedisModule(this IServiceCollection services, IConfiguration configuration)
     {
         var redisConnection =
-            configuration["Redis:ConnectionString"]
-            ?? configuration.GetConnectionString("Redis")
-            ?? throw new InvalidOperationException("Missing Redis connection string. Use Redis:ConnectionString or ConnectionStrings:Redis");
+            configuration.GetConnectionString("Redis")
+            ?? throw new InvalidOperationException("Missing Redis connection string.");
 
         services.AddSingleton<IConnectionMultiplexer>(_ =>
         {
@@ -19,8 +19,9 @@ public static class RedisModuleExtensions
             options.AbortOnConnectFail = false;
             options.ConnectTimeout = 5000;
             options.SyncTimeout = 5000;
-
             options.KeepAlive = 30;
+            options.Ssl = true;
+            options.SslProtocols = SslProtocols.Tls12;
 
             return ConnectionMultiplexer.Connect(options);
         });
