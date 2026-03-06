@@ -8,9 +8,9 @@ public sealed class OrderDbContextFactory : IDesignTimeDbContextFactory<OrderDbC
     public OrderDbContext CreateDbContext(string[] args)
     {
         var conn =
-            Environment.GetEnvironmentVariable("ConnectionStrings__OrderDb")
+            Environment.GetEnvironmentVariable("OrderDb")
             ?? throw new InvalidOperationException(
-                "Missing env ConnectionStrings__OrderDb (design-time).");
+                "Missing env OrderDb (design-time).");
 
         var options = new DbContextOptionsBuilder<OrderDbContext>()
             .UseNpgsql(conn, npgsql =>

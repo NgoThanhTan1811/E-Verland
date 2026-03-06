@@ -8,9 +8,9 @@ public sealed class NotificationDbContextFactory : IDesignTimeDbContextFactory<N
     public NotificationDbContext CreateDbContext(string[] args)
     {
         var conn =
-            Environment.GetEnvironmentVariable("ConnectionStrings__NotificationDb")
+            Environment.GetEnvironmentVariable("NotificationDb")
             ?? throw new InvalidOperationException(
-                "Missing env ConnectionStrings__NotificationDb (design-time).");
+                "Missing env NotificationDb (design-time).");
 
         var options = new DbContextOptionsBuilder<NotificationDbContext>()
             .UseNpgsql(conn, npgsql =>

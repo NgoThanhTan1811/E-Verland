@@ -9,9 +9,9 @@ public sealed class CartDbContextFactory : IDesignTimeDbContextFactory<CartDbCon
     public CartDbContext CreateDbContext(string[] args)
     {
         var conn =
-            Environment.GetEnvironmentVariable("ConnectionStrings__CartDb")
+            Environment.GetEnvironmentVariable("CartDb")
             ?? throw new InvalidOperationException(
-                "Missing env ConnectionStrings__CartDb (design-time).");
+                "Missing env CartDb (design-time).");
 
         var options = new DbContextOptionsBuilder<CartDbContext>()
             .UseNpgsql(conn, npgsql =>

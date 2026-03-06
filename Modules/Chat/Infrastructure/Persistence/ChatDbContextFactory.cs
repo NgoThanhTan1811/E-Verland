@@ -8,9 +8,9 @@ public sealed class ChatDbContextFactory : IDesignTimeDbContextFactory<ChatDbCon
     public ChatDbContext CreateDbContext(string[] args)
     {
         var conn =
-            Environment.GetEnvironmentVariable("ConnectionStrings__ChatDb")
+            Environment.GetEnvironmentVariable("ChatDb")
             ?? throw new InvalidOperationException(
-                "Missing env ConnectionStrings__ChatDb (design-time).");
+                "Missing env ChatDb (design-time).");
 
         var options = new DbContextOptionsBuilder<ChatDbContext>()
             .UseNpgsql(conn, npgsql =>

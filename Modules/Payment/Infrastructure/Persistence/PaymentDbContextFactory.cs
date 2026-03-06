@@ -9,9 +9,9 @@ public sealed class PaymentDbContextFactory : IDesignTimeDbContextFactory<Paymen
     public PaymentDbContext CreateDbContext(string[] args)
     {
         var conn =
-            Environment.GetEnvironmentVariable("ConnectionStrings__PaymentDb")
+            Environment.GetEnvironmentVariable("PaymentDb")
             ?? throw new InvalidOperationException(
-                "Missing env ConnectionStrings__PaymentDb (design-time).");
+                "Missing env PaymentDb (design-time).");
 
         var options = new DbContextOptionsBuilder<PaymentDbContext>()
             .UseNpgsql(conn, npgsql =>

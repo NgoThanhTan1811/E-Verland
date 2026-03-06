@@ -8,9 +8,9 @@ public sealed class UserDbContextFactory : IDesignTimeDbContextFactory<UserDbCon
     public UserDbContext CreateDbContext(string[] args)
     {
         var conn =
-            Environment.GetEnvironmentVariable("ConnectionStrings__UserDb")
+            Environment.GetEnvironmentVariable("UserDb")
             ?? throw new InvalidOperationException(
-                "Missing env ConnectionStrings__UserDb (design-time).");
+                "Missing env UserDb (design-time).");
 
         var options = new DbContextOptionsBuilder<UserDbContext>()
             .UseNpgsql(conn, npgsql =>

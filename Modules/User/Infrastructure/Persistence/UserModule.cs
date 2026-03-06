@@ -12,7 +12,7 @@ public static class UserModule
     {
         var conn = configuration.GetConnectionString("UserDb");
         if (string.IsNullOrWhiteSpace(conn))
-            throw new InvalidOperationException("Missing ConnectionStrings__UserDb");
+            throw new InvalidOperationException("Missing UserDb");
 
         services.AddDbContext<UserDbContext>(options =>
         {
