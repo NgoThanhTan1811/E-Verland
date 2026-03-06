@@ -97,7 +97,19 @@ var jwtIssuer = builder.Configuration["JWT_ISSUER"] ?? builder.Configuration["Jw
 var jwtAudience = builder.Configuration["JWT_AUDIENCE"] ?? builder.Configuration["Jwt:Audience"];
 
 if (string.IsNullOrWhiteSpace(jwtKey))
-    throw new InvalidOperationException("JWT Key is not configured. Set JWT_KEY env var or Jwt:Key in appsettings.json");
+    throw new InvalidOperationException("JWT Key is not configured.");
+
+
+Console.WriteLine($"  Key: {jwtKey}");
+Console.WriteLine($"  Password mail: {Environment.GetEnvironmentVariable("Email__Smtp__Password")}");
+Console.WriteLine($"  UserName mail: {Environment.GetEnvironmentVariable("Email__Smtp__UserName")}");
+Console.WriteLine($"  FromName mail: {Environment.GetEnvironmentVariable("Email__Smtp__FromName")}");
+Console.WriteLine($"  Redis_url: {Environment.GetEnvironmentVariable("Redis_URL")}");
+Console.WriteLine($"  Redis_Port: {Environment.GetEnvironmentVariable("Redis_Port")}");
+Console.WriteLine($"  Redis_User: {Environment.GetEnvironmentVariable("Redis_User")}");
+Console.WriteLine($"  Redis_Password: {Environment.GetEnvironmentVariable("Redis_Password")}");
+Console.WriteLine($"  Redis_Ssl: {Environment.GetEnvironmentVariable("Redis_Ssl")}");
+Console.WriteLine($"  Redis_AbortConnect: {Environment.GetEnvironmentVariable("Redis_AbortConnect")}");
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -124,7 +136,7 @@ builder.Services.AddCustomAuthorization();
 
 
 // Add Modules
-// builder.Services.AddRedisModule(builder.Configuration);
+builder.Services.AddRedisModule(builder.Configuration);
 builder.Services.AddUserModule(builder.Configuration);
 builder.Services.AddProductModule(builder.Configuration);
 builder.Services.AddCartModule(builder.Configuration);

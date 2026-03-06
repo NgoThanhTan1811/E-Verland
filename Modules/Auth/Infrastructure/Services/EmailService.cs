@@ -11,22 +11,18 @@ namespace Modules.Auth.Infrastructure.Services
 
     public class EmailService : IEmailService
     {
-        private readonly IConfiguration _configuration;
         private readonly ILogger<EmailService> _logger;
         private readonly SmtpClient _smtpClient;
 
-        public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
+        public EmailService( ILogger<EmailService> logger)
         {
-            _configuration = configuration;
             _logger = logger;
 
-            var smtpSettings = _configuration.GetSection("Email:Smtp");
-            var smtpHost = smtpSettings["Host"] ?? Environment.GetEnvironmentVariable("Email__Smtp__Host");
-            var smtpPort = int.Parse(smtpSettings["Port"] ?? Environment.GetEnvironmentVariable("Email__Smtp__Port") ?? "587");
-            var smtpUser = smtpSettings["UserName"]
-                ?? Environment.GetEnvironmentVariable("Email__Smtp__UserName");
-            var smtpPassword = smtpSettings["Password"] ?? Environment.GetEnvironmentVariable("Email__Smtp__Password");
-            var enableSsl = bool.Parse(smtpSettings["EnableSsl"] ?? "true");
+            var smtpHost = Environment.GetEnvironmentVariable("Email__Smtp__Host");
+            var smtpPort = int.Parse(Environment.GetEnvironmentVariable("Email__Smtp__Port") ?? "587");
+            var smtpUser = Environment.GetEnvironmentVariable("Email__Smtp__UserName");
+            var smtpPassword =  Environment.GetEnvironmentVariable("Email__Smtp__Password");
+            var enableSsl = bool.Parse(Environment.GetEnvironmentVariable("Email__Smtp__SmtpEnableSsl") ?? "true");
 
             if (string.IsNullOrWhiteSpace(smtpHost)
                 || string.IsNullOrWhiteSpace(smtpUser)
@@ -47,7 +43,7 @@ namespace Modules.Auth.Infrastructure.Services
         {
             try
             {
-                var appName = _configuration["Email:Smtp:FromName"] ?? Environment.GetEnvironmentVariable("Email__Smtp__FromName") ?? "E-Verland";
+                var appName = Environment.GetEnvironmentVariable("Email__Smtp__FromName") ?? "E-Verland";
 
                 var htmlBody = $@"
 <!DOCTYPE html>
@@ -159,8 +155,7 @@ namespace Modules.Auth.Infrastructure.Services
         {
             try
             {
-                var senderEmail = _configuration["Email:Smtp:UserName"]
-                    ?? Environment.GetEnvironmentVariable("Email__Smtp__UserName");
+                var senderEmail = Environment.GetEnvironmentVariable("Email__Smtp__UserName");
 
                 if (string.IsNullOrWhiteSpace(senderEmail))
                 {

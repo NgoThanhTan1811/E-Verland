@@ -6,28 +6,49 @@ namespace Modules.Redis.Infrastructure;
 
 public static class RedisModuleExtensions
 {
-    public static IServiceCollection AddRedisModule(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddRedisModule(this IServiceCollection services, ConfigurationManager configuration)
     {
-        var redisConnection =
-            configuration.GetConnectionString("Redis")
-            ?? throw new InvalidOperationException("Missing Redis connection string.");
+        var host = Environment.GetEnvironmentVariable("Redis_URL");
+        var portValue = Environment.GetEnvironmentVariable("Redis_Port");
+        var user = Environment.GetEnvironmentVariable("Redis_User");
+        var password = Environment.GetEnvironmentVariable("Redis_Password");
+        var ssl = bool.TryParse(Environment.GetEnvironmentVariable("Redis_Ssl"), out var parsedSsl)
+            ? parsedSsl
+            : false;
+         var abortConnectValue = Environment.GetEnvironmentVariable("Redis_AbortConnect");
+
+        if (string.IsNullOrWhiteSpace(host))
+            throw new InvalidOperationException("Missing Redis_URL.");
+
+        if (!int.TryParse(portValue, out var port))
+            port = 6379;
+
+    
+
+        if (!bool.TryParse(abortConnectValue, out var abortConnect))
+            abortConnect = false;
 
         services.AddSingleton<IConnectionMultiplexer>(_ =>
         {
-            var options = ConfigurationOptions.Parse(redisConnection);
+            var options = new ConfigurationOptions
+            {
+                User = user,
+                Password = password,
+                Ssl = ssl,
+                SslHost = host,
+                AbortOnConnectFail = abortConnect,
+                ConnectTimeout = 5000,
+                SyncTimeout = 5000,
+                KeepAlive = 30,
+                SslProtocols = SslProtocols.Tls12
+            };
 
-            options.AbortOnConnectFail = false;
-            options.ConnectTimeout = 5000;
-            options.SyncTimeout = 5000;
-            options.KeepAlive = 30;
-            options.Ssl = true;
-            options.SslProtocols = SslProtocols.Tls12;
+            options.EndPoints.Add(host, port);
 
             return ConnectionMultiplexer.Connect(options);
         });
 
         services.AddSingleton<ICacheService, CacheService>();
-
         services.AddScoped<IJwtCacheService, JwtCacheService>();
         services.AddScoped<IProductCacheService, ProductCacheService>();
         services.AddScoped<ICartCacheService, CartCacheService>();
