@@ -10,9 +10,9 @@ public static class UserModule
 {
     public static IServiceCollection AddUserModule(this IServiceCollection services, IConfiguration configuration)
     {
-        var conn = configuration.GetConnectionString("UserDb");
-        if (string.IsNullOrWhiteSpace(conn))
-            throw new InvalidOperationException("Missing UserDb");
+        var conn = configuration.GetConnectionString("UserDb")
+                 ?? Environment.GetEnvironmentVariable("UserDb")
+             ?? throw new InvalidOperationException("Missing ConnectionStrings:UserDb");
 
         services.AddDbContext<UserDbContext>(options =>
         {

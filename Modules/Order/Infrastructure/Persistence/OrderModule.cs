@@ -13,6 +13,7 @@ public static class OrderModuleExtensions
     {
         // Add DbContext
         var conn = configuration.GetConnectionString("OrderDb")
+                ?? Environment.GetEnvironmentVariable("OrderDb")
                 ?? throw new InvalidOperationException("Missing ConnectionStrings:OrderDb");
 
         services.AddDbContext<OrderDbContext>(options =>

@@ -12,6 +12,7 @@ public static class NotificationModuleExtensions
     {
         // Add DbContext
         var conn = configuration.GetConnectionString("NotificationDb")
+                ?? Environment.GetEnvironmentVariable("NotificationDb")
             ?? throw new InvalidOperationException("Missing ConnectionStrings:NotificationDb");
 
         services.AddDbContext<NotificationDbContext>(options =>

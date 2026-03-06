@@ -13,6 +13,7 @@ public static class ProductModuleExtensions
     {
         // Add DbContext
         var conn = configuration.GetConnectionString("ProductDb")
+                ?? Environment.GetEnvironmentVariable("ProductDb")
                 ?? throw new InvalidOperationException("Missing ConnectionStrings:ProductDb");
 
         services.AddDbContext<ProductDbContext>(options =>

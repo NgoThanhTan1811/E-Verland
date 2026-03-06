@@ -12,9 +12,7 @@ public static class RedisModuleExtensions
         var portValue = Environment.GetEnvironmentVariable("Redis_Port");
         var user = Environment.GetEnvironmentVariable("Redis_User");
         var password = Environment.GetEnvironmentVariable("Redis_Password");
-        var ssl = bool.TryParse(Environment.GetEnvironmentVariable("Redis_Ssl"), out var parsedSsl)
-            ? parsedSsl
-            : false;
+        var ssl = bool.TryParse(Environment.GetEnvironmentVariable("Redis_Ssl"), out var parsedSsl) && parsedSsl;
          var abortConnectValue = Environment.GetEnvironmentVariable("Redis_AbortConnect");
 
         if (string.IsNullOrWhiteSpace(host))

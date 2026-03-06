@@ -10,6 +10,7 @@ public static class ChatModuleExtensions
     {
         // Add DbContext
         var conn = configuration.GetConnectionString("ChatDb")
+                ?? Environment.GetEnvironmentVariable("ChatDb")
             ?? throw new InvalidOperationException("Missing ConnectionStrings:ChatDb");
 
         services.AddDbContext<ChatDbContext>(options =>

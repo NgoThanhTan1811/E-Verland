@@ -12,6 +12,7 @@ public static class PaymentModuleExtensions
     {
         // Add DbContext
         var conn = configuration.GetConnectionString("PaymentDb")
+                ?? Environment.GetEnvironmentVariable("PaymentDb")
                 ?? throw new InvalidOperationException("Missing ConnectionStrings:PaymentDb");
 
         services.AddDbContext<PaymentDbContext>(options =>
