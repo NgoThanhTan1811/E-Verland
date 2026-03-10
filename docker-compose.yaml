@@ -1,0 +1,9 @@
+services:
+  e-verland:
+    image: thanhtan1811/everland:latest
+    container_name: e-verland
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    env_file:
+      - .env
+    restart: unless-stopped
