@@ -47,6 +47,10 @@ namespace Modules.Payment.Infrastructure.Persistence
                 entity.HasIndex(x => x.OrderId)
                     .IsUnique();
 
+                entity.Property(x => x.PaymentUrl)
+                    .HasColumnType("text")
+                    .IsRequired(false);
+
                 entity.HasIndex(x => x.UserId);
             });
         }

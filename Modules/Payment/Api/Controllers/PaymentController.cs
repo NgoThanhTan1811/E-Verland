@@ -1,3 +1,7 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,59 +11,34 @@ using Modules.Payment.Application.DTOs.Request;
 using Modules.Payment.Application.DTOs.Response;
 using Modules.Payment.Application.Queries;
 using Modules.Payment.Domain;
+using Modules.Product.Application.Contracts;
 
 namespace Modules.Payment.Api.Controllers;
 
 [ApiController]
 [EnableRateLimiting("payment")]
 [Route("api/[controller]")]
-public class PaymentController(IMediator mediator) : ControllerBase
+public class PaymentController(IMediator mediator, IProductReservationService reservationService) : ControllerBase
 {
     private readonly IMediator _mediator = mediator;
+    private readonly IProductReservationService _reservationService = reservationService;
 
     [Authorize]
     [HttpPost]
-    [ProducesResponseType(typeof(CreatePaymentResponseDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(InitiatePaymentResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<CreatePaymentResponseDto>> CreatePayment(
-        [FromBody] CreatePaymentRequestDto dto,
+    public async Task<ActionResult<InitiatePaymentResponseDto>> InitiatePayment(
+        [FromBody] InitiatePaymentRequestDto dto,
         CancellationToken ct)
     {
         try
         {
-            var command = new CreatePaymentCommand(
+            var command = new InitiatePaymentCommand(
                 dto.OrderId,
                 dto.UserId,
                 dto.Amount,
-                dto.Method
-            );
-
-            var result = await _mediator.Send(command, ct);
-            return CreatedAtAction(nameof(GetPaymentById), new { id = result.Id }, result);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
-
-    [Authorize]
-    [HttpPost("process")]
-    [ProducesResponseType(typeof(CreatePaymentResponseDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<CreatePaymentResponseDto>> ProcessPayment(
-        [FromBody] ProcessPaymentRequestDto dto,
-        [FromQuery] Guid userId,
-        [FromQuery] decimal amount,
-        CancellationToken ct)
-    {
-        try
-        {
-            var command = new ProcessPaymentCommand(
-                dto.OrderId,
-                userId,
-                amount,
-                dto.Method
+                dto.Method,
+                dto.Items.Select(i => new OrderItemDto(i.SkuId, i.Quantity)).ToList()
             );
 
             var result = await _mediator.Send(command, ct);
@@ -104,7 +83,6 @@ public class PaymentController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    // Get payment by payment_code
     [Authorize]
     [HttpGet("payment-code/{code}")]
     [ProducesResponseType(typeof(PaymentResponseDto), StatusCodes.Status200OK)]
@@ -120,7 +98,6 @@ public class PaymentController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    /// Get all payments for a user
     [Authorize]
     [HttpGet("payment-user/{userId}")]
     [ProducesResponseType(typeof(List<PaymentOverviewResponseDto>), StatusCodes.Status200OK)]
@@ -133,7 +110,6 @@ public class PaymentController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    /// Update payment status 
     [Authorize(Roles = "Admin")]
     [HttpPatch("payment:{id}/status")]
     [ProducesResponseType(typeof(PaymentResponseDto), StatusCodes.Status200OK)]
@@ -160,42 +136,77 @@ public class PaymentController(IMediator mediator) : ControllerBase
         }
     }
 
-    /// Webhook endpoint for payment gateway callbacks (e.g., online payment confirmation)
     [AllowAnonymous]
-    [HttpPost("webhook")]
+    [HttpPost("webhook/sepay")]
+    [DisableRequestSizeLimit]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> PaymentWebhook(
-        [FromBody] PaymentWebhookDto dto,
-        CancellationToken ct)
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SePayWebhook(CancellationToken ct)
     {
+        // Read raw body for HMAC verification
+        Request.EnableBuffering();
+        using var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: true);
+        var rawBody = await reader.ReadToEndAsync(ct);
+        Request.Body.Position = 0;
+
+        // Verify HMAC-SHA256 signature
+        var sepayKey = Environment.GetEnvironmentVariable("SEPAY_KEY") ?? string.Empty;
+        var keyBytes = Encoding.UTF8.GetBytes(sepayKey);
+        var bodyBytes = Encoding.UTF8.GetBytes(rawBody);
+        var computedHash = HMACSHA256.HashData(keyBytes, bodyBytes);
+        var computedSignature = Convert.ToHexString(computedHash).ToLowerInvariant();
+
+        var receivedSignature = Request.Headers["X-SePay-Signature"].ToString().ToLowerInvariant();
+        var signatureValid = CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(computedSignature),
+            Encoding.UTF8.GetBytes(receivedSignature));
+
+        if (!signatureValid)
+            return Unauthorized(new { message = "Invalid signature" });
+
+        // Deserialize payload
+        SePayWebhookDto? payload;
         try
         {
-            // Verify webhook signature/authenticity here
-            // This is a placeholder - implement actual webhook verification
-
-            var payment = await _mediator.Send(new GetPaymentByCodeQuery(dto.PaymentCode), ct);
-            if (payment == null)
-                return BadRequest(new { message = "Payment not found" });
-
-            var status = dto.Success ? PaymentStatus.Success : PaymentStatus.Failed;
-            await _mediator.Send(new UpdatePaymentStatusCommand(payment.Id, status), ct);
-
-            return Ok(new { message = "Webhook processed successfully" });
+            payload = JsonSerializer.Deserialize<SePayWebhookDto>(rawBody);
         }
-        catch (Exception ex)
+        catch
         {
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(new { message = "Invalid payload" });
         }
+
+        if (payload is null || string.IsNullOrEmpty(payload.PaymentCode))
+            return BadRequest(new { message = "Missing payment_code" });
+
+        // Look up payment by code
+        var payment = await _mediator.Send(new GetPaymentByCodeQuery(payload.PaymentCode), ct);
+        if (payment is null)
+            return NotFound(new { message = "Payment not found" });
+
+        // Idempotency: already succeeded
+        if (payment.Status == PaymentStatus.Success)
+            return Ok(new { success = true });
+
+        // Update status and call reservation service
+        if (payload.TransactionStatus == "success")
+        {
+            await _mediator.Send(new UpdatePaymentStatusCommand(payment.Id, PaymentStatus.Success), ct);
+            await _reservationService.ConfirmReservationAsync(payment.Id, ct);
+        }
+        else if (payload.TransactionStatus == "failed")
+        {
+            await _mediator.Send(new UpdatePaymentStatusCommand(payment.Id, PaymentStatus.Failed), ct);
+            await _reservationService.ReleaseReservationAsync(payment.Id, ct);
+        }
+
+        return Ok(new { success = true });
     }
 }
 
-/// <summary>
-/// DTO for payment gateway webhook callbacks
-/// </summary>
-public sealed record PaymentWebhookDto(
-    string PaymentCode,
-    bool Success,
-    string? TransactionId,
-    string? Message
+public sealed record SePayWebhookDto(
+    [property: JsonPropertyName("payment_code")] string PaymentCode,
+    [property: JsonPropertyName("transaction_status")] string TransactionStatus,
+    [property: JsonPropertyName("transaction_id")] string TransactionId,
+    [property: JsonPropertyName("amount")] decimal Amount
 );

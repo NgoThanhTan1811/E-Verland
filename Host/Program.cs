@@ -10,6 +10,7 @@ using Modules.Order;
 using Modules.Payment;
 using Modules.Redis.Infrastructure;
 using Modules.Auth.Infrastructure.Persistence;
+using Modules.Chat.Api.Hubs;
 using Modules.Chat.Infrastructure.Persistence;
 using Modules.Notification.Infrastructure;
 using DotNetEnv;
@@ -118,9 +119,13 @@ builder.Services
         };
     });
 
-// Rate Limiting & Authorization Configuration
+// Rate Limiting 
 builder.Services.AddCustomRateLimiting();
+// Authorization 
 builder.Services.AddCustomAuthorization();
+// OAuth Google
+builder.AddGoogleOAuth();
+
 
 
 // Add Modules
@@ -134,6 +139,11 @@ builder.Services.AddPaymentModule(builder.Configuration);
 builder.Services.AddChatModule(builder.Configuration);
 builder.Services.AddNotificationModule(builder.Configuration);
 
+builder.Services.Configure<RouteOptions>(o =>
+{
+    o.LowercaseUrls = true;
+    o.LowercaseQueryStrings = true;
+});
 
 var app = builder.Build();
 
@@ -142,7 +152,22 @@ if (app.Environment.IsDevelopment())
 {
 
 }
-app.UseSwagger();
+app.MapGet("/swagger-download/v1", async (HttpContext context) =>
+{
+    var url = $"{context.Request.Scheme}://{context.Request.Host}/swagger/v1/swagger.json";
+
+    using var httpClient = new HttpClient();
+    var json = await httpClient.GetStringAsync(url);
+
+    return Results.File(
+        System.Text.Encoding.UTF8.GetBytes(json),
+        "application/json",
+        "swagger-v1.json");
+});
+app.UseSwagger(options =>
+{
+    options.RouteTemplate = "swagger/{documentName}/swagger.json";
+});
 app.UseSwaggerUI();
 
 app.UseMiddleware<ApiExceptionMiddleware>();
@@ -154,4 +179,5 @@ app.UseAuthorization();
 
 
 app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat");
 app.Run();

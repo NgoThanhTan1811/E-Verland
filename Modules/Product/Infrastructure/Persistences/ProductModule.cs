@@ -4,6 +4,7 @@ using Modules.Product.Infrastructure.Repositories;
 using Modules.Product.Application.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Modules.Product.Infrastructure.Persistence;
+using Modules.Product.Infrastructure.Services;
 
 namespace Modules.Product;
 
@@ -27,6 +28,8 @@ public static class ProductModuleExtensions
         // Add Application Services
         services.AddScoped<IProductDbContext>(provider => provider.GetRequiredService<ProductDbContext>());
         services.AddScoped<SKUGeneratorService>();
+        services.AddScoped<IProductReservationService, ProductReservationService>();
+        services.AddHostedService<StockReservationExpiryService>();
 
         // Add MediatR
         services.AddMediatR(config =>

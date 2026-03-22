@@ -10,7 +10,8 @@ namespace Modules.Payment.Domain
         public Guid UserId { get; set; }
         public decimal Amount { get; set; }
         public PaymentMethod Method { get; set; } 
-        public PaymentStatus Status { get; set; } 
+        public PaymentStatus Status { get; set; }
+        public string? PaymentUrl { get; set; }
 
     }
 }

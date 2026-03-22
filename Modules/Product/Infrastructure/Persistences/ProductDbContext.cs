@@ -12,6 +12,7 @@ public class ProductDbContext(DbContextOptions<ProductDbContext> options) : DbCo
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Domain.Product> Products => Set<Domain.Product>();
     public DbSet<SKU> SKUs => Set<SKU>();
+    public DbSet<StockReservation> StockReservations => Set<StockReservation>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -139,6 +140,32 @@ public class ProductDbContext(DbContextOptions<ProductDbContext> options) : DbCo
                 .WithMany(x => x.SKUs)
                 .HasForeignKey(x => x.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StockReservation>(entity =>
+        {
+            entity.ToTable("StockReservations");
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.PaymentId)
+                .IsRequired();
+
+            entity.Property(x => x.SkuId)
+                .IsRequired();
+
+            entity.Property(x => x.Quantity)
+                .IsRequired();
+
+            entity.Property(x => x.Status)
+                .HasConversion<string>()
+                .IsRequired()
+                .HasDefaultValue(ReservationStatus.Reserved);
+
+            entity.Property(x => x.CreatedAt)
+                .IsRequired();
+
+            entity.HasIndex(x => x.PaymentId);
+            entity.HasIndex(x => x.SkuId);
         });
     }
 }

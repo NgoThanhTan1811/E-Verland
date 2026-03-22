@@ -1,6 +1,7 @@
 using Modules.Payment.Application;
 using Modules.Payment.Infrastructure.Repositories;
 using Modules.Payment.Application.Contracts;
+using Modules.Payment.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Modules.Payment.Infrastructure.Persistence;
 
@@ -23,6 +24,9 @@ public static class PaymentModuleExtensions
 
         // Add Repositories
         services.AddScoped<IPaymentRepository, PaymentRepository>();
+
+        // Add HTTP Clients
+        services.AddHttpClient<ISePayClient, SePayClient>();
 
         // Add Application Services
         services.AddScoped<IPaymentDbContext>(provider => provider.GetRequiredService<PaymentDbContext>());

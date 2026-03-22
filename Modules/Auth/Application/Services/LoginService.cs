@@ -1,9 +1,11 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Modules.Auth.Application.DTOs.Request;
 using Modules.Auth.Application.DTOs.Response;
 using Modules.Redis.Services;
 using Modules.User.Application.Interfaces.Repositories;
+using Modules.User.Domain.Entities;
 using Modules.User.Domain.Enums;
 
 namespace Modules.Auth.Application.Services
@@ -11,6 +13,7 @@ namespace Modules.Auth.Application.Services
     public interface IAuthService
     {
         Task<LoginResponseDto> LoginAsync(LoginRequestDto request);
+        Task<LoginResponseDto> LoginWithGoogleAsync(string email, string? displayName);
         Task<RefreshTokenResponseDto> RefreshAsync(RefreshTokenRequestDto request);
         Task<ChangePasswordResponseDto> ChangePasswordAsync(Guid userId, ChangePasswordRequestDto request);
         Task<PasswordResetResponseDto> RequestPasswordResetOtpAsync(RequestPasswordResetOtpDto request);
@@ -84,25 +87,52 @@ namespace Modules.Auth.Application.Services
 
             await _jwtCacheService.CacheTokenAsync(account.Id.ToString(), refreshToken, _tokenService.RefreshTokenLifetime);
 
-            var accessExpiresAt = DateTime.UtcNow.Add(_tokenService.AccessTokenLifetime);
-            var refreshExpiresAt = DateTime.UtcNow.Add(_tokenService.RefreshTokenLifetime);
+            return CreateLoginResponse(account, accessToken, refreshToken, "Login successful");
+        }
 
-            return new LoginResponseDto
+        public async Task<LoginResponseDto> LoginWithGoogleAsync(string email, string? displayName)
+        {
+            if (string.IsNullOrWhiteSpace(email))
             {
-                Success = true,
-                Message = "Login successful",
-                Token = accessToken,
-                RefreshToken = refreshToken,
-                AccessTokenExpiresAt = accessExpiresAt,
-                RefreshTokenExpiresAt = refreshExpiresAt,
-                User = new UserInfoDto
+                return new LoginResponseDto
                 {
-                    Id = account.Id,
-                    Email = account.Email,
-                    Username = account.Username,
-                    Role = account.Role.ToString()
-                }
-            };
+                    Success = false,
+                    Message = "Google account không trả về email hợp lệ"
+                };
+            }
+
+            var account = await _accountRepository.GetByEmailAsync(email);
+            var isNewAccount = false;
+
+            if (account == null)
+            {
+                var username = await GenerateUniqueUsernameAsync(displayName, email);
+                var generatedPassword = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString("N"));
+
+                account = new Account(email, username, generatedPassword);
+                await _accountRepository.CreateAsync(account);
+                isNewAccount = true;
+            }
+
+            if (account.Status != StatusUser.Active)
+            {
+                return new LoginResponseDto
+                {
+                    Success = false,
+                    Message = "Tài khoản đang bị khóa hoặc không hoạt động"
+                };
+            }
+
+            var accessToken = _tokenService.GenerateAccessToken(account);
+            var refreshToken = _tokenService.GenerateRefreshToken();
+
+            await _jwtCacheService.CacheTokenAsync(account.Id.ToString(), refreshToken, _tokenService.RefreshTokenLifetime);
+
+            return CreateLoginResponse(
+                account,
+                accessToken,
+                refreshToken,
+                isNewAccount ? "Đăng ký bằng Google thành công" : "Đăng nhập bằng Google thành công");
         }
 
         public async Task<RefreshTokenResponseDto> RefreshAsync(RefreshTokenRequestDto request)
@@ -180,7 +210,7 @@ namespace Modules.Auth.Application.Services
                     Success = false,
                     Message = "Tài khoản đang bị khóa hoặc không hoạt động"
                 };
-            }   
+            }
 
             if (string.IsNullOrWhiteSpace(request.OldPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
             {
@@ -342,6 +372,86 @@ namespace Modules.Auth.Application.Services
         private static bool IsPasswordValid(string password)
         {
             return !string.IsNullOrWhiteSpace(password) && password.Length > 3;
+        }
+
+        private LoginResponseDto CreateLoginResponse(Account account, string accessToken, string refreshToken, string message)
+        {
+            var accessExpiresAt = DateTime.UtcNow.Add(_tokenService.AccessTokenLifetime);
+            var refreshExpiresAt = DateTime.UtcNow.Add(_tokenService.RefreshTokenLifetime);
+
+            return new LoginResponseDto
+            {
+                Success = true,
+                Message = message,
+                Token = accessToken,
+                RefreshToken = refreshToken,
+                AccessTokenExpiresAt = accessExpiresAt,
+                RefreshTokenExpiresAt = refreshExpiresAt,
+                User = new UserInfoDto
+                {
+                    Id = account.Id,
+                    Email = account.Email,
+                    Username = account.Username,
+                    Role = account.Role.ToString()
+                }
+            };
+        }
+
+        private async Task<string> GenerateUniqueUsernameAsync(string? displayName, string email)
+        {
+            var emailPrefix = email.Split('@', StringSplitOptions.RemoveEmptyEntries)[0];
+            var baseUsername = NormalizeUsername(displayName);
+
+            if (string.IsNullOrWhiteSpace(baseUsername))
+            {
+                baseUsername = NormalizeUsername(emailPrefix);
+            }
+
+            if (string.IsNullOrWhiteSpace(baseUsername))
+            {
+                baseUsername = "user";
+            }
+
+            var candidate = baseUsername;
+            var suffix = 0;
+
+            while (await _accountRepository.ExistsByUsernameAsync(candidate))
+            {
+                suffix++;
+                candidate = $"{baseUsername}{suffix}";
+            }
+
+            return candidate;
+        }
+
+        private static string NormalizeUsername(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            var normalizedChars = value
+                .Trim()
+                .ToLowerInvariant()
+                .Select(character => char.IsLetterOrDigit(character) ? character : '_')
+                .ToArray();
+
+            var normalized = new string(normalizedChars);
+
+            while (normalized.Contains("__", StringComparison.Ordinal))
+            {
+                normalized = normalized.Replace("__", "_", StringComparison.Ordinal);
+            }
+
+            normalized = normalized.Trim('_');
+
+            if (normalized.Length > 100)
+            {
+                normalized = normalized[..100];
+            }
+
+            return normalized;
         }
     }
 }

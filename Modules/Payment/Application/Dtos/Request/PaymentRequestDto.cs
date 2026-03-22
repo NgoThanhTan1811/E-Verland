@@ -2,18 +2,16 @@ using Modules.Payment.Domain;
 
 namespace Modules.Payment.Application.DTOs.Request;
 
-public sealed record CreatePaymentRequestDto(
+public sealed record InitiatePaymentRequestDto(
     Guid OrderId,
     Guid UserId,
     decimal Amount,
-    PaymentMethod Method
+    PaymentMethod Method,
+    List<OrderItemRequestDto> Items
 );
+
+public sealed record OrderItemRequestDto(Guid SkuId, int Quantity);
 
 public sealed record UpdatePaymentStatusRequestDto(
     PaymentStatus Status
-);
-
-public sealed record ProcessPaymentRequestDto(
-    Guid OrderId,
-    PaymentMethod Method
 );

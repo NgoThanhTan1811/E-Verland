@@ -30,6 +30,9 @@ public static class ChatModuleExtensions
         // Add AutoMapper
         services.AddAutoMapper(typeof(Application.ChatApplicationMarker).Assembly);
 
+        // Add SignalR
+        services.AddSignalR();
+
         return services;
     }
 }
