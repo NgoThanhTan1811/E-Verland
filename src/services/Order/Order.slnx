@@ -1,0 +1,10 @@
+<Solution>
+  <Project Path="../../blocks/Shared.Contracts/Shared.Contracts.csproj" />
+  <Project Path="../../blocks/Shared.Grpc/Shared.Grpc.csproj" />
+  <Project Path="../../blocks/Shared.Messaging/Shared.Messaging.csproj" />
+  <Project Path="../../blocks/Shared.Observability/Shared.Observability.csproj" />
+  <Project Path="Order.Api/Order.Api.csproj" />
+  <Project Path="Order.Application/Order.Application.csproj" />
+  <Project Path="Order.Domain/Order.Domain.csproj" />
+  <Project Path="Order.Infrastructure/Order.Infrastructure.csproj" />
+</Solution>

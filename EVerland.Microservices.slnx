@@ -1,0 +1,73 @@
+<Solution>
+  <Folder Name="/Host/">
+    <Project Path="Host/E-Verland.csproj" />
+  </Folder>
+  <Folder Name="/src/" />
+  <Folder Name="/src/blocks/">
+    <Project Path="src/blocks/Shared.Contracts/Shared.Contracts.csproj" />
+    <Project Path="src/blocks/Shared.Grpc/Shared.Grpc.csproj" />
+    <Project Path="src/blocks/Shared.Messaging/Shared.Messaging.csproj" />
+    <Project Path="src/blocks/Shared.Observability/Shared.Observability.csproj" />
+  </Folder>
+  <Folder Name="/src/gateway/" />
+  <Folder Name="/src/gateway/bff/" />
+  <Folder Name="/src/gateway/bff/admin/">
+    <Project Path="src/gateway/bff/admin/Bff.Admin/Bff.Admin.csproj" />
+  </Folder>
+  <Folder Name="/src/gateway/bff/mobile/">
+    <Project Path="src/gateway/bff/mobile/Bff.Mobile/Bff.Mobile.csproj" />
+  </Folder>
+  <Folder Name="/src/gateway/bff/web/">
+    <Project Path="src/gateway/bff/web/Bff.Web/Bff.Web.csproj" />
+  </Folder>
+  <Folder Name="/src/services/" />
+  <Folder Name="/src/services/Auth/">
+    <Project Path="src/services/Auth/Auth.Api/Auth.Api.csproj" />
+    <Project Path="src/services/Auth/Auth.Application/Auth.Application.csproj" />
+    <Project Path="src/services/Auth/Auth.Domain/Auth.Domain.csproj" />
+    <Project Path="src/services/Auth/Auth.Infrastructure/Auth.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/services/Cart/">
+    <Project Path="src/services/Cart/Cart.Api/Cart.Api.csproj" />
+    <Project Path="src/services/Cart/Cart.Application/Cart.Application.csproj" />
+    <Project Path="src/services/Cart/Cart.Domain/Cart.Domain.csproj" />
+    <Project Path="src/services/Cart/Cart.Infrastructure/Cart.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/services/Chat/">
+    <Project Path="src/services/Chat/Chat.Api/Chat.Api.csproj" />
+    <Project Path="src/services/Chat/Chat.Application/Chat.Application.csproj" />
+    <Project Path="src/services/Chat/Chat.Domain/Chat.Domain.csproj" />
+    <Project Path="src/services/Chat/Chat.Infrastructure/Chat.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/services/Notification/">
+    <Project Path="src/services/Notification/Notification.Api/Notification.Api.csproj" />
+    <Project Path="src/services/Notification/Notification.Application/Notification.Application.csproj" />
+    <Project Path="src/services/Notification/Notification.Domain/Notification.Domain.csproj" />
+    <Project Path="src/services/Notification/Notification.Infrastructure/Notification.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/services/Order/">
+    <Project Path="src/services/Order/Order.Api/Order.Api.csproj" />
+    <Project Path="src/services/Order/Order.Application/Order.Application.csproj" />
+    <Project Path="src/services/Order/Order.Domain/Order.Domain.csproj" />
+    <Project Path="src/services/Order/Order.Infrastructure/Order.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/services/Payment/">
+    <Project Path="src/services/Payment/Payment.Api/Payment.Api.csproj" />
+    <Project Path="src/services/Payment/Payment.Application/Payment.Application.csproj" />
+    <Project Path="src/services/Payment/Payment.Domain/Payment.Domain.csproj" />
+    <Project Path="src/services/Payment/Payment.Infrastructure/Payment.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/services/Product/">
+    <Project Path="src/services/Product/Product.Api/Product.Api.csproj" />
+    <Project Path="src/services/Product/Product.Application/Product.Application.csproj" />
+    <Project Path="src/services/Product/Product.Domain/Product.Domain.csproj" />
+    <Project Path="src/services/Product/Product.Infrastructure/Product.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/services/User/">
+    <Project Path="src/services/User/User.Api/User.Api.csproj" />
+    <Project Path="src/services/User/User.Application/User.Application.csproj" />
+    <Project Path="src/services/User/User.Domain/User.Domain.csproj" />
+    <Project Path="src/services/User/User.Infrastructure/User.Infrastructure.csproj" />
+  </Folder>
+  <Project Path="SharedKernel/SharedKernel.csproj" />
+</Solution>

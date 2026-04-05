@@ -1,0 +1,6 @@
+@Bff.Web_HostAddress = http://localhost:5127
+
+GET {{Bff.Web_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
