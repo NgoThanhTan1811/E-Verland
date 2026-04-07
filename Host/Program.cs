@@ -1,8 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
-using EVerland.Middleware;
+using EVerland.Extentions;
 using Modules.User;
 using Modules.Product;
 using Modules.Cart;
@@ -23,74 +22,9 @@ Env.Load(envPath);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// Swagger Configuration
-builder.Services.AddSwaggerGen(options =>
-{
-    options.CustomSchemaIds(type =>
-    {
-        // Helper: prefix theo module để tránh trùng enum/class cùng tên
-        static string PrefixByModule(Type t, string baseName)
-        {
-            var ns = t.Namespace ?? "";
-            if (ns.StartsWith("Modules.Payment")) return "Payment_" + baseName;
-            if (ns.StartsWith("Modules.Order")) return "Order_" + baseName;
-            if (ns.StartsWith("Modules.User")) return "User_" + baseName;
-            if (ns.StartsWith("SharedKernel")) return "Shared_" + baseName;
-            return baseName;
-        }
 
-        if (!type.IsGenericType)
-        {
-            // Non-generic: dùng Name + prefix module
-            return PrefixByModule(type, type.Name);
-        }
 
-        // Generic: PageResult_OrderOverviewResponseDto (có prefix module của generic type)
-        var genericName = type.GetGenericTypeDefinition().Name.Split('`')[0];
-        genericName = PrefixByModule(type, genericName);
-
-        var args = string.Join("_",
-            type.GetGenericArguments().Select(a =>
-            {
-                // mỗi generic arg cũng nên unique (lỡ arg trùng tên giữa module)
-                var argBase = a.IsGenericType
-                    ? a.GetGenericTypeDefinition().Name.Split('`')[0]
-                    : a.Name;
-
-                return PrefixByModule(a, argBase);
-            }));
-
-        return $"{genericName}_{args}";
-    });
-
-    options.SwaggerDoc("v1", new OpenApiInfo { Title = "API", Version = "v1" });
-
-    options.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header
-    });
-
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
-});
-
-builder.Services.AddTransient<ApiExceptionMiddleware>();
+builder.Services.AddTransient<ApiExceptionExtension>();
 
 // JWT Configuration
 var jwtKey = builder.Configuration["JWT_KEY"];
@@ -125,6 +59,7 @@ builder.Services.AddCustomRateLimiting();
 builder.Services.AddCustomAuthorization();
 // OAuth Google
 builder.AddGoogleOAuth();
+builder.AddSwagger();
 
 
 
@@ -170,7 +105,7 @@ app.UseSwagger(options =>
 });
 app.UseSwaggerUI();
 
-app.UseMiddleware<ApiExceptionMiddleware>();
+app.UseMiddleware<ApiExceptionExtension>();
 
 // app.UseHttpsRedirection();
 app.UseAuthentication();
