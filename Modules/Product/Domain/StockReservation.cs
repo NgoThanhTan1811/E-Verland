@@ -8,8 +8,7 @@ namespace Modules.Product.Domain
         public Guid SkuId { get; set; }
         public int Quantity { get; set; }
         public ReservationStatus Status { get; set; }
-        public DateTime CreatedAt { get; set; }
-    }
+        }
 
     public enum ReservationStatus
     {

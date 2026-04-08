@@ -27,7 +27,7 @@ E-Verland is an e-commerce backend API built with ASP.NET Core (.NET 10), follow
 ```
 E-Verland/
 +-- Host/                        # ASP.NET Core startup project
-+-- Middleware/                  # Global exception handling, authorization policies, rate limiting
++-- Extension/                  # Global exception handling, authorization policies, rate limiting
 +-- Modules/
 |   +-- Auth/
 |   +-- User/

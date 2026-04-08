@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Infra.AWS.CloudWatch;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,10 +19,11 @@ namespace Modules.Payment.Api.Controllers;
 [ApiController]
 [EnableRateLimiting("payment")]
 [Route("api/[controller]")]
-public class PaymentController(IMediator mediator, IProductReservationService reservationService) : ControllerBase
+public class PaymentController(IMediator mediator, IProductReservationService reservationService, ICloudWatchService cloudWatch) : ControllerBase
 {
     private readonly IMediator _mediator = mediator;
     private readonly IProductReservationService _reservationService = reservationService;
+    private readonly ICloudWatchService _cloudWatch = cloudWatch;
 
     [Authorize]
     [HttpPost]
@@ -144,6 +146,9 @@ public class PaymentController(IMediator mediator, IProductReservationService re
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> SePayWebhook(CancellationToken ct)
     {
+        // Emit metric at the very start, before any validation
+        await _cloudWatch.PutMetricAsync("payment.webhook.received", 1, "Count", ct: ct);
+
         // Read raw body for HMAC verification
         Request.EnableBuffering();
         using var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: true);
@@ -163,7 +168,10 @@ public class PaymentController(IMediator mediator, IProductReservationService re
             Encoding.UTF8.GetBytes(receivedSignature));
 
         if (!signatureValid)
+        {
+            await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
             return Unauthorized(new { message = "Invalid signature" });
+        }
 
         // Deserialize payload
         SePayWebhookDto? payload;
@@ -182,7 +190,10 @@ public class PaymentController(IMediator mediator, IProductReservationService re
         // Look up payment by code
         var payment = await _mediator.Send(new GetPaymentByCodeQuery(payload.PaymentCode), ct);
         if (payment is null)
+        {
+            await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
             return NotFound(new { message = "Payment not found" });
+        }
 
         // Idempotency: already succeeded
         if (payment.Status == PaymentStatus.Success)

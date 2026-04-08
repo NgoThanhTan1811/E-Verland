@@ -1,58 +1,72 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
+using MongoDB.Driver;
 using Modules.Chat.Application.Contracts;
 using Modules.Chat.Domain;
 using Modules.Chat.Infrastructure.Persistence;
 
-namespace Modules.Chat.Infrastructure.Repository
+namespace Modules.Chat.Infrastructure.Repository;
+
+public class MongoConversationRepository(ChatMongoDbContext context) : IConversationRepository
 {
-    public class ConversationRepository(ChatDbContext dbContext) : IConversationRepository
+    private readonly IMongoCollection<Conversation> _conversations = context.Conversations;
+    private Conversation? _tracked;
+
+    public async Task<Conversation?> GetConversationByIdAsync(Guid conversationId, CancellationToken ct = default)
     {
-        private readonly ChatDbContext _dbContext = dbContext;
-        public async Task<Conversation?> GetConversationByIdAsync(Guid conversationId, CancellationToken ct = default)
+        var filter = Builders<Conversation>.Filter.Eq(c => c.Id, conversationId);
+        var result = await _conversations.Find(filter).FirstOrDefaultAsync(ct);
+        if (result is not null) _tracked = result;
+        return result;
+    }
+
+    public async Task<Conversation?> GetConversationByUserAsync(Guid customerId, Guid sellerId, CancellationToken ct = default)
+    {
+        var filter = Builders<Conversation>.Filter.And(
+            Builders<Conversation>.Filter.Eq(c => c.CustomerId, customerId),
+            Builders<Conversation>.Filter.Eq(c => c.SellerId, sellerId));
+        return await _conversations.Find(filter).FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<List<Conversation>> GetConversationsForSellerAsync(Guid sellerId, CancellationToken ct = default)
+    {
+        var filter = Builders<Conversation>.Filter.Eq(c => c.SellerId, sellerId);
+        return await _conversations.Find(filter).ToListAsync(ct);
+    }
+
+    public async Task<Conversation> GetOrCreateConversationAsync(Guid customerId, Guid sellerId, CancellationToken ct = default)
+    {
+        var filter = Builders<Conversation>.Filter.And(
+            Builders<Conversation>.Filter.Eq(c => c.CustomerId, customerId),
+            Builders<Conversation>.Filter.Eq(c => c.SellerId, sellerId));
+
+        var existing = await _conversations.Find(filter).FirstOrDefaultAsync(ct);
+        if (existing is not null)
         {
-            return await _dbContext.Conversations.FindAsync([conversationId], cancellationToken: ct);
+            _tracked = existing;
+            return existing;
         }
 
-        public async Task<Conversation?> GetConversationByUserAsync(Guid userId, Guid adminId, CancellationToken ct = default)
+        var conversation = new Conversation(customerId, sellerId);
+        try
         {
-
-            return await _dbContext.Conversations.FirstOrDefaultAsync(c => c.UserId == userId && c.AdminId == adminId, cancellationToken: ct);
+            await _conversations.InsertOneAsync(conversation, cancellationToken: ct);
+            _tracked = conversation;
+            return conversation;
         }
-
-        public async Task<List<Conversation>> GetConversationsForAdminAsync(Guid adminId, CancellationToken ct = default)
+        catch (MongoWriteException ex) when (ex.WriteError.Category == ServerErrorCategory.DuplicateKey)
         {
-            return await _dbContext.Conversations.Where(c => c.AdminId == adminId).ToListAsync(cancellationToken: ct);
+            // Race condition — another request inserted first, retry find
+            var created = await _conversations.Find(filter).FirstAsync(ct);
+            _tracked = created;
+            return created;
         }
+    }
 
-        public async Task<Conversation> GetOrCreateConversationAsync(Guid userId, Guid adminId, CancellationToken ct = default)
-        {
-            var existing = await _dbContext.Conversations
-                .FirstOrDefaultAsync(c => c.UserId == userId && c.AdminId == adminId, ct);
+    public async Task<int> SaveChangesAsync(CancellationToken ct = default)
+    {
+        if (_tracked is null) return 0;
 
-            if (existing != null) return existing;
-
-            var conversation = new Conversation(userId, adminId);
-
-            _dbContext.Conversations.Add(conversation);
-
-            try
-            {
-                await _dbContext.SaveChangesAsync(ct);
-                return conversation;
-            }
-            catch (DbUpdateException)
-            {
-                var created = await _dbContext.Conversations
-                    .FirstAsync(c => c.UserId == userId && c.AdminId == adminId, ct);
-                return created;
-            }
-        }
-
-        public Task<int> SaveChangesAsync(CancellationToken ct = default) 
-            => _dbContext.SaveChangesAsync(ct);
+        var filter = Builders<Conversation>.Filter.Eq(c => c.Id, _tracked.Id);
+        await _conversations.ReplaceOneAsync(filter, _tracked, cancellationToken: ct);
+        return 1;
     }
 }

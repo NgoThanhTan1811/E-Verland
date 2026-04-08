@@ -32,7 +32,7 @@ public partial class ChatController : ControllerBase
     {
         try
         {
-            var command = new CreateConversationCommand(request.UserId, request.AdminId);
+            var command = new CreateConversationCommand(request.CustomerId, request.SellerId);
             var result = await _mediator.Send(command, cancellationToken);
             return Ok(new { conversationId = result });
         }
@@ -73,7 +73,7 @@ public partial class ChatController : ControllerBase
     {
         try
         {
-            var query = new GetForAdminQuery(userId);
+            var query = new GetForSellerQuery(userId);
             var result = await _mediator.Send(query, cancellationToken);
             return Ok(result);
         }

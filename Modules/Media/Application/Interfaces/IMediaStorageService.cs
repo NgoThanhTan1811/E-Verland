@@ -1,0 +1,27 @@
+namespace Modules.Media.Application.Interfaces;
+
+/// <summary>
+/// Interface for media storage operations (wraps S3 or other storage providers)
+/// </summary>
+public interface IMediaStorageService
+{
+    /// <summary>
+    /// Upload a file to storage
+    /// </summary>
+    Task<string> UploadAsync(Stream fileStream, string fileName, string contentType, CancellationToken ct = default);
+
+    /// <summary>
+    /// Delete a file from storage
+    /// </summary>
+    Task DeleteAsync(string filePath, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get a pre-signed URL for accessing a file
+    /// </summary>
+    Task<string> GetPresignedUrlAsync(string filePath, int expirationMinutes = 60, CancellationToken ct = default);
+
+    /// <summary>
+    /// Check if a file exists in storage
+    /// </summary>
+    Task<bool> ExistsAsync(string filePath, CancellationToken ct = default);
+}

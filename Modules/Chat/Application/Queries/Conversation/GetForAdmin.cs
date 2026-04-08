@@ -4,24 +4,24 @@ using Modules.Chat.Application.DTOs.Response;
 
 namespace Modules.Chat.Application.Queries.Conversation;
 
-public sealed record GetForAdminQuery(Guid AdminId) : IRequest<List<ConversationResponseDto>>;
+public sealed record GetForSellerQuery(Guid SellerId) : IRequest<List<ConversationResponseDto>>;
 
-public sealed class GetForAdminQueryHandler(IConversationRepository conversationRepo)
-        : IRequestHandler<GetForAdminQuery, List<ConversationResponseDto>>
+public sealed class GetForSellerQueryHandler(IConversationRepository conversationRepo)
+        : IRequestHandler<GetForSellerQuery, List<ConversationResponseDto>>
 {
     private readonly IConversationRepository _conversationRepo = conversationRepo;
 
-    public async Task<List<ConversationResponseDto>> Handle(GetForAdminQuery req, CancellationToken ct)
+    public async Task<List<ConversationResponseDto>> Handle(GetForSellerQuery req, CancellationToken ct)
     {
-        if (req.AdminId == Guid.Empty)
-            throw new ArgumentException("AdminId is required.");
+        if (req.SellerId == Guid.Empty)
+            throw new ArgumentException("SellerId is required.");
 
-        var conversations = await _conversationRepo.GetConversationsForAdminAsync(req.AdminId, ct);
+        var conversations = await _conversationRepo.GetConversationsForSellerAsync(req.SellerId, ct);
 
         return [.. conversations.Select(c => new ConversationResponseDto(
                 c.Id,
-                c.UserId,
-                c.AdminId,
+                c.CustomerId,
+                c.SellerId,
                 c.CreatedAtUtc
             ))];
     }

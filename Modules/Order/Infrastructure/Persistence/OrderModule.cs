@@ -7,7 +7,7 @@ using Modules.Order.Infrastructure.Services;
 
 namespace Modules.Order;
 
-public static class OrderModuleExtensions
+public static class OrderModuleExtension
 {
     public static IServiceCollection AddOrderModule(this IServiceCollection services, IConfiguration configuration)
     {

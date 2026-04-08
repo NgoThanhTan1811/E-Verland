@@ -7,7 +7,7 @@ using Modules.Payment.Infrastructure.Persistence;
 
 namespace Modules.Payment;
 
-public static class PaymentModuleExtensions
+public static class PaymentModuleExtension
 {
     public static IServiceCollection AddPaymentModule(this IServiceCollection services, IConfiguration configuration)
     {

@@ -8,7 +8,7 @@ using Modules.Product.Infrastructure.Services;
 
 namespace Modules.Product;
 
-public static class ProductModuleExtensions
+public static class ProductModuleExtension
 {
     public static IServiceCollection AddProductModule(this IServiceCollection services, IConfiguration configuration)
     {
@@ -30,6 +30,10 @@ public static class ProductModuleExtensions
         services.AddScoped<SKUGeneratorService>();
         services.AddScoped<IProductReservationService, ProductReservationService>();
         services.AddHostedService<StockReservationExpiryService>();
+
+        // Add Infrastructure Services
+        services.AddScoped<IProductSyncPublisher, ProductSyncPublisher>();
+        services.AddHostedService<OpenSearchConsumer>();
 
         // Add MediatR
         services.AddMediatR(config =>

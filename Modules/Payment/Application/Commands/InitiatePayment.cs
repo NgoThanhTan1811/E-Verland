@@ -1,5 +1,9 @@
+using System.Diagnostics;
+using Amazon.XRay.Recorder.Core;
+using Infra.AWS.CloudWatch;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Modules.Payment.Application.Contracts;
 using Modules.Payment.Application.Helpers;
 using Modules.Payment.Domain;
@@ -28,11 +32,15 @@ public sealed class InitiatePaymentHandler(
     IPaymentRepository repo,
     IPaymentDbContext db,
     IProductReservationService reservationService,
-    ISePayClient sePayClient
+    ISePayClient sePayClient,
+    ICloudWatchService cloudWatch,
+    ILogger<InitiatePaymentHandler> logger
 ) : IRequestHandler<InitiatePaymentCommand, InitiatePaymentResponseDto>
 {
     public async Task<InitiatePaymentResponseDto> Handle(InitiatePaymentCommand request, CancellationToken ct)
     {
+        var stopwatch = Stopwatch.StartNew();
+
         // Idempotency check
         var existing = await repo.GetByOrderIdAsync(request.OrderId, ct);
         if (existing != null)
@@ -48,33 +56,50 @@ public sealed class InitiatePaymentHandler(
             Status = PaymentStatus.Pending
         };
 
-        // Reserve stock before persisting
-        await reservationService.ReserveStockAsync(
-            payment.Id,
-            request.Items.Select(i => (i.SkuId, i.Quantity)),
-            ct);
-
-        await repo.CreateAsync(payment, ct);
-
-        // If OnlineBanking, create SePay payment link
-        if (request.Method == PaymentMethod.OnlineBanking)
-        {
-            var paymentUrl = await sePayClient.CreatePaymentLinkAsync(
-                payment.Code,
-                payment.Amount,
-                $"Thanh toan don hang {payment.OrderId}",
-                ct);
-            payment.PaymentUrl = paymentUrl;
-        }
-
+        // Wrap DB operations in X-Ray subsegment
+        AWSXRayRecorder.Instance.BeginSubsegment("Payment.DB");
         try
         {
-            await db.SaveChangesAsync(ct);
+            // Reserve stock before persisting
+            await reservationService.ReserveStockAsync(
+                payment.Id,
+                request.Items.Select(i => (i.SkuId, i.Quantity)),
+                ct);
+
+            await repo.CreateAsync(payment, ct);
+
+            // If OnlineBanking, create SePay payment link
+            if (request.Method == PaymentMethod.OnlineBanking)
+            {
+                var paymentUrl = await sePayClient.CreatePaymentLinkAsync(
+                    payment.Code,
+                    payment.Amount,
+                    $"Thanh toan don hang {payment.OrderId}",
+                    ct);
+                payment.PaymentUrl = paymentUrl;
+            }
+
+            try
+            {
+                await db.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException ex)
+            {
+                throw new InvalidOperationException($"Payment creation failed due to database error: {ex.Message}");
+            }
         }
-        catch (DbUpdateException ex)
+        finally
         {
-            throw new InvalidOperationException($"Payment creation failed due to database error: {ex.Message}");
+            AWSXRayRecorder.Instance.EndSubsegment();
         }
+
+        stopwatch.Stop();
+
+        // Emit CloudWatch metrics on success
+        await cloudWatch.PutMetricAsync("payment.initiated", 1, "Count", ct: ct);
+        await cloudWatch.PutMetricAsync("payment.latency_ms", stopwatch.Elapsed.TotalMilliseconds, "Milliseconds", ct: ct);
+
+        logger.LogInformation("Payment initiated for order {OrderId} in {LatencyMs}ms", request.OrderId, stopwatch.Elapsed.TotalMilliseconds);
 
         return new InitiatePaymentResponseDto(payment.Id, payment.Code, payment.Status, payment.PaymentUrl);
     }

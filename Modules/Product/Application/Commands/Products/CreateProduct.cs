@@ -1,3 +1,5 @@
+using Amazon.XRay.Recorder.Core;
+using Infra.AWS.CloudWatch;
 using MediatR;
 using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
@@ -13,13 +15,17 @@ public sealed class CreateProductHandler(
     ICategoryRepository categoryRepository,
     ISkuRepository skuRepository,
     IProductDbContext dbContext,
-    SKUGeneratorService skuGenerator) : IRequestHandler<CreateProductCommand, ProductDetailDto>
+    SKUGeneratorService skuGenerator,
+    IProductSyncPublisher syncPublisher,
+    ICloudWatchService cloudWatch) : IRequestHandler<CreateProductCommand, ProductDetailDto>
 {
     private readonly IProductRepository _productRepository = productRepository;
     private readonly ICategoryRepository _categoryRepository = categoryRepository;
     private readonly ISkuRepository _skuRepository = skuRepository;
     private readonly IProductDbContext _dbContext = dbContext;
     private readonly SKUGeneratorService _skuGenerator = skuGenerator;
+    private readonly IProductSyncPublisher _syncPublisher = syncPublisher;
+    private readonly ICloudWatchService _cloudWatch = cloudWatch;
 
     public async Task<ProductDetailDto> Handle(CreateProductCommand request, CancellationToken cancellationToken)
     {
@@ -48,8 +54,21 @@ public sealed class CreateProductHandler(
             Categories = categories
         };
 
-        await _productRepository.CreateAsync(product, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        AWSXRayRecorder.Instance.BeginSubsegment("Product.DB");
+        try
+        {
+            await _productRepository.CreateAsync(product, cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            AWSXRayRecorder.Instance.AddException(ex);
+            throw;
+        }
+        finally
+        {
+            AWSXRayRecorder.Instance.EndSubsegment();
+        }
 
         // Auto-generate SKUs if variants are provided
         if (request.Request.Variants != null && request.Request.Variants.Count != 0)
@@ -78,6 +97,9 @@ public sealed class CreateProductHandler(
 
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
+
+        await _syncPublisher.PublishAsync(product, "Created", cancellationToken);
+        await _cloudWatch.PutMetricAsync("product.created", 1, "Count", ct: cancellationToken);
 
         return MapToDetailDto(product, categories);
     }

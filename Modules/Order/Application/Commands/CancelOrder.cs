@@ -1,3 +1,4 @@
+using Infra.AWS.CloudWatch;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Modules.Order.Application.Contracts;
@@ -10,7 +11,11 @@ public sealed record CancelOrderCommand(
     Guid UserId
 ) : IRequest<Unit>;
 
-public sealed class CancelOrderHandler(IOrderRepository repo, IOrderDbContext db) : IRequestHandler<CancelOrderCommand, Unit>
+public sealed class CancelOrderHandler(
+    IOrderRepository repo,
+    IOrderDbContext db,
+    ICloudWatchService cloudWatch)
+    : IRequestHandler<CancelOrderCommand, Unit>
 {
     private readonly IOrderRepository _repo = repo;
     private readonly IOrderDbContext _db = db;
@@ -20,11 +25,9 @@ public sealed class CancelOrderHandler(IOrderRepository repo, IOrderDbContext db
         var order = await _repo.GetByIdAsync(request.OrderId, ct)
             ?? throw new KeyNotFoundException("Order not found");
 
-        // Verify ownership
         if (order.UserId != request.UserId)
             throw new UnauthorizedAccessException("You can only cancel your own orders");
 
-        // Validate cancellation
         if (order.Status == OrderStatus.Canceled)
             throw new InvalidOperationException("Order is already canceled");
 
@@ -46,6 +49,8 @@ public sealed class CancelOrderHandler(IOrderRepository repo, IOrderDbContext db
         {
             throw new InvalidOperationException("Order cancellation failed due to database error.");
         }
+
+        await cloudWatch.PutMetricAsync("order.cancelled", 1, "Count");
 
         return Unit.Value;
     }

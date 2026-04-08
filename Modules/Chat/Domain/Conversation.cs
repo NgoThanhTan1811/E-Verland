@@ -9,8 +9,8 @@ namespace Modules.Chat.Domain
     {
         public Guid Id { get; private set; } = Guid.NewGuid();
 
-        public Guid UserId { get; private set; }       
-        public Guid AdminId { get; private set; }      
+        public Guid CustomerId { get; private set; }
+        public Guid SellerId { get; private set; }
 
         public DateTime CreatedAtUtc { get; private set; } = DateTime.UtcNow;
 
@@ -20,13 +20,13 @@ namespace Modules.Chat.Domain
 
         private Conversation() { }
 
-        public Conversation(Guid userId, Guid adminId)
+        public Conversation(Guid customerId, Guid sellerId)
         {
-            if (userId == Guid.Empty) throw new ArgumentException("UserId required");
-            if (adminId == Guid.Empty) throw new ArgumentException("AdminId required");
+            if (customerId == Guid.Empty) throw new ArgumentException("CustomerId required");
+            if (sellerId == Guid.Empty) throw new ArgumentException("SellerId required");
 
-            UserId = userId;
-            AdminId = adminId;
+            CustomerId = customerId;
+            SellerId = sellerId;
         }
 
         public void TouchLastMessage(Message message)

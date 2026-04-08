@@ -36,8 +36,7 @@ public class ProductReservationService(ProductDbContext db) : IProductReservatio
                 PaymentId = paymentId,
                 SkuId = skuId,
                 Quantity = quantity,
-                Status = ReservationStatus.Reserved,
-                CreatedAt = DateTime.UtcNow
+                Status = ReservationStatus.Reserved
             });
         }
 

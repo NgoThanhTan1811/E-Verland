@@ -13,11 +13,15 @@ using Modules.Chat.Api.Hubs;
 using Modules.Chat.Infrastructure.Persistence;
 using Modules.Notification.Infrastructure;
 using DotNetEnv;
+using Infra.AWS;
+using Infra.AWS.XRay;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var envPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", ".env"));
 Env.Load(envPath);
+
+var xrayOptions = builder.Configuration.GetSection(XRayOptions.SectionName).Get<XRayOptions>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -63,6 +67,9 @@ builder.AddSwagger();
 
 
 
+// AWS Infrastructure (must be registered before modules)
+builder.Services.AddAWSInfrastructure(builder.Configuration);
+
 // Add Modules
 builder.Services.AddRedisModule(builder.Configuration);
 builder.Services.AddUserModule(builder.Configuration);
@@ -87,28 +94,16 @@ if (app.Environment.IsDevelopment())
 {
 
 }
-app.MapGet("/swagger-download/v1", async (HttpContext context) =>
-{
-    var url = $"{context.Request.Scheme}://{context.Request.Host}/swagger/v1/swagger.json";
-
-    using var httpClient = new HttpClient();
-    var json = await httpClient.GetStringAsync(url);
-
-    return Results.File(
-        System.Text.Encoding.UTF8.GetBytes(json),
-        "application/json",
-        "swagger-v1.json");
-});
-app.UseSwagger(options =>
-{
-    options.RouteTemplate = "swagger/{documentName}/swagger.json";
-});
-app.UseSwaggerUI();
+app.UseCustomSwagger();
 
 app.UseMiddleware<ApiExceptionExtension>();
 
 // app.UseHttpsRedirection();
 app.UseAuthentication();
+if (xrayOptions?.Enabled == true)
+{
+    app.UseXRay("E-Verland");
+}
 app.UseRateLimiter();
 app.UseAuthorization();
 

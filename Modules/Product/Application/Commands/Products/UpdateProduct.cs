@@ -1,3 +1,5 @@
+using Amazon.XRay.Recorder.Core;
+using Infra.AWS.CloudWatch;
 using MediatR;
 using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
@@ -7,11 +9,18 @@ namespace Modules.Product.Application.Commands;
 
 public sealed record UpdateProductCommand(Guid Id, UpdateProductRequestDto Request) : IRequest<ProductDetailDto>;
 
-public sealed class UpdateProductHandler(IProductRepository productRepository, ICategoryRepository categoryRepository, IProductDbContext dbContext) : IRequestHandler<UpdateProductCommand, ProductDetailDto>
+public sealed class UpdateProductHandler(
+    IProductRepository productRepository,
+    ICategoryRepository categoryRepository,
+    IProductDbContext dbContext,
+    IProductSyncPublisher syncPublisher,
+    ICloudWatchService cloudWatch) : IRequestHandler<UpdateProductCommand, ProductDetailDto>
 {
     private readonly IProductRepository _productRepository = productRepository;
     private readonly ICategoryRepository _categoryRepository = categoryRepository;
     private readonly IProductDbContext _dbContext = dbContext;
+    private readonly IProductSyncPublisher _syncPublisher = syncPublisher;
+    private readonly ICloudWatchService _cloudWatch = cloudWatch;
 
     public async Task<ProductDetailDto> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
     {
@@ -42,8 +51,24 @@ public sealed class UpdateProductHandler(IProductRepository productRepository, I
         product.Status = request.Request.Status;
         product.Categories = categories;
 
-        await _productRepository.UpdateAsync(product, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        AWSXRayRecorder.Instance.BeginSubsegment("Product.DB");
+        try
+        {
+            await _productRepository.UpdateAsync(product, cancellationToken);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            AWSXRayRecorder.Instance.AddException(ex);
+            throw;
+        }
+        finally
+        {
+            AWSXRayRecorder.Instance.EndSubsegment();
+        }
+
+        await _syncPublisher.PublishAsync(product, "Updated", cancellationToken);
+        await _cloudWatch.PutMetricAsync("product.updated", 1, "Count", ct: cancellationToken);
 
         return MapToDetailDto(product);
     }

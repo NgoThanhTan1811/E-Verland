@@ -7,7 +7,7 @@ using Modules.Cart.Application;
 
 namespace Modules.Cart;
 
-public static class CartModuleExtensions
+public static class CartModuleExtension
 {
     public static IServiceCollection AddCartModule(this IServiceCollection services, IConfiguration configuration)
     {
