@@ -1,11 +1,5 @@
-using System.Runtime.Serialization;
-
 namespace Modules.Payment.Infrastructure.Services;
 
-/// <summary>
-/// Exception thrown when SePay API call fails
-/// </summary>
-[Serializable]
 public class SePayApiException : Exception
 {
     public string? TransactionId { get; }
@@ -29,16 +23,8 @@ public class SePayApiException : Exception
         TransactionId = transactionId;
         StatusCode = statusCode;
     }
-
-    protected SePayApiException(SerializationInfo info, StreamingContext context) : base(info, context)
-    {
-    }
 }
 
-/// <summary>
-/// Exception thrown when webhook validation fails
-/// </summary>
-[Serializable]
 public class SePayWebhookException : Exception
 {
     public string? PaymentCode { get; }
@@ -58,9 +44,5 @@ public class SePayWebhookException : Exception
     public SePayWebhookException(string message, string? paymentCode) : base(message)
     {
         PaymentCode = paymentCode;
-    }
-
-    protected SePayWebhookException(SerializationInfo info, StreamingContext context) : base(info, context)
-    {
     }
 }
