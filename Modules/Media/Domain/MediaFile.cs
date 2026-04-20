@@ -18,9 +18,6 @@ public class MediaFile : SharedKernel.Entities.BaseEntity
     public int? Width { get; set; }
     public int? Height { get; set; }
     public int? DurationSeconds { get; set; } // For videos
-
-    // Soft delete
-    public bool IsDeleted { get; set; } = false;
 }
 
 /// <summary>

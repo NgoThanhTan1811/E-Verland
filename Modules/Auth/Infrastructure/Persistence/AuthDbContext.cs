@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Modules.Auth.Domain;
+using SharedKernel.Entities;
 
 namespace Modules.Auth.Infrastructure.Persistence
 {
@@ -14,6 +16,18 @@ namespace Modules.Auth.Infrastructure.Persistence
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // Apply global soft delete filter
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+                {
+                    var parameter = Expression.Parameter(entityType.ClrType, "e");
+                    var property = Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
+                    var filter = Expression.Lambda(Expression.Equal(property, Expression.Constant(false)), parameter);
+                    entityType.SetQueryFilter(filter);
+                }
+            }
 
             modelBuilder.Entity<EmailVerificationOtp>(entity =>
             {

@@ -58,8 +58,8 @@ public class MediaFileRepository : IMediaFileRepository
         var mediaFile = await GetByIdAsync(id, ct);
         if (mediaFile != null)
         {
-            mediaFile.IsDeleted = true;
-            await UpdateAsync(mediaFile, ct);
+            _context.Entry(mediaFile).Property(nameof(MediaFile.IsDeleted)).CurrentValue = true;
+            await _context.SaveChangesAsync(ct);
         }
     }
 

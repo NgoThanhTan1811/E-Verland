@@ -1,8 +1,10 @@
+using System.Linq.Expressions;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Modules.Order.Application.Contracts;
 using Modules.Order.Domain;
+using SharedKernel.Entities;
 
 namespace Modules.Order.Infrastructure.Persistence;
 
@@ -14,6 +16,18 @@ public class OrderDbContext(DbContextOptions<OrderDbContext> options) : DbContex
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Apply global soft delete filter
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                var parameter = Expression.Parameter(entityType.ClrType, "e");
+                var property = Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
+                var filter = Expression.Lambda(Expression.Equal(property, Expression.Constant(false)), parameter);
+                entityType.SetQueryFilter(filter);
+            }
+        }
 
         var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
 

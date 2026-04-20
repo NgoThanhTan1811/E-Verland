@@ -29,9 +29,6 @@ namespace Modules.Product.Domain
         public int SoldCount { get; set; } = 0;
         public decimal? Rating { get; set; }
         public int ReviewCount { get; set; } = 0;
-
-        // Soft delete
-        public bool IsDeleted { get; set; } = false;
     }
 
     public enum ProductStatus

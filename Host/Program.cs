@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using EVerland.Extentions;
+using BFF;
 using Modules.User;
 using Modules.Product;
 using Modules.Cart;
@@ -30,13 +31,13 @@ builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddTransient<ApiExceptionExtension>();
 
-// JWT Configuration
-var jwtKey = builder.Configuration["JWT_KEY"];
-var jwtIssuer = builder.Configuration["JWT_ISSUER"];
-var jwtAudience = builder.Configuration["JWT_AUDIENCE"];
+// JWT Configuration with validation
+var jwtKey = builder.Configuration["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "e-verland-platform";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "e-verland-platform";
 
 if (string.IsNullOrWhiteSpace(jwtKey))
-    throw new InvalidOperationException("JWT Key is not configured.");
+    throw new InvalidOperationException("JWT Key is not configured. Set 'Jwt:Key' in appsettings.json or JWT_KEY environment variable. Must be at least 32 characters.");
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -55,12 +56,27 @@ builder.Services
             IssuerSigningKey = new SymmetricSecurityKey(key),
             ClockSkew = TimeSpan.Zero
         };
+
+        // Read JWT from HttpOnly cookie instead of Authorization header
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                if (context.Request.Cookies.TryGetValue("access_token", out var token))
+                {
+                    context.Token = token;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
-// Rate Limiting 
+// Rate Limiting
 builder.Services.AddCustomRateLimiting();
-// Authorization 
+// Authorization (Requirement 6: Role-based policies)
 builder.Services.AddCustomAuthorization();
+// CORS (Requirement 8: Configure with credentials support)
+builder.Services.AddCustomCors(builder.Configuration);
 // OAuth Google
 builder.AddGoogleOAuth();
 builder.AddSwagger();
@@ -80,6 +96,9 @@ builder.Services.AddAuthModule(builder.Configuration);
 builder.Services.AddPaymentModule(builder.Configuration);
 builder.Services.AddChatModule(builder.Configuration);
 builder.Services.AddNotificationModule(builder.Configuration);
+
+// Add BFF Module (Requirement 4: BFF Gateway with role-based facades)
+builder.Services.AddBffModule(builder.Configuration);
 
 builder.Services.Configure<RouteOptions>(o =>
 {
@@ -107,6 +126,8 @@ if (xrayOptions?.Enabled == true)
 app.UseRateLimiter();
 app.UseAuthorization();
 
+// Requirement 8.9: Apply CORS policy with credentials support
+app.UseCors("AllowCredentials");
 
 app.MapControllers();
 app.MapHub<ChatHub>("/hubs/chat");

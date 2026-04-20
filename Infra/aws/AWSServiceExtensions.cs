@@ -44,7 +44,7 @@ public static class AWSServiceExtensions
         services.AddSingleton<ISNSService, SNSService>();
         services.AddSingleton<IEventBridgeService, EventBridgeService>();
         services.AddSingleton<ICloudWatchService, CloudWatchService>();
-        services.AddSingleton<IOpenSearchService, OpenSearchService>();
+        // services.AddSingleton<IOpenSearchService, OpenSearchService>();
 
         return services;
     }
