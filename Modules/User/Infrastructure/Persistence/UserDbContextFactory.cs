@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using SharedKernel.Persistence;
 
 namespace Modules.User.Infrastructure.Persistence;
 
@@ -12,12 +13,9 @@ public sealed class UserDbContextFactory : IDesignTimeDbContextFactory<UserDbCon
             ?? throw new InvalidOperationException(
                 "Missing env UserDb (design-time).");
 
-        var options = new DbContextOptionsBuilder<UserDbContext>()
-            .UseNpgsql(conn, npgsql =>
-            {
-                npgsql.MigrationsAssembly(typeof(UserDbContext).Assembly.GetName().Name);
-            })
-            .Options;
+        var optionsBuilder = new DbContextOptionsBuilder<UserDbContext>();
+        optionsBuilder.ConfigureNpgsql(conn, typeof(UserDbContext).Assembly.GetName().Name!);
+        var options = optionsBuilder.Options;
 
         return new UserDbContext(options);
     }

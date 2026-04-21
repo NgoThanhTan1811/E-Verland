@@ -1,5 +1,6 @@
 using Amazon.EventBridge;
 using Amazon.EventBridge.Model;
+using Infra.AWS.Resilience;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
@@ -46,7 +47,7 @@ public sealed class EventBridgeService : IEventBridgeService
                 }
             };
 
-            var response = await _eventBridgeClient.PutEventsAsync(request, ct);
+            var response = await AwsRetryPolicy.ExecuteAsync(() => _eventBridgeClient.PutEventsAsync(request, ct), 3, ct);
 
             if (response.FailedEntryCount > 0)
             {
@@ -87,7 +88,7 @@ public sealed class EventBridgeService : IEventBridgeService
                 Entries = entries
             };
 
-            var response = await _eventBridgeClient.PutEventsAsync(request, ct);
+            var response = await AwsRetryPolicy.ExecuteAsync(() => _eventBridgeClient.PutEventsAsync(request, ct), 3, ct);
 
             if (response.FailedEntryCount > 0)
             {
@@ -124,7 +125,7 @@ public sealed class EventBridgeService : IEventBridgeService
                 Name = eventBusName
             };
 
-            var response = await _eventBridgeClient.CreateEventBusAsync(request, ct);
+            var response = await AwsRetryPolicy.ExecuteAsync(() => _eventBridgeClient.CreateEventBusAsync(request, ct), 3, ct);
 
             _logger.LogInformation("Created EventBridge event bus: {EventBusName}. ARN: {EventBusArn}",
                 eventBusName, response.EventBusArn);

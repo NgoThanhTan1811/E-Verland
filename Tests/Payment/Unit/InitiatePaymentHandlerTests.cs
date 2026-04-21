@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Modules.Payment.Application.Commands;
 using Modules.Payment.Application.Contracts;
 using Modules.Payment.Domain;
+using Modules.Order.Application.Contracts;
 using Modules.Product.Application.Contracts;
 using NSubstitute;
 using NSubstitute.ExceptionExtensions;
@@ -22,17 +23,18 @@ public class InitiatePaymentHandlerTests
         var reservation = Substitute.For<IProductReservationService>();
         var sePayClient = Substitute.For<ISePayClient>();
         var cloudWatch = Substitute.For<ICloudWatchService>();
+        var orderPaymentSyncService = Substitute.For<IOrderPaymentSyncService>();
 
         repo.GetByOrderIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Modules.Payment.Domain.Payment?)null);
         repo.CreateAsync(Arg.Any<Modules.Payment.Domain.Payment>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
         db.SaveChangesAsync(Arg.Any<CancellationToken>()).Returns(1);
-        reservation.ReserveStockAsync(Arg.Any<Guid>(), Arg.Any<IEnumerable<(Guid, int)>>(), Arg.Any<CancellationToken>())
+        reservation.ReserveStockAsync(Arg.Any<Guid>(), Arg.Any<Guid>(), Arg.Any<IEnumerable<(Guid, int)>>(), Arg.Any<CancellationToken>())
             .Returns(Task.CompletedTask);
         cloudWatch.PutMetricAsync(Arg.Any<string>(), Arg.Any<double>(), Arg.Any<string>(),
             Arg.Any<Dictionary<string, string>>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
         var handler = new InitiatePaymentHandler(repo, db, reservation, sePayClient, cloudWatch,
-            NullLogger<InitiatePaymentHandler>.Instance);
+            NullLogger<InitiatePaymentHandler>.Instance, orderPaymentSyncService);
         return (handler, repo, db, reservation, sePayClient, cloudWatch);
     }
 

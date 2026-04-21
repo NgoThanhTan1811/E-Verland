@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Modules.Payment.Application.Contracts;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
 namespace Modules.Payment.Infrastructure.Services
 {
@@ -10,15 +11,29 @@ namespace Modules.Payment.Infrastructure.Services
     {
         private readonly HttpClient _http;
         private readonly ILogger<SePayClient> _logger;
-        private const string BaseUrl = "https://my.sepay.vn/userapi";
-        private const int MaxRetries = 3;
+        private readonly string _baseUrl;
+        private readonly int _maxRetries;
 
-        public SePayClient(HttpClient http, ILogger<SePayClient> logger)
+        public SePayClient(HttpClient http, ILogger<SePayClient> logger, IConfiguration configuration)
         {
             _http = http;
             _logger = logger;
-            var apiKey = Environment.GetEnvironmentVariable("SEPAY_API")
-                ?? throw new InvalidOperationException("Missing SEPAY_API env var");
+
+            var apiKey = configuration["Payment:SePay:ApiKey"]
+                ?? Environment.GetEnvironmentVariable("SEPAY_API_KEY")
+                ?? Environment.GetEnvironmentVariable("SEPAY_API")
+                ?? throw new InvalidOperationException("Missing Payment:SePay:ApiKey (or SEPAY_API_KEY environment variable).");
+
+            _baseUrl = configuration["Payment:SePay:BaseUrl"]
+                ?? Environment.GetEnvironmentVariable("SEPAY_BASE_URL")
+                ?? "https://my.sepay.vn/userapi";
+
+            _maxRetries = int.TryParse(
+                configuration["Payment:SePay:MaxRetries"] ?? Environment.GetEnvironmentVariable("SEPAY_MAX_RETRIES"),
+                out var retries)
+                ? Math.Max(1, retries)
+                : 3;
+
             _http.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Apikey", apiKey);
         }
@@ -28,15 +43,15 @@ namespace Modules.Payment.Infrastructure.Services
         {
             var payload = new { payment_code = paymentCode, amount, description };
 
-            for (int attempt = 1; attempt <= MaxRetries; attempt++)
+            for (int attempt = 1; attempt <= _maxRetries; attempt++)
             {
                 try
                 {
                     _logger.LogInformation(
                         "SePay CreatePaymentLink attempt {Attempt}/{MaxRetries} for payment code {PaymentCode}",
-                        attempt, MaxRetries, paymentCode);
+                        attempt, _maxRetries, paymentCode);
 
-                    var response = await _http.PostAsJsonAsync($"{BaseUrl}/transactions/create", payload, ct);
+                    var response = await _http.PostAsJsonAsync($"{_baseUrl}/transactions/create", payload, ct);
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -45,7 +60,7 @@ namespace Modules.Payment.Infrastructure.Services
                             "SePay API error (HTTP {StatusCode}): {ErrorContent} for payment code {PaymentCode}",
                             response.StatusCode, errorContent, paymentCode);
 
-                        if (attempt < MaxRetries)
+                        if (attempt < _maxRetries)
                         {
                             var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt)); // Exponential backoff
                             _logger.LogWarning("Retrying in {Delay} seconds...", delay.TotalSeconds);
@@ -54,7 +69,7 @@ namespace Modules.Payment.Infrastructure.Services
                         }
 
                         throw new SePayApiException(
-                            $"Failed to create payment link after {MaxRetries} attempts. Status: {response.StatusCode}",
+                            "Failed to create payment link after retries.",
                             paymentCode,
                             (int)response.StatusCode);
                     }
@@ -71,9 +86,9 @@ namespace Modules.Payment.Infrastructure.Services
                 {
                     _logger.LogError(ex,
                         "Network error during SePay API call (attempt {Attempt}/{MaxRetries}) for payment code {PaymentCode}",
-                        attempt, MaxRetries, paymentCode);
+                        attempt, _maxRetries, paymentCode);
 
-                    if (attempt < MaxRetries)
+                    if (attempt < _maxRetries)
                     {
                         var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt));
                         await Task.Delay(delay, ct);
@@ -81,7 +96,7 @@ namespace Modules.Payment.Infrastructure.Services
                     }
 
                     throw new SePayApiException(
-                        $"Network error after {MaxRetries} attempts: {ex.Message}",
+                        "Network error while calling SePay.",
                         paymentCode);
                 }
                 catch (Exception ex) when (ex is not SePayApiException)
@@ -90,14 +105,14 @@ namespace Modules.Payment.Infrastructure.Services
                         "Unexpected error during SePay API call for payment code {PaymentCode}",
                         paymentCode);
                     throw new SePayApiException(
-                        $"Unexpected error: {ex.Message}",
+                        "Unexpected error while calling SePay.",
                         paymentCode,
                         null);
                 }
             }
 
             throw new SePayApiException(
-                $"Failed to create payment link after {MaxRetries} attempts",
+                "Failed to create payment link after retries.",
                 paymentCode);
         }
 

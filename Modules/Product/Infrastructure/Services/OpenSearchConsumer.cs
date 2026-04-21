@@ -1,6 +1,6 @@
 using Infra.AWS.CloudWatch;
-using Infra.AWS.OpenSearch;
 using Infra.AWS.SQS;
+using Infra.Meilisearch;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -10,27 +10,29 @@ namespace Modules.Product.Infrastructure.Services;
 
 public sealed class OpenSearchConsumer(
     ISQSService sqsService,
-    IOpenSearchService openSearchService,
+    IMeilisearchService meilisearchService,
     ICloudWatchService cloudWatch,
     IConfiguration configuration,
     ILogger<OpenSearchConsumer> logger) : BackgroundService
 {
     private readonly ISQSService _sqsService = sqsService;
-    private readonly IOpenSearchService _openSearchService = openSearchService;
+    private readonly IMeilisearchService _meilisearchService = meilisearchService;
     private readonly ICloudWatchService _cloudWatch = cloudWatch;
     private readonly IConfiguration _configuration = configuration;
     private readonly ILogger<OpenSearchConsumer> _logger = logger;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var queueUrl = _configuration["SQS:ProductSyncQueueUrl"];
+        var queueUrl = _configuration["AWS:SQS:ProductSyncQueueUrl"]
+            ?? _configuration["SQS:ProductSyncQueueUrl"]
+            ?? Environment.GetEnvironmentVariable("AWS_SQS_PRODUCT_SYNC_QUEUE_URL");
         if (string.IsNullOrWhiteSpace(queueUrl))
         {
-            _logger.LogWarning("SQS:ProductSyncQueueUrl is not configured. OpenSearchConsumer will not start.");
+            _logger.LogWarning("AWS:SQS:ProductSyncQueueUrl is not configured. ProductSync consumer will not start.");
             return;
         }
 
-        _logger.LogInformation("OpenSearchConsumer started. Polling queue: {QueueUrl}", queueUrl);
+        _logger.LogInformation("ProductSync consumer started (Meilisearch). Polling queue: {QueueUrl}", queueUrl);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -56,16 +58,26 @@ public sealed class OpenSearchConsumer(
                 continue;
             }
 
+            var receiptHandlesToDelete = new List<string>(messages.Count);
             foreach (var message in messages)
             {
-                await ProcessMessageAsync(queueUrl, message, stoppingToken);
+                var shouldDelete = await ProcessMessageAsync(queueUrl, message, stoppingToken);
+                if (shouldDelete)
+                {
+                    receiptHandlesToDelete.Add(message.ReceiptHandle);
+                }
+            }
+
+            if (receiptHandlesToDelete.Count > 0)
+            {
+                await _sqsService.DeleteMessageBatchAsync(queueUrl, receiptHandlesToDelete, stoppingToken);
             }
         }
 
-        _logger.LogInformation("OpenSearchConsumer stopped.");
+        _logger.LogInformation("ProductSync consumer stopped.");
     }
 
-    private async Task ProcessMessageAsync(string queueUrl, SQSMessage<ProductSyncEvent> message, CancellationToken ct)
+    private async Task<bool> ProcessMessageAsync(string queueUrl, SQSMessage<ProductSyncEvent> message, CancellationToken ct)
     {
         var syncEvent = message.Body;
         var productId = syncEvent.ProductId.ToString();
@@ -75,27 +87,61 @@ public sealed class OpenSearchConsumer(
             if (syncEvent.EventType is "Created" or "Updated")
             {
                 var document = MapToProductDocument(syncEvent);
-                await _openSearchService.IndexDocumentAsync("products", productId, document, ct);
+                await _meilisearchService.IndexDocumentAsync("products", productId, document, ct);
             }
             else if (syncEvent.EventType == "Deleted")
             {
-                await _openSearchService.DeleteDocumentAsync("products", productId, ct);
+                await _meilisearchService.DeleteDocumentAsync("products", productId, ct);
+            }
+            else if (syncEvent.EventType == "ProductModerated")
+            {
+                if (string.Equals(syncEvent.ModerationAction, "Delete", StringComparison.OrdinalIgnoreCase))
+                {
+                    await _meilisearchService.DeleteDocumentAsync("products", productId, ct);
+                }
+                else
+                {
+                    var document = MapToProductDocument(syncEvent);
+                    await _meilisearchService.IndexDocumentAsync("products", productId, document, ct);
+                }
             }
             else
             {
                 _logger.LogWarning("Unknown EventType '{EventType}' for ProductId {ProductId}. Skipping.", syncEvent.EventType, productId);
-                return;
+                return false;
             }
 
-            await _sqsService.DeleteMessageAsync(queueUrl, message.ReceiptHandle, ct);
             _logger.LogInformation("Product sync consumed. {ProductId} {EventType}", productId, syncEvent.EventType);
             await _cloudWatch.PutMetricAsync("product.sync.consumed", 1, "Count", ct: ct);
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing product sync event. {ProductId} {EventType}", productId, syncEvent.EventType);
-            // Do not delete message — it will be retried after visibility timeout
+
+            var maxReceiveCountRaw = _configuration["AWS:SQS:MaxReceiveCount"]
+                ?? _configuration["SQS:MaxReceiveCount"]
+                ?? Environment.GetEnvironmentVariable("AWS_SQS_MAX_RECEIVE_COUNT");
+            var maxReceiveCount = int.TryParse(maxReceiveCountRaw, out var parsedMaxReceiveCount)
+                ? parsedMaxReceiveCount
+                : 3;
+
+            if (message.ReceiveCount >= maxReceiveCount)
+            {
+                var deadLetterQueueUrl = _configuration["AWS:SQS:ProductSyncDeadLetterQueueUrl"]
+                    ?? _configuration["SQS:ProductSyncDeadLetterQueueUrl"]
+                    ?? Environment.GetEnvironmentVariable("AWS_SQS_PRODUCT_SYNC_DLQ_URL");
+
+                if (!string.IsNullOrWhiteSpace(deadLetterQueueUrl))
+                {
+                    await _sqsService.SendMessageAsync(deadLetterQueueUrl, syncEvent, ct);
+                    _logger.LogWarning("Moved poison message {MessageId} to DLQ after {ReceiveCount} attempts.", message.MessageId, message.ReceiveCount);
+                    return true;
+                }
+            }
         }
+
+        return false;
     }
 
     private static ProductDocument MapToProductDocument(ProductSyncEvent syncEvent) => new()

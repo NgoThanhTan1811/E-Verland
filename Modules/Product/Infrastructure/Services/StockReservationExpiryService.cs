@@ -32,10 +32,8 @@ public class StockReservationExpiryService(
         var db = scope.ServiceProvider.GetRequiredService<ProductDbContext>();
         var reservationService = scope.ServiceProvider.GetRequiredService<IProductReservationService>();
 
-        var expiryThreshold = DateTime.UtcNow.AddMinutes(-15);
-
         var expiredPaymentIds = await db.StockReservations
-            .Where(r => r.Status == ReservationStatus.Reserved && r.CreatedAt < expiryThreshold)
+            .Where(r => r.Status == ReservationStatus.Reserved && r.ExpiresAt <= DateTime.UtcNow)
             .Select(r => r.PaymentId)
             .Distinct()
             .ToListAsync(ct);
@@ -49,6 +47,16 @@ public class StockReservationExpiryService(
         {
             try
             {
+                var pending = await db.StockReservations
+                    .Where(r => r.PaymentId == paymentId && r.Status == ReservationStatus.Reserved)
+                    .ToListAsync(ct);
+
+                foreach (var item in pending)
+                {
+                    item.Status = ReservationStatus.Expired;
+                }
+
+                await db.SaveChangesAsync(ct);
                 await reservationService.ReleaseReservationAsync(paymentId, ct);
                 logger.LogInformation("Released stock reservation for PaymentId {PaymentId}.", paymentId);
             }

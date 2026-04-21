@@ -5,7 +5,9 @@ using Infra.AWS.CloudWatch;
 using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Configuration;
 using Modules.Payment.Api.Controllers;
+using Modules.Payment.Application.Contracts;
 using Modules.Payment.Application.DTOs.Response;
 using Modules.Payment.Application.Queries;
 using Modules.Payment.Domain;
@@ -23,14 +25,33 @@ public class SePayWebhookTests
         var mediator = Substitute.For<IMediator>();
         var reservationService = Substitute.For<IProductReservationService>();
         var cloudWatch = Substitute.For<ICloudWatchService>();
+        var webhookIdempotency = Substitute.For<IWebhookIdempotencyService>();
+        var ledgerService = Substitute.For<ILedgerService>();
+        var sellerBalanceService = Substitute.For<ISellerBalanceService>();
+
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Payment:SePay:SecretKey"] = sepayKey,
+                ["Payment:Payout:ReleaseDelayDays"] = "3"
+            })
+            .Build();
 
         cloudWatch.PutMetricAsync(Arg.Any<string>(), Arg.Any<double>(), Arg.Any<string>(),
             Arg.Any<Dictionary<string, string>>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
-        if (sepayKey != null)
-            Environment.SetEnvironmentVariable("SEPAY_KEY", sepayKey);
+        webhookIdempotency.IsProcessedAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
+        webhookIdempotency.TryMarkAsProcessedAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
 
-        var controller = new PaymentController(mediator, reservationService, cloudWatch);
+        var controller = new PaymentController(
+            mediator,
+            reservationService,
+            cloudWatch,
+            config,
+            webhookIdempotency,
+            ledgerService,
+            sellerBalanceService);
         return (controller, mediator, cloudWatch);
     }
 
@@ -84,7 +105,7 @@ public class SePayWebhookTests
 
         var result = await controller.SePayWebhook(CancellationToken.None);
 
-        Assert.IsType<UnauthorizedObjectResult>(result);
+        Assert.IsType<BadRequestObjectResult>(result);
         await cloudWatch.Received().PutMetricAsync("payment.webhook.failed", 1, "Count",
             Arg.Any<Dictionary<string, string>>(), Arg.Any<CancellationToken>());
     }

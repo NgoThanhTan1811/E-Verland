@@ -5,6 +5,7 @@ using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.DTOs.Response;
 using Modules.Product.Application.Services;
+using Modules.Redis.Services;
 
 namespace Modules.Product.Application.Commands;
 
@@ -17,7 +18,8 @@ public sealed class CreateProductHandler(
     IProductDbContext dbContext,
     SKUGeneratorService skuGenerator,
     IProductSyncPublisher syncPublisher,
-    ICloudWatchService cloudWatch) : IRequestHandler<CreateProductCommand, ProductDetailDto>
+    ICloudWatchService cloudWatch,
+    IProductCacheService productCacheService) : IRequestHandler<CreateProductCommand, ProductDetailDto>
 {
     private readonly IProductRepository _productRepository = productRepository;
     private readonly ICategoryRepository _categoryRepository = categoryRepository;
@@ -26,6 +28,7 @@ public sealed class CreateProductHandler(
     private readonly SKUGeneratorService _skuGenerator = skuGenerator;
     private readonly IProductSyncPublisher _syncPublisher = syncPublisher;
     private readonly ICloudWatchService _cloudWatch = cloudWatch;
+    private readonly IProductCacheService _productCacheService = productCacheService;
 
     public async Task<ProductDetailDto> Handle(CreateProductCommand request, CancellationToken cancellationToken)
     {
@@ -50,7 +53,7 @@ public sealed class CreateProductHandler(
             ImageUrls = request.Request.ImageUrls,
             Attributes = request.Request.Attributes,
             BrandId = request.Request.BrandId,
-            Status = request.Request.Status,
+            Status = Domain.ProductStatus.Draft,
             Categories = categories
         };
 
@@ -100,6 +103,8 @@ public sealed class CreateProductHandler(
 
         await _syncPublisher.PublishAsync(product, "Created", cancellationToken);
         await _cloudWatch.PutMetricAsync("product.created", 1, "Count", ct: cancellationToken);
+        await _productCacheService.InvalidateProductAsync(product.Id.ToString("N"));
+        await _productCacheService.InvalidateAllProductsAsync();
 
         return MapToDetailDto(product, categories);
     }

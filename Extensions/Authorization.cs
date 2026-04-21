@@ -8,8 +8,6 @@ public static class AuthorizationExtension
     {
         services.AddAuthorization(options =>
         {
-            // Requirement 6: Role-based authorization policies
-            // CustomerPolicy: requires JWT role claim == "Customer"
             options.AddPolicy("CustomerPolicy", policy =>
                 policy.RequireAssertion(context =>
                 {
@@ -20,7 +18,6 @@ public static class AuthorizationExtension
                     return roleClaim == "Customer";
                 }));
 
-            // SellerPolicy: requires JWT role claim == "Seller"
             options.AddPolicy("SellerPolicy", policy =>
                 policy.RequireAssertion(context =>
                 {
@@ -31,7 +28,6 @@ public static class AuthorizationExtension
                     return roleClaim == "Seller";
                 }));
 
-            // AdminPolicy: requires JWT role claim == "Admin"
             options.AddPolicy("AdminPolicy", policy =>
                 policy.RequireAssertion(context =>
                 {

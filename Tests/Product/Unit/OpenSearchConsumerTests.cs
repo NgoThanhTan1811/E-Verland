@@ -1,6 +1,6 @@
 using Infra.AWS.CloudWatch;
-using Infra.AWS.OpenSearch;
 using Infra.AWS.SQS;
+using Infra.Meilisearch;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Modules.Product.Application.DTOs.Events;
@@ -17,7 +17,7 @@ public class OpenSearchConsumerTests
 
     private static OpenSearchConsumer BuildConsumer(
         ISQSService sqsService,
-        IOpenSearchService openSearch,
+        IMeilisearchService meilisearch,
         ICloudWatchService cloudWatch)
     {
         var config = new ConfigurationBuilder()
@@ -27,7 +27,7 @@ public class OpenSearchConsumerTests
             })
             .Build();
 
-        return new OpenSearchConsumer(sqsService, openSearch, cloudWatch, config,
+        return new OpenSearchConsumer(sqsService, meilisearch, cloudWatch, config,
             NullLogger<OpenSearchConsumer>.Instance);
     }
 
@@ -95,7 +95,7 @@ public class OpenSearchConsumerTests
     public async Task ProcessMessage_Created_CallsIndexDocument()
     {
         var sqsService = Substitute.For<ISQSService>();
-        var openSearch = Substitute.For<IOpenSearchService>();
+        var openSearch = Substitute.For<IMeilisearchService>();
         var cloudWatch = Substitute.For<ICloudWatchService>();
         var consumer = BuildConsumer(sqsService, openSearch, cloudWatch);
 
@@ -103,14 +103,14 @@ public class OpenSearchConsumerTests
         await RunConsumerOnce(consumer, sqsService, [msg]);
 
         await openSearch.Received().IndexDocumentAsync(
-            "products", msg.Body.ProductId.ToString(), Arg.Any<object>(), Arg.Any<CancellationToken>());
+            "products", msg.Body.ProductId.ToString(), Arg.Any<ProductDocument>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ProcessMessage_Updated_CallsIndexDocument()
     {
         var sqsService = Substitute.For<ISQSService>();
-        var openSearch = Substitute.For<IOpenSearchService>();
+        var openSearch = Substitute.For<IMeilisearchService>();
         var cloudWatch = Substitute.For<ICloudWatchService>();
         var consumer = BuildConsumer(sqsService, openSearch, cloudWatch);
 
@@ -118,14 +118,14 @@ public class OpenSearchConsumerTests
         await RunConsumerOnce(consumer, sqsService, [msg]);
 
         await openSearch.Received().IndexDocumentAsync(
-            "products", msg.Body.ProductId.ToString(), Arg.Any<object>(), Arg.Any<CancellationToken>());
+            "products", msg.Body.ProductId.ToString(), Arg.Any<ProductDocument>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ProcessMessage_Deleted_CallsDeleteDocument()
     {
         var sqsService = Substitute.For<ISQSService>();
-        var openSearch = Substitute.For<IOpenSearchService>();
+        var openSearch = Substitute.For<IMeilisearchService>();
         var cloudWatch = Substitute.For<ICloudWatchService>();
         var consumer = BuildConsumer(sqsService, openSearch, cloudWatch);
 
@@ -140,32 +140,32 @@ public class OpenSearchConsumerTests
     public async Task ProcessMessage_Success_DeletesMessageFromQueue()
     {
         var sqsService = Substitute.For<ISQSService>();
-        var openSearch = Substitute.For<IOpenSearchService>();
+        var openSearch = Substitute.For<IMeilisearchService>();
         var cloudWatch = Substitute.For<ICloudWatchService>();
         var consumer = BuildConsumer(sqsService, openSearch, cloudWatch);
 
         var msg = MakeMessage("Created");
         await RunConsumerOnce(consumer, sqsService, [msg]);
 
-        await sqsService.Received().DeleteMessageAsync(QueueUrl, msg.ReceiptHandle, Arg.Any<CancellationToken>());
+        await sqsService.Received().DeleteMessageBatchAsync(QueueUrl, Arg.Is<List<string>>(handles => handles.Contains(msg.ReceiptHandle)), Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task ProcessMessage_WhenIndexFails_DoesNotDeleteMessage()
     {
         var sqsService = Substitute.For<ISQSService>();
-        var openSearch = Substitute.For<IOpenSearchService>();
+        var openSearch = Substitute.For<IMeilisearchService>();
         var cloudWatch = Substitute.For<ICloudWatchService>();
         var consumer = BuildConsumer(sqsService, openSearch, cloudWatch);
 
         openSearch.IndexDocumentAsync(
-                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<object>(), Arg.Any<CancellationToken>())
-            .Returns<Task<string>>(_ => throw new Exception("OpenSearch unavailable"));
+                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<ProductDocument>(), Arg.Any<CancellationToken>())
+            .Returns<Task<string>>(_ => throw new Exception("Meilisearch unavailable"));
 
         var msg = MakeMessage("Created");
         await RunConsumerOnce(consumer, sqsService, [msg]);
 
-        await sqsService.DidNotReceive().DeleteMessageAsync(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await sqsService.DidNotReceive().DeleteMessageBatchAsync(
+            Arg.Any<string>(), Arg.Any<List<string>>(), Arg.Any<CancellationToken>());
     }
 }

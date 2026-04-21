@@ -16,7 +16,7 @@ public class SkuController(IMediator mediator) : ControllerBase
     private readonly IMediator _mediator = mediator;
 
     [HttpPost]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     public async Task<IActionResult> CreateSku([FromBody] CreateSkuRequestDto request, CancellationToken cancellationToken)
     {
         var command = new CreateSkuCommand(request);
@@ -25,7 +25,7 @@ public class SkuController(IMediator mediator) : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     public async Task<IActionResult> UpdateSku(Guid id, [FromBody] UpdateSkuRequestDto request, CancellationToken cancellationToken)
     {
         var command = new UpdateSkuCommand(id, request);
@@ -33,7 +33,7 @@ public class SkuController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteSku(Guid id, CancellationToken cancellationToken)
     {
@@ -52,7 +52,7 @@ public class SkuController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     [HttpGet("admin/search")]
     public async Task<IActionResult> SearchSkus([FromQuery] SearchSkuAdminRequestDto filter, CancellationToken cancellationToken)
     {

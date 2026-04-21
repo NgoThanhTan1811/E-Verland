@@ -1,66 +1,41 @@
+using Microsoft.EntityFrameworkCore;
+using Modules.Payment.Application.Contracts;
 using Modules.Payment.Domain;
+using Modules.Payment.Infrastructure.Persistence;
 
 namespace Modules.Payment.Infrastructure.Services;
 
-/// <summary>
-/// Tracks webhook processing to ensure idempotency
-/// </summary>
-public interface IWebhookIdempotencyService
+public class WebhookIdempotencyService(PaymentDbContext dbContext) : IWebhookIdempotencyService
 {
-    Task<bool> IsProcessedAsync(string webhookId, CancellationToken ct = default);
-    Task MarkAsProcessedAsync(string webhookId, string paymentCode, string status, CancellationToken ct = default);
-}
+    private readonly PaymentDbContext _dbContext = dbContext;
 
-public class WebhookIdempotencyService : IWebhookIdempotencyService
-{
-    private readonly Dictionary<string, WebhookRecord> _processedWebhooks = new();
-    private readonly SemaphoreSlim _lock = new(1, 1);
-
-    public async Task<bool> IsProcessedAsync(string webhookId, CancellationToken ct = default)
+    public Task<bool> IsProcessedAsync(string idempotencyKey, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct);
-        try
-        {
-            return _processedWebhooks.ContainsKey(webhookId);
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        return _dbContext.WebhookEvents
+            .AsNoTracking()
+            .AnyAsync(x => x.IdempotencyKey == idempotencyKey, ct);
     }
 
-    public async Task MarkAsProcessedAsync(string webhookId, string paymentCode, string status, CancellationToken ct = default)
+    public async Task<bool> TryMarkAsProcessedAsync(string idempotencyKey, string paymentCode, string status, CancellationToken ct = default)
     {
-        await _lock.WaitAsync(ct);
+        var entry = new WebhookEvent
+        {
+            IdempotencyKey = idempotencyKey,
+            PaymentCode = paymentCode,
+            EventStatus = status,
+            ProcessedAtUtc = DateTime.UtcNow
+        };
+
+        _dbContext.WebhookEvents.Add(entry);
+
         try
         {
-            _processedWebhooks[webhookId] = new WebhookRecord(
-                webhookId,
-                paymentCode,
-                status,
-                DateTime.UtcNow
-            );
-
-            // Cleanup old entries (keep last 1000)
-            if (_processedWebhooks.Count > 1000)
-            {
-                var oldest = _processedWebhooks
-                    .OrderBy(kv => kv.Value.ProcessedAt)
-                    .Take(100)
-                    .Select(kv => kv.Key)
-                    .ToList();
-
-                foreach (var key in oldest)
-                {
-                    _processedWebhooks.Remove(key);
-                }
-            }
+            await _dbContext.SaveChangesAsync(ct);
+            return true;
         }
-        finally
+        catch (DbUpdateException)
         {
-            _lock.Release();
+            return false;
         }
     }
-
-    private record WebhookRecord(string WebhookId, string PaymentCode, string Status, DateTime ProcessedAt);
 }

@@ -14,7 +14,7 @@ public sealed record UploadMediaCommand(
 
 public sealed record UploadMediaResult(
     Guid MediaId,
-    string FileUrl,
+    string FilePath,
     long FileSize
 );
 
@@ -31,8 +31,7 @@ public sealed class UploadMediaHandler : IRequestHandler<UploadMediaCommand, Upl
 
     public async Task<UploadMediaResult> Handle(UploadMediaCommand request, CancellationToken ct)
     {
-        // Upload to S3
-        var fileUrl = await _storageService.UploadAsync(
+        var filePath = await _storageService.UploadAsync(
             request.FileStream,
             request.FileName,
             request.ContentType,
@@ -42,7 +41,7 @@ public sealed class UploadMediaHandler : IRequestHandler<UploadMediaCommand, Upl
         var mediaFile = new MediaFile
         {
             FileName = request.FileName,
-            FilePath = fileUrl,
+            FilePath = filePath,
             FileSize = request.FileStream.Length,
             ContentType = request.ContentType,
             MediaType = request.MediaType,
@@ -54,7 +53,7 @@ public sealed class UploadMediaHandler : IRequestHandler<UploadMediaCommand, Upl
 
         return new UploadMediaResult(
             mediaFile.Id,
-            fileUrl,
+            filePath,
             mediaFile.FileSize);
     }
 }

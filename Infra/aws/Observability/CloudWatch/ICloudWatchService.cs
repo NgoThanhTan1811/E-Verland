@@ -1,17 +1,18 @@
 namespace Infra.AWS.CloudWatch;
 
 /// <summary>
-/// Interface for AWS CloudWatch operations
+/// Interface for CloudWatch observability operations.
+/// Metrics are emitted as Serilog EMF log events (no PutMetricData API calls).
 /// </summary>
 public interface ICloudWatchService
 {
     /// <summary>
-    /// Put a custom metric to CloudWatch
+    /// Emit a custom metric via Serilog EMF log event.
     /// </summary>
     Task PutMetricAsync(string metricName, double value, string unit = "Count", Dictionary<string, string>? dimensions = null, CancellationToken ct = default);
 
     /// <summary>
-    /// Put multiple metrics in a batch
+    /// Emit multiple metrics in one or more EMF log events.
     /// </summary>
     Task PutMetricsBatchAsync(List<CloudWatchMetric> metrics, CancellationToken ct = default);
 

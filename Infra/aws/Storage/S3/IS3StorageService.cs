@@ -12,7 +12,7 @@ public interface IS3StorageService
     /// <param name="key">S3 object key (path)</param>
     /// <param name="contentType">MIME type</param>
     /// <param name="ct">Cancellation token</param>
-    /// <returns>Full S3 URL of the uploaded file</returns>
+    /// <returns>Relative storage path (object key) of the uploaded file</returns>
     Task<string> UploadAsync(Stream fileStream, string key, string contentType, CancellationToken ct = default);
 
     /// <summary>

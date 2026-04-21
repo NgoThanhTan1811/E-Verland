@@ -1,5 +1,6 @@
 using Amazon.SQS;
 using Amazon.SQS.Model;
+using Infra.AWS.Resilience;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
@@ -37,7 +38,7 @@ public sealed class SQSService : ISQSService
                 MessageBody = messageBody
             };
 
-            var response = await _sqsClient.SendMessageAsync(request, ct);
+            var response = await AwsRetryPolicy.ExecuteAsync(() => _sqsClient.SendMessageAsync(request, ct), 3, ct);
 
             _logger.LogInformation(
                 "Message sent to SQS queue {QueueUrl}. MessageId: {MessageId}",
@@ -68,7 +69,7 @@ public sealed class SQSService : ISQSService
                 Entries = entries
             };
 
-            var response = await _sqsClient.SendMessageBatchAsync(request, ct);
+            var response = await AwsRetryPolicy.ExecuteAsync(() => _sqsClient.SendMessageBatchAsync(request, ct), 3, ct);
 
             _logger.LogInformation(
                 "Sent {Count} messages to SQS queue {QueueUrl}. Successful: {Successful}, Failed: {Failed}",
@@ -92,16 +93,19 @@ public sealed class SQSService : ISQSService
                 QueueUrl = queueUrl,
                 MaxNumberOfMessages = Math.Min(maxMessages, 10),
                 WaitTimeSeconds = _options.WaitTimeSeconds,
+                MessageSystemAttributeNames = ["All"]
             };
 
-            var response = await _sqsClient.ReceiveMessageAsync(request, ct);
+            var response = await AwsRetryPolicy.ExecuteAsync(() => _sqsClient.ReceiveMessageAsync(request, ct), 3, ct);
 
             var messages = response.Messages.Select(msg =>
             {
                 var body = JsonSerializer.Deserialize<T>(msg.Body)!;
-                var receiveCount = int.Parse(msg.Attributes["ApproximateReceiveCount"]);
-                var sentTimestamp = DateTimeOffset.FromUnixTimeMilliseconds(
-                    long.Parse(msg.Attributes["SentTimestamp"])).DateTime;
+                var receiveCount = int.TryParse(msg.Attributes.GetValueOrDefault("ApproximateReceiveCount"), out var rc) ? rc : 1;
+                var sentTimestampRaw = msg.Attributes.GetValueOrDefault("SentTimestamp");
+                var sentTimestamp = long.TryParse(sentTimestampRaw, out var ts)
+                    ? DateTimeOffset.FromUnixTimeMilliseconds(ts).DateTime
+                    : DateTime.UtcNow;
 
                 return new SQSMessage<T>(
                     msg.MessageId,
@@ -135,7 +139,7 @@ public sealed class SQSService : ISQSService
                 ReceiptHandle = receiptHandle
             };
 
-            await _sqsClient.DeleteMessageAsync(request, ct);
+            await AwsRetryPolicy.ExecuteAsync(() => _sqsClient.DeleteMessageAsync(request, ct), 3, ct);
 
             _logger.LogDebug("Deleted message from SQS queue {QueueUrl}", queueUrl);
         }
@@ -162,7 +166,7 @@ public sealed class SQSService : ISQSService
                 Entries = entries
             };
 
-            var response = await _sqsClient.DeleteMessageBatchAsync(request, ct);
+            var response = await AwsRetryPolicy.ExecuteAsync(() => _sqsClient.DeleteMessageBatchAsync(request, ct), 3, ct);
 
             _logger.LogInformation(
                 "Deleted {Successful} messages from SQS queue {QueueUrl}. Failed: {Failed}",

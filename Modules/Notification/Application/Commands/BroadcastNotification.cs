@@ -21,7 +21,9 @@ public class BroadcastNotificationCommandHandler(
     public async Task<List<Guid>> Handle(BroadcastNotificationCommand request, CancellationToken ct)
     {
         var notificationIds = new List<Guid>();
-        var topicArn = configuration["SNS:NotificationTopicArn"];
+        var topicArn = configuration["AWS:SNS:NotificationTopicArn"]
+            ?? configuration["SNS:NotificationTopicArn"]
+            ?? Environment.GetEnvironmentVariable("AWS_SNS_NOTIFICATION_TOPIC_ARN");
 
         foreach (var userId in request.Request.UserIds)
         {

@@ -2,8 +2,12 @@ using System.Diagnostics;
 using Amazon.XRay.Recorder.Core;
 using AutoMapper;
 using Infra.AWS.CloudWatch;
+using Infra.AWS.EventBridge;
+using Infra.AWS.SNS;
+using Infra.AWS.SQS;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Modules.Order.Application.Contracts;
 using Modules.Order.Application.DTOs.Request;
@@ -24,15 +28,21 @@ public sealed class CreateOrderHandler(
     IOrderRepository repo,
     IOrderDbContext db,
     IProductService productService,
-    IMapper mapper,
     ICloudWatchService cloudWatch,
-    ILogger<CreateOrderHandler> logger)
+    ILogger<CreateOrderHandler> logger,
+    ISQSService? sqsService = null,
+    ISNSService? snsService = null,
+    IEventBridgeService? eventBridgeService = null,
+    IConfiguration? configuration = null)
     : IRequestHandler<CreateOrderCommand, CreateOrderResponseDto>
 {
     private readonly IOrderRepository _repo = repo;
     private readonly IOrderDbContext _db = db;
     private readonly IProductService _productService = productService;
-    private readonly IMapper _mapper = mapper;
+    private readonly ISQSService? _sqsService = sqsService;
+    private readonly ISNSService? _snsService = snsService;
+    private readonly IEventBridgeService? _eventBridgeService = eventBridgeService;
+    private readonly IConfiguration? _configuration = configuration;
 
     public async Task<CreateOrderResponseDto> Handle(CreateOrderCommand request, CancellationToken ct)
     {
@@ -103,6 +113,7 @@ public sealed class CreateOrderHandler(
             logger.LogInformation("Order created. {OrderId} {UserId} {LatencyMs}", order.Id, request.UserId, sw.ElapsedMilliseconds);
             await cloudWatch.PutMetricAsync("order.created", 1, "Count", ct: ct);
             await cloudWatch.PutMetricAsync("order.latency_ms", sw.ElapsedMilliseconds, "Milliseconds", ct: ct);
+            await PublishOrderEventAsync(order, "OrderCreated", ct);
 
             return new CreateOrderResponseDto(order.Id, order.Code);
         }
@@ -132,5 +143,54 @@ public sealed class CreateOrderHandler(
         } while (await _repo.CodeExistsAsync(code, ct));
 
         return code;
+    }
+
+    private async Task PublishOrderEventAsync(Domain.Order order, string eventType, CancellationToken ct)
+    {
+        if (_configuration == null)
+        {
+            return;
+        }
+
+        var payload = new
+        {
+            orderId = order.Id,
+            orderCode = order.Code,
+            userId = order.UserId,
+            status = order.Status.ToString(),
+            paymentStatus = order.PaymentStatus.ToString(),
+            totalPrice = order.TotalPrice,
+            createdAtUtc = order.CreatedAt,
+            eventType
+        };
+
+        try
+        {
+            var queueUrl = _configuration["AWS:SQS:OrderEventsQueueUrl"]
+                ?? _configuration["SQS:OrderEventsQueueUrl"]
+                ?? Environment.GetEnvironmentVariable("AWS_SQS_ORDER_EVENTS_QUEUE_URL");
+            if (_sqsService != null && !string.IsNullOrWhiteSpace(queueUrl))
+            {
+                await _sqsService.SendMessageAsync(queueUrl, payload, ct);
+            }
+
+            var topicArn = _configuration["AWS:SNS:OrderEventsTopicArn"]
+                ?? _configuration["SNS:OrderEventsTopicArn"]
+                ?? Environment.GetEnvironmentVariable("AWS_SNS_ORDER_EVENTS_TOPIC_ARN");
+            if (_snsService != null && !string.IsNullOrWhiteSpace(topicArn))
+            {
+                await _snsService.PublishAsync(topicArn, payload, eventType, ct);
+            }
+
+            if (_eventBridgeService != null)
+            {
+                var source = _configuration["AWS:EventBridge:OrderEventSource"] ?? "e-verland.orders";
+                await _eventBridgeService.PutEventAsync(source, eventType, payload, ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to publish order event {EventType} for order {OrderId}", eventType, order.Id);
+        }
     }
 }

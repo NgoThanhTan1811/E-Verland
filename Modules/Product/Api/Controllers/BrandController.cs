@@ -14,7 +14,7 @@ namespace Modules.Product.Api.Controllers;
 public class BrandController(IMediator mediator) : ControllerBase
 {
     private readonly IMediator _mediator = mediator;
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     [HttpPost]
     public async Task<IActionResult> CreateBrand([FromBody] CreateBrandRequestDto request, CancellationToken cancellationToken)
     {
@@ -23,7 +23,7 @@ public class BrandController(IMediator mediator) : ControllerBase
         return CreatedAtAction(nameof(GetBrandById), new { id = result.Id }, result);
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateBrand(Guid id, [FromBody] UpdateBrandRequestDto request, CancellationToken cancellationToken)
     {
@@ -32,7 +32,7 @@ public class BrandController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteBrand(Guid id, CancellationToken cancellationToken)
     {

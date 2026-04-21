@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Modules.Auth.Application.Services;
 using Modules.Auth.Infrastructure.Services;
+using SharedKernel.Persistence;
 
 namespace Modules.Auth.Infrastructure.Persistence
 {
@@ -16,10 +17,7 @@ namespace Modules.Auth.Infrastructure.Persistence
             // Register DbContext
             services.AddDbContext<AuthDbContext>(options =>
             {
-                options.UseNpgsql(conn, npgsql =>
-                {
-                    npgsql.MigrationsAssembly(typeof(AuthDbContext).Assembly.GetName().Name);
-                });
+                options.ConfigureNpgsql(conn, typeof(AuthDbContext).Assembly.GetName().Name!);
             });
 
             // Register Services

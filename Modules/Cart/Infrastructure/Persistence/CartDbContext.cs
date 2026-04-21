@@ -25,6 +25,7 @@ public class CartDbContext(DbContextOptions<CartDbContext> options) : DbContext(
                 var property = Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
                 var filter = Expression.Lambda(Expression.Equal(property, Expression.Constant(false)), parameter);
                 entityType.SetQueryFilter(filter);
+                modelBuilder.Entity(entityType.ClrType).Property(nameof(BaseEntity.RowVersion)).IsRowVersion();
             }
         }
 

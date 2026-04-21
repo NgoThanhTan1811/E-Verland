@@ -1,9 +1,14 @@
 using System.Diagnostics;
 using Amazon.XRay.Recorder.Core;
 using Infra.AWS.CloudWatch;
+using Infra.AWS.EventBridge;
+using Infra.AWS.SNS;
+using Infra.AWS.SQS;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Modules.Order.Application.Contracts;
 using Modules.Payment.Application.Contracts;
 using Modules.Payment.Application.Helpers;
 using Modules.Payment.Domain;
@@ -34,9 +39,19 @@ public sealed class InitiatePaymentHandler(
     IProductReservationService reservationService,
     ISePayClient sePayClient,
     ICloudWatchService cloudWatch,
-    ILogger<InitiatePaymentHandler> logger
+    ILogger<InitiatePaymentHandler> logger,
+    IOrderPaymentSyncService orderPaymentSyncService,
+    IConfiguration? configuration = null,
+    ISQSService? sqsService = null,
+    ISNSService? snsService = null,
+    IEventBridgeService? eventBridgeService = null
 ) : IRequestHandler<InitiatePaymentCommand, InitiatePaymentResponseDto>
 {
+    private readonly IConfiguration? _configuration = configuration;
+    private readonly ISQSService? _sqsService = sqsService;
+    private readonly ISNSService? _snsService = snsService;
+    private readonly IEventBridgeService? _eventBridgeService = eventBridgeService;
+
     public async Task<InitiatePaymentResponseDto> Handle(InitiatePaymentCommand request, CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -62,6 +77,7 @@ public sealed class InitiatePaymentHandler(
         {
             // Reserve stock before persisting
             await reservationService.ReserveStockAsync(
+                request.OrderId,
                 payment.Id,
                 request.Items.Select(i => (i.SkuId, i.Quantity)),
                 ct);
@@ -82,6 +98,11 @@ public sealed class InitiatePaymentHandler(
             try
             {
                 await db.SaveChangesAsync(ct);
+                await orderPaymentSyncService.SyncPaymentAsync(
+                    payment.OrderId,
+                    payment.Id,
+                    payment.Status.ToString(),
+                    ct);
             }
             catch (DbUpdateException ex)
             {
@@ -98,9 +119,59 @@ public sealed class InitiatePaymentHandler(
         // Emit CloudWatch metrics on success
         await cloudWatch.PutMetricAsync("payment.initiated", 1, "Count", ct: ct);
         await cloudWatch.PutMetricAsync("payment.latency_ms", stopwatch.Elapsed.TotalMilliseconds, "Milliseconds", ct: ct);
+        await PublishPaymentEventAsync(payment, "PaymentInitiated", ct);
 
         logger.LogInformation("Payment initiated for order {OrderId} in {LatencyMs}ms", request.OrderId, stopwatch.Elapsed.TotalMilliseconds);
 
         return new InitiatePaymentResponseDto(payment.Id, payment.Code, payment.Status, payment.PaymentUrl);
+    }
+
+    private async Task PublishPaymentEventAsync(Domain.Payment payment, string eventType, CancellationToken ct)
+    {
+        if (_configuration == null)
+        {
+            return;
+        }
+
+        var payload = new
+        {
+            paymentId = payment.Id,
+            paymentCode = payment.Code,
+            orderId = payment.OrderId,
+            userId = payment.UserId,
+            amount = payment.Amount,
+            status = payment.Status.ToString(),
+            method = payment.Method.ToString(),
+            eventType
+        };
+
+        try
+        {
+            var queueUrl = _configuration["AWS:SQS:PaymentEventsQueueUrl"]
+                ?? _configuration["SQS:PaymentEventsQueueUrl"]
+                ?? Environment.GetEnvironmentVariable("AWS_SQS_PAYMENT_EVENTS_QUEUE_URL");
+            if (_sqsService != null && !string.IsNullOrWhiteSpace(queueUrl))
+            {
+                await _sqsService.SendMessageAsync(queueUrl, payload, ct);
+            }
+
+            var topicArn = _configuration["AWS:SNS:PaymentEventsTopicArn"]
+                ?? _configuration["SNS:PaymentEventsTopicArn"]
+                ?? Environment.GetEnvironmentVariable("AWS_SNS_PAYMENT_EVENTS_TOPIC_ARN");
+            if (_snsService != null && !string.IsNullOrWhiteSpace(topicArn))
+            {
+                await _snsService.PublishAsync(topicArn, payload, eventType, ct);
+            }
+
+            if (_eventBridgeService != null)
+            {
+                var source = _configuration["AWS:EventBridge:PaymentEventSource"] ?? "e-verland.payments";
+                await _eventBridgeService.PutEventAsync(source, eventType, payload, ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to publish payment event {EventType} for payment {PaymentId}", eventType, payment.Id);
+        }
     }
 }

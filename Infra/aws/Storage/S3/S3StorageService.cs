@@ -2,13 +2,15 @@ using Amazon.S3;
 using Amazon.S3.Model;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
+using Infra.AWS.Resilience;
+using Infra.AWS.Storage;
 
 namespace Infra.AWS.S3;
 
 /// <summary>
 /// AWS S3 storage service implementation
 /// </summary>
-public sealed class S3StorageService : IS3StorageService
+public sealed class S3StorageService : IS3StorageService, IStorageService
 {
     private readonly IAmazonS3 _s3Client;
     private readonly S3Options _options;
@@ -39,18 +41,16 @@ public sealed class S3StorageService : IS3StorageService
                 CannedACL = S3CannedACL.Private // Files are private by default
             };
 
-            var response = await _s3Client.PutObjectAsync(putRequest, ct);
+            var response = await AwsRetryPolicy.ExecuteAsync(() => _s3Client.PutObjectAsync(putRequest, ct), 3, ct);
 
             if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
             {
                 throw new Exception($"Failed to upload file to S3. Status: {response.HttpStatusCode}");
             }
 
-            var url = $"{_options.BaseUrl.TrimEnd('/')}/{key}";
+            _logger.LogInformation("File uploaded successfully to S3: {Key}", key);
 
-            _logger.LogInformation("File uploaded successfully to S3: {Key}, URL: {Url}", key, url);
-
-            return url;
+            return key;
         }
         catch (AmazonS3Exception ex)
         {
@@ -76,7 +76,7 @@ public sealed class S3StorageService : IS3StorageService
                 Key = key
             };
 
-            await _s3Client.DeleteObjectAsync(deleteRequest, ct);
+            await AwsRetryPolicy.ExecuteAsync(() => _s3Client.DeleteObjectAsync(deleteRequest, ct), 3, ct);
 
             _logger.LogInformation("File deleted successfully from S3: {Key}", key);
         }
@@ -126,7 +126,7 @@ public sealed class S3StorageService : IS3StorageService
                 Key = key
             };
 
-            await _s3Client.GetObjectMetadataAsync(request, ct);
+            await AwsRetryPolicy.ExecuteAsync(() => _s3Client.GetObjectMetadataAsync(request, ct), 3, ct);
             return true;
         }
         catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -150,7 +150,7 @@ public sealed class S3StorageService : IS3StorageService
                 Key = key
             };
 
-            var response = await _s3Client.GetObjectMetadataAsync(request, ct);
+            var response = await AwsRetryPolicy.ExecuteAsync(() => _s3Client.GetObjectMetadataAsync(request, ct), 3, ct);
 
             return new S3FileMetadata(
                 key,

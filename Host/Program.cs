@@ -2,7 +2,6 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using EVerland.Extentions;
-using BFF;
 using Modules.User;
 using Modules.Product;
 using Modules.Cart;
@@ -15,12 +14,66 @@ using Modules.Chat.Infrastructure.Persistence;
 using Modules.Notification.Infrastructure;
 using DotNetEnv;
 using Infra.AWS;
+using Infra.AWS.CloudWatch;
 using Infra.AWS.XRay;
+using Amazon;
+using Amazon.CloudWatchLogs;
+using Amazon.Runtime;
+using Serilog;
+using Serilog.Formatting.Compact;
+using Serilog.Sinks.AwsCloudWatch;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var envPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", ".env"));
 Env.Load(envPath);
+
+var cloudWatchOptions = builder.Configuration.GetSection(CloudWatchOptions.SectionName).Get<CloudWatchOptions>() ?? new CloudWatchOptions();
+cloudWatchOptions.Enabled = bool.TryParse(Environment.GetEnvironmentVariable("AWS_CLOUDWATCH_ENABLED"), out var sinkEnabledOverride)
+    ? sinkEnabledOverride
+    : cloudWatchOptions.Enabled;
+
+var loggerConfiguration = new LoggerConfiguration()
+    .ReadFrom.Configuration(builder.Configuration)
+    .WriteTo.Console(new RenderedCompactJsonFormatter());
+
+if (cloudWatchOptions.Enabled)
+{
+    var awsRegion = builder.Configuration["AWS:Region"]
+        ?? Environment.GetEnvironmentVariable("AWS_REGION")
+        ?? cloudWatchOptions.Region;
+    var awsAccessKey = builder.Configuration["AWS:AccessKey"] ?? Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
+    var awsSecretKey = builder.Configuration["AWS:SecretKey"] ?? Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
+
+    var awsClientConfig = new AmazonCloudWatchLogsConfig
+    {
+        RegionEndpoint = RegionEndpoint.GetBySystemName(awsRegion)
+    };
+
+    var cloudWatchClient = !string.IsNullOrWhiteSpace(awsAccessKey) && !string.IsNullOrWhiteSpace(awsSecretKey)
+        ? new AmazonCloudWatchLogsClient(new BasicAWSCredentials(awsAccessKey, awsSecretKey), awsClientConfig)
+        : new AmazonCloudWatchLogsClient(awsClientConfig);
+
+    var sinkOptions = new CloudWatchSinkOptions
+    {
+        LogGroupName = string.IsNullOrWhiteSpace(cloudWatchOptions.LogGroupName)
+            ? cloudWatchOptions.ApplicationLogGroup
+            : cloudWatchOptions.LogGroupName,
+        LogStreamNameProvider = new PrefixedLogStreamNameProvider(cloudWatchOptions.LogStreamPrefix),
+        TextFormatter = new RenderedCompactJsonFormatter(),
+        MinimumLogEventLevel = Serilog.Events.LogEventLevel.Information,
+        BatchSizeLimit = cloudWatchOptions.BatchSizeLimit,
+        QueueSizeLimit = cloudWatchOptions.QueueSizeLimit,
+        Period = TimeSpan.FromSeconds(Math.Max(1, cloudWatchOptions.PeriodSeconds)),
+        CreateLogGroup = cloudWatchOptions.CreateLogGroup,
+        RetryAttempts = (byte)Math.Clamp(cloudWatchOptions.RetryAttempts, 0, byte.MaxValue)
+    };
+
+    loggerConfiguration.WriteTo.AmazonCloudWatch(sinkOptions, cloudWatchClient);
+}
+
+Log.Logger = loggerConfiguration.CreateLogger();
+builder.Host.UseSerilog();
 
 var xrayOptions = builder.Configuration.GetSection(XRayOptions.SectionName).Get<XRayOptions>();
 
@@ -73,9 +126,9 @@ builder.Services
 
 // Rate Limiting
 builder.Services.AddCustomRateLimiting();
-// Authorization (Requirement 6: Role-based policies)
+// Authorization 
 builder.Services.AddCustomAuthorization();
-// CORS (Requirement 8: Configure with credentials support)
+// CORS 
 builder.Services.AddCustomCors(builder.Configuration);
 // OAuth Google
 builder.AddGoogleOAuth();
@@ -96,9 +149,6 @@ builder.Services.AddAuthModule(builder.Configuration);
 builder.Services.AddPaymentModule(builder.Configuration);
 builder.Services.AddChatModule(builder.Configuration);
 builder.Services.AddNotificationModule(builder.Configuration);
-
-// Add BFF Module (Requirement 4: BFF Gateway with role-based facades)
-builder.Services.AddBffModule(builder.Configuration);
 
 builder.Services.Configure<RouteOptions>(o =>
 {

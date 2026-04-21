@@ -36,7 +36,9 @@ public class SendNotificationCommandHandler(
         await cloudWatch.PutMetricAsync("notification.sent", 1, "Count", ct: ct);
 
         // Publish to SNS (graceful skip if not configured)
-        var topicArn = configuration["SNS:NotificationTopicArn"];
+        var topicArn = configuration["AWS:SNS:NotificationTopicArn"]
+            ?? configuration["SNS:NotificationTopicArn"]
+            ?? Environment.GetEnvironmentVariable("AWS_SNS_NOTIFICATION_TOPIC_ARN");
         if (!string.IsNullOrWhiteSpace(topicArn))
         {
             var payload = new

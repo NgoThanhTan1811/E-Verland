@@ -54,7 +54,7 @@ public class MediaController : ControllerBase
             new
             {
                 id = result.MediaId,
-                url = result.FileUrl,
+                path = result.FilePath,
                 size = result.FileSize
             });
     }

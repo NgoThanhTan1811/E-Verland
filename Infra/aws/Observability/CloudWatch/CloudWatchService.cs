@@ -1,27 +1,22 @@
-using Amazon.CloudWatch;
-using Amazon.CloudWatch.Model;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Serilog;
 
 namespace Infra.AWS.CloudWatch;
 
 /// <summary>
-/// AWS CloudWatch service implementation
+/// CloudWatch metrics publisher based on Serilog EMF logs.
+/// This avoids direct PutMetricData API calls to reduce request volume and cost.
 /// </summary>
 public sealed class CloudWatchService : ICloudWatchService
 {
-    private readonly IAmazonCloudWatch _cloudWatchClient;
     private readonly CloudWatchOptions _options;
-    private readonly ILogger<CloudWatchService> _logger;
+    private readonly Serilog.ILogger _logger;
 
     public CloudWatchService(
-        IAmazonCloudWatch cloudWatchClient,
-        IOptions<CloudWatchOptions> options,
-        ILogger<CloudWatchService> logger)
+        IOptions<CloudWatchOptions> options)
     {
-        _cloudWatchClient = cloudWatchClient;
         _options = options.Value;
-        _logger = logger;
+        _logger = Log.ForContext<CloudWatchService>();
     }
 
     public async Task PutMetricAsync(
@@ -31,117 +26,91 @@ public sealed class CloudWatchService : ICloudWatchService
         Dictionary<string, string>? dimensions = null,
         CancellationToken ct = default)
     {
-        try
-        {
-            var metricData = new MetricDatum
-            {
-                MetricName = metricName,
-                Value = value,
-                Unit = unit,
-                Timestamp = DateTime.UtcNow
-            };
-
-            if (dimensions != null)
-            {
-                metricData.Dimensions = dimensions.Select(d => new Dimension
-                {
-                    Name = d.Key,
-                    Value = d.Value
-                }).ToList();
-            }
-
-            var request = new PutMetricDataRequest
-            {
-                Namespace = _options.MetricNamespace,
-                MetricData = new List<MetricDatum> { metricData }
-            };
-
-            await _cloudWatchClient.PutMetricDataAsync(request, ct);
-
-            _logger.LogDebug("Put metric to CloudWatch: {MetricName} = {Value} {Unit}", metricName, value, unit);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to put metric to CloudWatch: {MetricName}", metricName);
-            throw;
-        }
+        await PutMetricsBatchAsync(
+            [new CloudWatchMetric(metricName, value, unit, dimensions)],
+            ct);
     }
 
     public async Task PutMetricsBatchAsync(List<CloudWatchMetric> metrics, CancellationToken ct = default)
     {
-        try
+        if (metrics.Count == 0)
         {
-            var metricData = metrics.Select(m =>
-            {
-                var datum = new MetricDatum
-                {
-                    MetricName = m.MetricName,
-                    Value = m.Value,
-                    Unit = m.Unit,
-                    Timestamp = m.Timestamp ?? DateTime.UtcNow
-                };
+            return;
+        }
 
-                if (m.Dimensions != null)
+        var groups = metrics.GroupBy(m => ToDimensionKey(m.Dimensions));
+        foreach (var group in groups)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var dimensions = group.First().Dimensions ?? new Dictionary<string, string>();
+            var metricValues = group
+                .GroupBy(m => m.MetricName)
+                .ToDictionary(g => g.Key, g => g.Sum(m => m.Value));
+            var metricDefinitions = group
+                .GroupBy(m => m.MetricName)
+                .Select(g => new EmfMetricDefinition(g.Key, g.First().Unit))
+                .ToArray();
+
+            var emf = new Dictionary<string, object?>
+            {
+                ["_aws"] = new
                 {
-                    datum.Dimensions = m.Dimensions.Select(d => new Dimension
+                    Timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    CloudWatchMetrics = new[]
                     {
-                        Name = d.Key,
-                        Value = d.Value
-                    }).ToList();
+                        new
+                        {
+                            Namespace = _options.MetricNamespace,
+                            Dimensions = new[] { dimensions.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray() },
+                            Metrics = metricDefinitions
+                        }
+                    }
                 }
-
-                return datum;
-            }).ToList();
-
-            var request = new PutMetricDataRequest
-            {
-                Namespace = _options.MetricNamespace,
-                MetricData = metricData
             };
 
-            await _cloudWatchClient.PutMetricDataAsync(request, ct);
+            foreach (var (name, metricValue) in metricValues)
+            {
+                emf[name] = metricValue;
+            }
 
-            _logger.LogInformation("Put {Count} metrics to CloudWatch", metrics.Count);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to put metrics batch to CloudWatch");
-            throw;
+            foreach (var (key, value) in dimensions)
+            {
+                emf[key] = value;
+            }
+
+            _logger.Information("{@EmfMetric}", emf);
         }
     }
 
     public async Task CreateLogGroupAsync(string logGroupName, int retentionDays, CancellationToken ct = default)
     {
-        try
-        {
-            // Note: CloudWatch Logs operations would require Amazon.CloudWatchLogs package
-            // This is a placeholder for the interface
-            _logger.LogInformation("Create log group: {LogGroupName} with retention: {RetentionDays} days",
-                logGroupName, retentionDays);
-
-            await Task.CompletedTask;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to create log group: {LogGroupName}", logGroupName);
-            throw;
-        }
+        _logger.Information("EMF log group setup should be managed by CloudWatch Logs agent. Requested group {LogGroupName} with retention {RetentionDays} days.",
+            logGroupName, retentionDays);
+        await Task.CompletedTask;
     }
 
     public async Task PutLogEventsAsync(string logGroupName, string logStreamName, List<string> messages, CancellationToken ct = default)
     {
-        try
+        foreach (var message in messages)
         {
-            // Placeholder for CloudWatch Logs operations
-            _logger.LogDebug("Put {Count} log events to {LogGroupName}/{LogStreamName}",
-                messages.Count, logGroupName, logStreamName);
+            _logger.Information("{LogMessage}", message);
+        }
 
-            await Task.CompletedTask;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to put log events to {LogGroupName}/{LogStreamName}", logGroupName, logStreamName);
-            throw;
-        }
+        await Task.CompletedTask;
     }
+
+    private static string ToDimensionKey(Dictionary<string, string>? dimensions)
+    {
+        if (dimensions == null || dimensions.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        return string.Join("|", dimensions
+            .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+            .Select(pair => $"{pair.Key}={pair.Value}"));
+    }
+
+    private sealed record EmfMetricDefinition(string Name, string Unit);
 }

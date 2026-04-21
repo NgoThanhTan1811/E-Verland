@@ -1,5 +1,6 @@
 using Amazon.SimpleNotificationService;
 using Amazon.SimpleNotificationService.Model;
+using Infra.AWS.Resilience;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
@@ -38,7 +39,7 @@ public sealed class SNSService : ISNSService
                 Subject = subject
             };
 
-            var response = await _snsClient.PublishAsync(request, ct);
+            var response = await AwsRetryPolicy.ExecuteAsync(() => _snsClient.PublishAsync(request, ct), 3, ct);
 
             _logger.LogInformation(
                 "Published message to SNS topic {TopicArn}. MessageId: {MessageId}",
@@ -71,7 +72,7 @@ public sealed class SNSService : ISNSService
                 }
             };
 
-            var response = await _snsClient.PublishAsync(request, ct);
+            var response = await AwsRetryPolicy.ExecuteAsync(() => _snsClient.PublishAsync(request, ct), 3, ct);
 
             _logger.LogInformation(
                 "SMS sent to {PhoneNumber}. MessageId: {MessageId}",
@@ -97,7 +98,7 @@ public sealed class SNSService : ISNSService
                 Endpoint = endpoint
             };
 
-            var response = await _snsClient.SubscribeAsync(request, ct);
+            var response = await AwsRetryPolicy.ExecuteAsync(() => _snsClient.SubscribeAsync(request, ct), 3, ct);
 
             _logger.LogInformation(
                 "Subscribed {Endpoint} to topic {TopicArn}. SubscriptionArn: {SubscriptionArn}",
@@ -121,7 +122,7 @@ public sealed class SNSService : ISNSService
                 SubscriptionArn = subscriptionArn
             };
 
-            await _snsClient.UnsubscribeAsync(request, ct);
+            await AwsRetryPolicy.ExecuteAsync(() => _snsClient.UnsubscribeAsync(request, ct), 3, ct);
 
             _logger.LogInformation("Unsubscribed {SubscriptionArn}", subscriptionArn);
         }
@@ -141,7 +142,7 @@ public sealed class SNSService : ISNSService
                 Name = topicName
             };
 
-            var response = await _snsClient.CreateTopicAsync(request, ct);
+            var response = await AwsRetryPolicy.ExecuteAsync(() => _snsClient.CreateTopicAsync(request, ct), 3, ct);
 
             _logger.LogInformation("Created SNS topic {TopicName}. ARN: {TopicArn}", topicName, response.TopicArn);
 

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Modules.Product.Infrastructure.Persistence;
+using SharedKernel.Persistence;
 
 namespace Modules.Cart.Infrastructure.Persistence;
 
@@ -13,12 +14,9 @@ public sealed class CartDbContextFactory : IDesignTimeDbContextFactory<CartDbCon
             ?? throw new InvalidOperationException(
                 "Missing env CartDb (design-time).");
 
-        var options = new DbContextOptionsBuilder<CartDbContext>()
-            .UseNpgsql(conn, npgsql =>
-            {
-                npgsql.MigrationsAssembly(typeof(CartDbContext).Assembly.GetName().Name);
-            })
-            .Options;
+        var optionsBuilder = new DbContextOptionsBuilder<CartDbContext>();
+        optionsBuilder.ConfigureNpgsql(conn, typeof(CartDbContext).Assembly.GetName().Name!);
+        var options = optionsBuilder.Options;
 
         return new CartDbContext(options);
     }

@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Modules.Order.Application.Contracts;
 using Modules.Order.Domain;
+using Modules.Product.Application.Contracts;
 
 namespace Modules.Order.Application.Commands;
 
@@ -14,7 +15,8 @@ public sealed record CancelOrderCommand(
 public sealed class CancelOrderHandler(
     IOrderRepository repo,
     IOrderDbContext db,
-    ICloudWatchService cloudWatch)
+    ICloudWatchService cloudWatch,
+    IProductReservationService productReservationService)
     : IRequestHandler<CancelOrderCommand, Unit>
 {
     private readonly IOrderRepository _repo = repo;
@@ -40,6 +42,11 @@ public sealed class CancelOrderHandler(
         order.Status = OrderStatus.Canceled;
 
         await _repo.UpdateAsync(order, ct);
+
+        if (order.PaymentId.HasValue)
+        {
+            await productReservationService.ReleaseReservationAsync(order.PaymentId.Value, ct);
+        }
 
         try
         {

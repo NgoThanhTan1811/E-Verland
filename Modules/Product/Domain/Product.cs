@@ -14,7 +14,7 @@ namespace Modules.Product.Domain
         public List<string> VideoUrls { get; set; } = [];
         public List<SKU> SKUs { get; set; } = [];
         public List<Category> Categories { get; set; } = [];
-        public ProductStatus Status { get; set; } = ProductStatus.Pending;
+        public ProductStatus Status { get; set; } = ProductStatus.Draft;
 
         public Dictionary<string, string> Attributes { get; set; } = [];
 
@@ -33,9 +33,9 @@ namespace Modules.Product.Domain
 
     public enum ProductStatus
     {
-        Active,
+        Draft,
+        Published,
         Inactive,
         OutOfStock,
-        Pending,
     }
 }
