@@ -30,8 +30,6 @@ public static class UserModule
         services.AddMediatR(cfg =>
             cfg.RegisterServicesFromAssembly(typeof(UserApplicationMarker).Assembly));
 
-        services.AddAutoMapper(typeof(UserApplicationMarker).Assembly);
-
         return services;
     }
 }

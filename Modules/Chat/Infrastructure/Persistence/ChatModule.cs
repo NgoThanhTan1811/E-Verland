@@ -11,7 +11,7 @@ public static class ChatModuleExtension
         // Read MongoDB connection string
         var connectionString =
             configuration["MongoDB:ChatConnectionString"]
-            ?? Environment.GetEnvironmentVariable("MONGODB_CHAT_CONNECTION_STRING")
+            ?? Environment.GetEnvironmentVariable("ChatDb")
             ?? throw new InvalidOperationException(
                 "Missing MongoDB connection string. Set 'MongoDB:ChatConnectionString' in configuration or 'MONGODB_CHAT_CONNECTION_STRING' environment variable.");
 

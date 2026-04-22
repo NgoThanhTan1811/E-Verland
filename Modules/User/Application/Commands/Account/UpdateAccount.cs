@@ -1,11 +1,11 @@
 using Modules.User.Application.Interfaces.Repositories;
 using Modules.User.Application.DTOs.Response;
 using MediatR;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Modules.User.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
 using Modules.User.Application.Validators;
+using Modules.User.Application.Mappings;
 
 namespace Modules.User.Application.Commands
 {
@@ -17,12 +17,11 @@ namespace Modules.User.Application.Commands
         StatusUser? Status
     ) : IRequest<AccountResDto>;
 
-    public sealed class UpdateAccountHandler(IAccountRepository repo, IMapper mapper, IUserDbContext db)
+    public sealed class UpdateAccountHandler(IAccountRepository repo, IUserDbContext db)
                 : IRequestHandler<UpdateAccountCommand, AccountResDto>
     {
         private readonly IAccountRepository _repo = repo;
         private readonly IUserDbContext _db = db;
-        private readonly IMapper _mapper = mapper;
 
         public async Task<AccountResDto> Handle(UpdateAccountCommand request, CancellationToken ct)
         {
@@ -78,7 +77,7 @@ namespace Modules.User.Application.Commands
                 throw new InvalidOperationException("Update failed due to a database constraint.");
             }
 
-            return _mapper.Map<AccountResDto>(entity);
+            return entity.ToResDto();
         }
     }
 }

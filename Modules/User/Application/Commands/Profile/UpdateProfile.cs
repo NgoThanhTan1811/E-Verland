@@ -2,11 +2,11 @@
 using Modules.User.Application.Interfaces.Repositories;
 using Modules.User.Application.DTOs.Response;
 using MediatR;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Modules.User.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
 using Modules.User.Application.Validators;
+using Modules.User.Application.Mappings;
 
 namespace Modules.User.Application.Commands
 {
@@ -22,12 +22,11 @@ namespace Modules.User.Application.Commands
 
     ) : IRequest<ProfileResDto>;
 
-    public sealed class UpdateProfileHandler(IProfileRepository repo, IMapper mapper, IUserDbContext db)
+    public sealed class UpdateProfileHandler(IProfileRepository repo, IUserDbContext db)
                 : IRequestHandler<UpdateProfileCommand, ProfileResDto>
     {
         private readonly IProfileRepository _repo = repo;
         private readonly IUserDbContext _db = db;
-        private readonly IMapper _mapper = mapper;
 
         public async Task<ProfileResDto> Handle(UpdateProfileCommand request, CancellationToken ct)
         {
@@ -69,7 +68,7 @@ namespace Modules.User.Application.Commands
                 throw new InvalidOperationException("Update failed due to a database constraint.");
             }
 
-            return _mapper.Map<ProfileResDto>(entity);
+            return entity.ToResDto();
         }
     }
 }

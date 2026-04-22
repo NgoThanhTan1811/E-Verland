@@ -24,7 +24,10 @@ namespace Modules.Order.Infrastructure.Repositories
             var order = await _db.Orders.FirstOrDefaultAsync(o => o.Id == id, cancellationToken);
             if (order == null) return false;
 
-            _db.Orders.Remove(order);
+            _db.Entry(order).Property(nameof(Domain.Order.IsDeleted)).CurrentValue = true;
+            _db.Entry(order).Property(nameof(Domain.Order.DeletedAt)).CurrentValue = DateTime.UtcNow;
+
+
             return true;
         }
 

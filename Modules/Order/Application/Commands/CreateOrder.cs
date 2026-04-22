@@ -1,14 +1,11 @@
 using System.Diagnostics;
 using Amazon.XRay.Recorder.Core;
-using AutoMapper;
 using Infra.AWS.CloudWatch;
 using Infra.AWS.EventBridge;
 using Infra.AWS.SNS;
 using Infra.AWS.SQS;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Modules.Order.Application.Contracts;
 using Modules.Order.Application.DTOs.Request;
 using Modules.Order.Application.DTOs.Response;

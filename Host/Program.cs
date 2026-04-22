@@ -30,9 +30,6 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddMemoryCache();
 
 
-
-builder.Services.AddTransient<ApiExceptionExtension>();
-
 // Rate Limiting
 builder.Services.AddCustomRateLimiting();
 // Authentication
@@ -47,7 +44,7 @@ builder.AddSwagger();
 
 
 
-// AWS Infrastructure (must be registered before modules)
+// AWS Infrastructure 
 builder.Services.AddAWSInfrastructure(builder.Configuration);
 
 // Add Modules
@@ -71,14 +68,9 @@ builder.Services.Configure<RouteOptions>(o =>
 
 var app = builder.Build();
 
-
-if (app.Environment.IsDevelopment())
-{
-
-}
 app.UseCustomSwagger();
 
-app.UseMiddleware<ApiExceptionExtension>();
+app.UseMiddleware<ApiExceptionMiddleware>();
 
 // app.UseHttpsRedirection();
 app.UseAuthentication();

@@ -20,10 +20,10 @@ public class OrderPaymentSyncService(OrderDbContext dbContext) : IOrderPaymentSy
         order.PaymentId = paymentId;
         order.PaymentStatus = paymentStatus.ToLowerInvariant() switch
         {
-            "success" => Domain.PaymentStatus.Success,
-            "failed" => Domain.PaymentStatus.Failed,
-            "refunded" => Domain.PaymentStatus.Refunded,
-            _ => Domain.PaymentStatus.Pending
+            "success" => PaymentStatus.Success,
+            "failed" => PaymentStatus.Failed,
+            "refunded" => PaymentStatus.Refunded,
+            _ => PaymentStatus.Pending
         };
 
         await _dbContext.SaveChangesAsync(ct);

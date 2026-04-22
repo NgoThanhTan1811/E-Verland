@@ -29,8 +29,7 @@ public static class OrderModuleExtension
         // Add Product Service for Order
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IOrderPaymentSyncService, OrderPaymentSyncService>();
-        // Add AutoMapper
-        services.AddAutoMapper(typeof(OrderApplicationMarker).Assembly);
+
 
         return services;
     }

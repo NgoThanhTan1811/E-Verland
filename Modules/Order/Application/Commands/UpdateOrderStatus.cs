@@ -4,8 +4,6 @@ using Infra.AWS.SNS;
 using Infra.AWS.SQS;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Modules.Order.Application.Contracts;
 using Modules.Order.Application.DTOs.Response;
 using Modules.Order.Domain;
@@ -138,4 +136,19 @@ public sealed class UpdateOrderStatusHandler(
             _logger.LogWarning(ex, "Failed to publish order status event {EventType} for order {OrderId}", eventType, order.Id);
         }
     }
+
+    // public void ToResDto(Domain.Order order)
+    // {
+    //     Id = order.Id;
+    //     Code = order.Code;
+    //     UserId = order.UserId;
+    //     Status = order.Status;
+    //     PaymentStatus = order.PaymentStatus;
+    //     PaymentMethod = order.PaymentMethod;
+    //     TotalPrice = order.TotalPrice;
+    //     Discount = order.Discount;
+    //     GrandTotal = order.GrandTotal;
+    //     CreatedAt = order.CreatedAt;
+    // }
+
 }

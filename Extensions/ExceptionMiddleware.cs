@@ -3,15 +3,24 @@ using System.Text.Json;
 
 namespace EVerland.Extentions;
 
-public sealed class ApiExceptionExtension(ILogger<ApiExceptionExtension> logger)
+public sealed class ApiExceptionMiddleware
 {
-    private readonly ILogger<ApiExceptionExtension> _logger = logger;
+    private readonly RequestDelegate _next;
+    private readonly ILogger<ApiExceptionMiddleware> _logger;
 
-    public async Task InvokeAsync(HttpContext context, RequestDelegate next)
+    public ApiExceptionMiddleware(
+        RequestDelegate next,
+        ILogger<ApiExceptionMiddleware> logger)
+    {
+        _next = next;
+        _logger = logger;
+    }
+
+    public async Task InvokeAsync(HttpContext context)
     {
         try
         {
-            await next(context);
+            await _next(context);
         }
         catch (NotFoundException ex)
         {
@@ -43,6 +52,7 @@ public sealed class ApiExceptionExtension(ILogger<ApiExceptionExtension> logger)
             await HandleExceptionAsync(context, StatusCodes.Status500InternalServerError, "An internal server error occurred");
         }
     }
+    
 
     private static Task HandleExceptionAsync(HttpContext context, int statusCode, string message)
     {
