@@ -20,9 +20,16 @@ public class ProductController(IMediator mediator) : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateProduct([FromBody] CreateProductRequestDto request, CancellationToken cancellationToken)
     {
-        var command = new CreateProductCommand(request);
-        var result = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(GetProductById), new { id = result.Id }, result);
+        try
+        {
+            var command = new CreateProductCommand(request);
+            var result = await _mediator.Send(command, cancellationToken);
+            return CreatedAtAction(nameof(GetProductById), new { id = result.Id }, result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return UnprocessableEntity(new { message = ex.Message });
+        }
     }
 
 
@@ -30,9 +37,16 @@ public class ProductController(IMediator mediator) : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateProduct(Guid id, [FromBody] UpdateProductRequestDto request, CancellationToken cancellationToken)
     {
-        var command = new UpdateProductCommand(id, request);
-        var result = await _mediator.Send(command, cancellationToken);
-        return Ok(result);
+        try
+        {
+            var command = new UpdateProductCommand(id, request);
+            var result = await _mediator.Send(command, cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return UnprocessableEntity(new { message = ex.Message });
+        }
     }
 
 

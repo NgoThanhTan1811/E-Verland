@@ -13,6 +13,7 @@ public class MediaFile : SharedKernel.Entities.BaseEntity
 
     public Guid UploadedBy { get; set; }
     public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+    public MediaFileStatus Status { get; set; } = MediaFileStatus.Pending;
 
     // Optional metadata
     public int? Width { get; set; }
@@ -25,9 +26,13 @@ public class MediaFile : SharedKernel.Entities.BaseEntity
 /// </summary>
 public enum MediaType
 {
-    ProductImage,
-    Avatar,
-    ShopLogo,
-    ShopBanner,
-    ProductVideo
+    Image,
+    Video
+}
+
+public enum MediaFileStatus
+{
+    Pending,
+    Confirmed,
+    Orphan
 }

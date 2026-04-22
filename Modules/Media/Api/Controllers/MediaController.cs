@@ -21,6 +21,7 @@ public class MediaController : ControllerBase
     }
 
     [HttpPost("upload")]
+    [Authorize(Policy = "SellerPolicy")]
     [RequestSizeLimit(52428800)] // 50MB
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -39,14 +40,22 @@ public class MediaController : ControllerBase
 
         using var stream = file.OpenReadStream();
 
-        var command = new UploadMediaCommand(
-            stream,
-            file.FileName,
-            file.ContentType,
-            parsedMediaType,
-            userId);
+        UploadMediaResult result;
+        try
+        {
+            var command = new UploadMediaCommand(
+                stream,
+                file.FileName,
+                file.ContentType,
+                parsedMediaType,
+                userId);
 
-        var result = await _mediator.Send(command, ct);
+            result = await _mediator.Send(command, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return UnprocessableEntity(new { message = ex.Message });
+        }
 
         return CreatedAtAction(
             nameof(GetMediaUrl),
@@ -59,12 +68,41 @@ public class MediaController : ControllerBase
             });
     }
 
+    [HttpPost("presigned-upload")]
+    [Authorize(Policy = "SellerPolicy")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> GeneratePresignedUploadUrl(
+        [FromBody] GeneratePresignedUploadUrlRequest request,
+        CancellationToken ct)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        try
+        {
+            var command = new GeneratePresignedUploadUrlCommand(
+                request.ResourceType,
+                request.ObjectId,
+                request.FileName,
+                request.ContentType,
+                request.MediaType,
+                userId);
+
+            var result = await _mediator.Send(command, ct);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return UnprocessableEntity(new { message = ex.Message });
+        }
+    }
+
     [HttpGet("{id}/url")]
     [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetMediaUrl(Guid id, CancellationToken ct)
+    public async Task<IActionResult> GetMediaUrl(Guid id, [FromQuery] string? size, CancellationToken ct)
     {
-        var query = new GetMediaUrlQuery(id);
+        var query = new GetMediaUrlQuery(id, size);
         var url = await _mediator.Send(query, ct);
 
         if (url == null)
@@ -97,3 +135,11 @@ public class MediaController : ControllerBase
         }
     }
 }
+
+public sealed record GeneratePresignedUploadUrlRequest(
+    string ResourceType,
+    string ObjectId,
+    string FileName,
+    string ContentType,
+    MediaType MediaType
+);

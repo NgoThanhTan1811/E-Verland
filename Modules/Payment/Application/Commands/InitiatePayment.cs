@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Data;
 using Amazon.XRay.Recorder.Core;
 using Infra.AWS.CloudWatch;
 using Infra.AWS.EventBridge;
@@ -12,6 +13,7 @@ using Modules.Order.Application.Contracts;
 using Modules.Payment.Application.Contracts;
 using Modules.Payment.Application.Helpers;
 using Modules.Payment.Domain;
+using Modules.Payment.Infrastructure.Persistence;
 using Modules.Product.Application.Contracts;
 
 namespace Modules.Payment.Application.Commands;
@@ -35,7 +37,7 @@ public sealed record InitiatePaymentResponseDto(
 
 public sealed class InitiatePaymentHandler(
     IPaymentRepository repo,
-    IPaymentDbContext db,
+    PaymentDbContext paymentDbContext,
     IProductReservationService reservationService,
     ISePayClient sePayClient,
     ICloudWatchService cloudWatch,
@@ -51,6 +53,7 @@ public sealed class InitiatePaymentHandler(
     private readonly ISQSService? _sqsService = sqsService;
     private readonly ISNSService? _snsService = snsService;
     private readonly IEventBridgeService? _eventBridgeService = eventBridgeService;
+    private readonly PaymentDbContext _paymentDbContext = paymentDbContext;
 
     public async Task<InitiatePaymentResponseDto> Handle(InitiatePaymentCommand request, CancellationToken ct)
     {
@@ -71,6 +74,8 @@ public sealed class InitiatePaymentHandler(
             Status = PaymentStatus.Pending
         };
 
+        var stockReserved = false;
+
         // Wrap DB operations in X-Ray subsegment
         AWSXRayRecorder.Instance.BeginSubsegment("Payment.DB");
         try
@@ -81,33 +86,68 @@ public sealed class InitiatePaymentHandler(
                 payment.Id,
                 request.Items.Select(i => (i.SkuId, i.Quantity)),
                 ct);
+            stockReserved = true;
 
-            await repo.CreateAsync(payment, ct);
-
-            // If OnlineBanking, create SePay payment link
-            if (request.Method == PaymentMethod.OnlineBanking)
-            {
-                var paymentUrl = await sePayClient.CreatePaymentLinkAsync(
-                    payment.Code,
-                    payment.Amount,
-                    $"Thanh toan don hang {payment.OrderId}",
-                    ct);
-                payment.PaymentUrl = paymentUrl;
-            }
-
+            await using var tx = await _paymentDbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
             try
             {
-                await db.SaveChangesAsync(ct);
+                await repo.CreateAsync(payment, ct);
+
+                // If OnlineBanking, create SePay payment link
+                if (request.Method == PaymentMethod.OnlineBanking)
+                {
+                    var paymentUrl = await sePayClient.CreatePaymentLinkAsync(
+                        payment.Code,
+                        payment.Amount,
+                        $"Thanh toan don hang {payment.OrderId}",
+                        ct);
+                    payment.PaymentUrl = paymentUrl;
+                }
+
+                await _paymentDbContext.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
                 await orderPaymentSyncService.SyncPaymentAsync(
                     payment.OrderId,
                     payment.Id,
                     payment.Status.ToString(),
                     ct);
             }
-            catch (DbUpdateException ex)
+            catch (Exception ex)
             {
-                throw new InvalidOperationException($"Payment creation failed due to database error: {ex.Message}");
+                await tx.RollbackAsync(ct);
+                throw new InvalidOperationException("Payment persistence failed.", ex);
             }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Exception? compensationError = null;
+            try
+            {
+                if (stockReserved)
+                {
+                    await reservationService.ReleaseReservationAsync(payment.Id, ct);
+                }
+
+                await orderPaymentSyncService.SyncPaymentAsync(
+                    payment.OrderId,
+                    payment.Id,
+                    PaymentStatus.Pending.ToString(),
+                    ct);
+            }
+            catch (Exception compEx)
+            {
+                compensationError = compEx;
+            }
+
+            if (compensationError is not null)
+            {
+                throw new AggregateException(
+                    "Payment initiation failed and compensation also failed.",
+                    ex,
+                    compensationError);
+            }
+
+            throw new InvalidOperationException("Payment initiation failed and compensation has been applied.", ex);
         }
         finally
         {

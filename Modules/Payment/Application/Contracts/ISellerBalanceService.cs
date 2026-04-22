@@ -10,5 +10,7 @@ public interface ISellerBalanceService
         DateTime availableAtUtc,
         CancellationToken ct = default);
 
+    Task<bool> ReversePendingBalanceAsync(Guid orderId, string reason, CancellationToken ct = default);
+
     Task<int> ProcessDuePayoutsAsync(CancellationToken ct = default);
 }

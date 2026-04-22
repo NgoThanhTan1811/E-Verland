@@ -51,6 +51,27 @@ public class LedgerService(PaymentDbContext dbContext) : ILedgerService
             ct);
     }
 
+    public Task<bool> RecordIncomingPaymentReversalAsync(
+        Guid orderId,
+        decimal amount,
+        string currency,
+        string idempotencyKey,
+        string createdBy,
+        CancellationToken ct = default)
+    {
+        return RecordTransactionAsync(
+            orderId,
+            payoutId: null,
+            amount,
+            currency,
+            idempotencyKey,
+            createdBy,
+            debitAccount: LedgerAccountType.PlatformCash,
+            creditAccount: LedgerAccountType.CustomerLiability,
+            ct,
+            status: LedgerTransactionStatus.Reversed);
+    }
+
     public async Task<IReadOnlyList<LedgerEntryReadModel>> QueryEntriesAsync(
         Guid? orderId,
         string? payoutId,
@@ -114,7 +135,8 @@ public class LedgerService(PaymentDbContext dbContext) : ILedgerService
         string createdBy,
         LedgerAccountType debitAccount,
         LedgerAccountType creditAccount,
-        CancellationToken ct)
+        CancellationToken ct,
+        LedgerTransactionStatus status = LedgerTransactionStatus.Posted)
     {
         if (amount <= 0)
         {
@@ -147,7 +169,7 @@ public class LedgerService(PaymentDbContext dbContext) : ILedgerService
             PayoutId = payoutId,
             Currency = currency,
             TimestampUtc = DateTime.UtcNow,
-            Status = LedgerTransactionStatus.Posted
+            Status = status
         };
         ledgerTransaction.SetCreatedBy(createdBy);
 

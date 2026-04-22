@@ -83,4 +83,22 @@ public class SellerBalanceService(PaymentDbContext dbContext, ILedgerService led
 
         return released;
     }
+
+    public async Task<bool> ReversePendingBalanceAsync(Guid orderId, string reason, CancellationToken ct = default)
+    {
+        var balance = await _dbContext.SellerBalances
+            .FirstOrDefaultAsync(x => x.OrderId == orderId, ct);
+
+        if (balance is null || balance.Status == SellerBalanceStatus.Reversed)
+        {
+            return false;
+        }
+
+        balance.PendingAmount = 0;
+        balance.AvailableAmount = 0;
+        balance.Status = SellerBalanceStatus.Reversed;
+
+        await _dbContext.SaveChangesAsync(ct);
+        return true;
+    }
 }

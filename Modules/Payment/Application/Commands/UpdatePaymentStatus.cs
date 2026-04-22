@@ -43,8 +43,8 @@ public sealed class UpdatePaymentStatusHandler(
         var payment = await _repo.GetByIdAsync(request.PaymentId, ct)
             ?? throw new KeyNotFoundException("Payment not found");
 
-        if (payment.Status == PaymentStatus.Success)
-            throw new InvalidOperationException("Cannot update status of a successful payment");
+        if (payment.Status == PaymentStatus.Success && request.Status != PaymentStatus.Refunded)
+            throw new InvalidOperationException("Only Refund operation is allowed for a successful payment.");
 
         if (payment.Status == PaymentStatus.Refunded)
             throw new InvalidOperationException("Cannot update status of a refunded payment");

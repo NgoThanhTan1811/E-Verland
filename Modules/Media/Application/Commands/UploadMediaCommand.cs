@@ -31,6 +31,10 @@ public sealed class UploadMediaHandler : IRequestHandler<UploadMediaCommand, Upl
 
     public async Task<UploadMediaResult> Handle(UploadMediaCommand request, CancellationToken ct)
     {
+        var inferredType = InferMediaType(request.ContentType);
+        if (inferredType != request.MediaType)
+            throw new InvalidOperationException("Declared mediaType does not match uploaded file ContentType.");
+
         var filePath = await _storageService.UploadAsync(
             request.FileStream,
             request.FileName,
@@ -44,9 +48,10 @@ public sealed class UploadMediaHandler : IRequestHandler<UploadMediaCommand, Upl
             FilePath = filePath,
             FileSize = request.FileStream.Length,
             ContentType = request.ContentType,
-            MediaType = request.MediaType,
+            MediaType = inferredType,
             UploadedBy = request.UploadedBy,
-            UploadedAt = DateTime.UtcNow
+            UploadedAt = DateTime.UtcNow,
+            Status = MediaFileStatus.Confirmed
         };
 
         await _repository.AddAsync(mediaFile, ct);
@@ -55,5 +60,16 @@ public sealed class UploadMediaHandler : IRequestHandler<UploadMediaCommand, Upl
             mediaFile.Id,
             filePath,
             mediaFile.FileSize);
+    }
+
+    private static MediaType InferMediaType(string contentType)
+    {
+        if (contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            return MediaType.Image;
+
+        if (contentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+            return MediaType.Video;
+
+        throw new InvalidOperationException("Unsupported content type. Only image/* or video/* are accepted.");
     }
 }

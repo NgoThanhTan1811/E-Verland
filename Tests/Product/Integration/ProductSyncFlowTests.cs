@@ -53,7 +53,7 @@ public class ProductSyncFlowTests
         ImageUrls = [],
         Attributes = [],
         CategoryIds = [],
-        Status = ProductStatus.Active
+        Status = ProductStatus.Published    
     };
 
     [Fact]
@@ -75,7 +75,7 @@ public class ProductSyncFlowTests
         cloudWatch.PutMetricAsync(Arg.Any<string>(), Arg.Any<double>(), Arg.Any<string>(),
             Arg.Any<Dictionary<string, string>>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
-        var handler = new CreateProductHandler(productRepo, categoryRepo, skuRepo, dbContext,
+        var handler = new CreateProduc(productRepo, categoryRepo, skuRepo, dbContext,
             skuGenerator, syncPublisher, cloudWatch);
 
         ProductSyncEvent? captured = null;
@@ -138,7 +138,7 @@ public class ProductSyncFlowTests
             ImageUrls = [],
             Attributes = [],
             CategoryIds = [],
-            Status = ProductStatus.Active
+            Status = ProductStatus.Published
         };
 
         WithXRay(() =>

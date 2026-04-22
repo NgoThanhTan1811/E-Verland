@@ -51,6 +51,10 @@ public class MediaDbContext : DbContext
                 .IsRequired()
                 .HasConversion<string>();
 
+            entity.Property(e => e.Status)
+                .IsRequired()
+                .HasConversion<string>();
+
             entity.Property(e => e.UploadedBy)
                 .IsRequired();
 
@@ -63,7 +67,9 @@ public class MediaDbContext : DbContext
             // Indexes
             entity.HasIndex(e => e.UploadedBy);
             entity.HasIndex(e => e.MediaType);
+            entity.HasIndex(e => e.FilePath);
             entity.HasIndex(e => e.IsDeleted);
+            entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.UploadedAt);
         });
     }

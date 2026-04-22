@@ -34,6 +34,14 @@ public interface ILedgerService
         string createdBy,
         CancellationToken ct = default);
 
+    Task<bool> RecordIncomingPaymentReversalAsync(
+        Guid orderId,
+        decimal amount,
+        string currency,
+        string idempotencyKey,
+        string createdBy,
+        CancellationToken ct = default);
+
     Task<IReadOnlyList<LedgerEntryReadModel>> QueryEntriesAsync(
         Guid? orderId,
         string? payoutId,

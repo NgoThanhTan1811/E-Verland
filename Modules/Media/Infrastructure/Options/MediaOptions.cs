@@ -19,4 +19,14 @@ public sealed class MediaOptions
     // Upload settings
     public int MaxFilesPerRequest { get; set; } = 5;
     public bool EnableThumbnailGeneration { get; set; } = true;
+    public int PresignedUrlExpirationMinutes { get; set; } = 10;
+
+    // Responsive image breakpoints
+    public int SmWidth { get; set; } = 480;
+    public int MdWidth { get; set; } = 1024;
+    public int LgWidth { get; set; } = 1920;
+
+    // Daily cleanup for orphan pending uploads
+    public int OrphanGracePeriodHours { get; set; } = 24;
+    public int CleanupIntervalHours { get; set; } = 24;
 }

@@ -54,6 +54,13 @@ public class MediaStorageService : IMediaStorageService
         }
     }
 
+    public async Task<string> UploadAtPathAsync(Stream fileStream, string filePath, string contentType, CancellationToken ct = default)
+    {
+        var result = await _storageService.UploadAsync(fileStream, filePath, contentType, ct);
+        await _cloudWatch.PutMetricAsync("media.upload.success", 1, "Count", ct: ct);
+        return result;
+    }
+
     public async Task DeleteAsync(string filePath, CancellationToken ct = default)
     {
         await _storageService.DeleteAsync(filePath, ct);

@@ -11,6 +11,11 @@ public interface IMediaStorageService
     Task<string> UploadAsync(Stream fileStream, string fileName, string contentType, CancellationToken ct = default);
 
     /// <summary>
+    /// Upload a file to an explicit relative path.
+    /// </summary>
+    Task<string> UploadAtPathAsync(Stream fileStream, string filePath, string contentType, CancellationToken ct = default);
+
+    /// <summary>
     /// Delete a file from storage
     /// </summary>
     Task DeleteAsync(string filePath, CancellationToken ct = default);

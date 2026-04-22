@@ -1,6 +1,7 @@
 using Amazon.XRay.Recorder.Core;
 using Infra.AWS.CloudWatch;
 using MediatR;
+using Modules.Media.Application.Interfaces;
 using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.DTOs.Response;
@@ -19,7 +20,8 @@ public sealed class CreateProductHandler(
     SKUGeneratorService skuGenerator,
     IProductSyncPublisher syncPublisher,
     ICloudWatchService cloudWatch,
-    IProductCacheService productCacheService) : IRequestHandler<CreateProductCommand, ProductDetailDto>
+    IProductCacheService productCacheService,
+    IMediaFileRepository mediaFileRepository) : IRequestHandler<CreateProductCommand, ProductDetailDto>
 {
     private readonly IProductRepository _productRepository = productRepository;
     private readonly ICategoryRepository _categoryRepository = categoryRepository;
@@ -29,9 +31,12 @@ public sealed class CreateProductHandler(
     private readonly IProductSyncPublisher _syncPublisher = syncPublisher;
     private readonly ICloudWatchService _cloudWatch = cloudWatch;
     private readonly IProductCacheService _productCacheService = productCacheService;
+    private readonly IMediaFileRepository _mediaFileRepository = mediaFileRepository;
 
     public async Task<ProductDetailDto> Handle(CreateProductCommand request, CancellationToken cancellationToken)
     {
+        await ValidateImagePathsAsync(request.Request.ImageUrls, cancellationToken);
+
         var categories = new List<Domain.Category>();
         if (request.Request.CategoryIds.Count != 0)
         {
@@ -103,6 +108,12 @@ public sealed class CreateProductHandler(
 
         await _syncPublisher.PublishAsync(product, "Created", cancellationToken);
         await _cloudWatch.PutMetricAsync("product.created", 1, "Count", ct: cancellationToken);
+
+        foreach (var imagePath in request.Request.ImageUrls)
+        {
+            await _mediaFileRepository.ConfirmByPathAsync(imagePath, cancellationToken);
+        }
+
         await _productCacheService.InvalidateProductAsync(product.Id.ToString("N"));
         await _productCacheService.InvalidateAllProductsAsync();
 
@@ -125,5 +136,32 @@ public sealed class CreateProductHandler(
             Categories = categories,
             Skus = product.SKUs
         };
+    }
+
+    private async Task ValidateImagePathsAsync(IEnumerable<string> imagePaths, CancellationToken ct)
+    {
+        foreach (var imagePath in imagePaths)
+        {
+            if (!IsValidRelativePath(imagePath))
+                throw new InvalidOperationException($"Invalid image relative path: '{imagePath}'. External URLs are not allowed.");
+
+            var media = await _mediaFileRepository.GetByPathAsync(imagePath, ct);
+            if (media == null)
+                throw new InvalidOperationException($"Media path does not exist: '{imagePath}'.");
+        }
+    }
+
+    private static bool IsValidRelativePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+
+        if (Uri.TryCreate(path, UriKind.Absolute, out _))
+            return false;
+
+        return path.StartsWith("products/", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("avatars/", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("shops/", StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith("reviews/", StringComparison.OrdinalIgnoreCase);
     }
 }
