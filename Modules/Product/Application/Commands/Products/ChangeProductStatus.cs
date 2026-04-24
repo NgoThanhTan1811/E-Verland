@@ -13,11 +13,7 @@ public sealed class ChangeProductStatusHandler(IProductRepository productReposit
 
     public async Task<bool> Handle(ChangeProductStatusCommand request, CancellationToken cancellationToken)
     {
-        var product = await _productRepository.GetByIdAsync(request.ProductId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Product with ID '{request.ProductId}' not found.");
-
-        product.Status = request.Status;
-        await _productRepository.UpdateAsync(product, cancellationToken);
+        await _productRepository.ChangeStatusAsync(request.ProductId, request.Status, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return true;

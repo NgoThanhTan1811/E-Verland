@@ -77,7 +77,9 @@ namespace Modules.User.Infrastructure.Repositories
                 .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
             if (existingAddress == null) return false;
-            _db.Addresses.Remove(existingAddress);
+
+            _db.Entry(existingAddress).Property(nameof(Domain.Entities.Address.IsDeleted)).CurrentValue = true;
+            _db.Entry(existingAddress).Property(nameof(Domain.Entities.Address.DeletedAt)).CurrentValue = DateTime.UtcNow;
 
             return true;
         }

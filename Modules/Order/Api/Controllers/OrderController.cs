@@ -104,7 +104,7 @@ public class OrderController(IMediator mediator) : ControllerBase
     }
 
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     [HttpGet("admin/order")]
     [ProducesResponseType(typeof(PageResult<OrderOverviewResponseDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PageResult<OrderOverviewResponseDto>>> FilterOrdersAdmin(
@@ -141,7 +141,7 @@ public class OrderController(IMediator mediator) : ControllerBase
     }
 
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     [HttpPatch("{id}")]
     [ProducesResponseType(typeof(OrderOverviewResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

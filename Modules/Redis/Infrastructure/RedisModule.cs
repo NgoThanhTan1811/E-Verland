@@ -4,7 +4,7 @@ using StackExchange.Redis;
 
 namespace Modules.Redis.Infrastructure;
 
-public static class RedisModuleExtensions
+public static class RedisModuleExtension
 {
     public static IServiceCollection AddRedisModule(this IServiceCollection services, ConfigurationManager configuration)
     {
@@ -13,7 +13,7 @@ public static class RedisModuleExtensions
         var user = Environment.GetEnvironmentVariable("Redis_User");
         var password = Environment.GetEnvironmentVariable("Redis_Password");
         var ssl = bool.TryParse(Environment.GetEnvironmentVariable("Redis_Ssl"), out var parsedSsl) && parsedSsl;
-         var abortConnectValue = Environment.GetEnvironmentVariable("Redis_AbortConnect");
+        var abortConnectValue = Environment.GetEnvironmentVariable("Redis_AbortConnect");
 
         if (string.IsNullOrWhiteSpace(host))
             throw new InvalidOperationException("Missing Redis_URL.");
@@ -21,7 +21,7 @@ public static class RedisModuleExtensions
         if (!int.TryParse(portValue, out var port))
             port = 6379;
 
-    
+
 
         if (!bool.TryParse(abortConnectValue, out var abortConnect))
             abortConnect = false;

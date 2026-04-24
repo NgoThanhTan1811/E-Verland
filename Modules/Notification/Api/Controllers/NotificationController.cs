@@ -1,3 +1,4 @@
+using Infra.AWS.CloudWatch;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,10 +18,12 @@ namespace Modules.Notification.Api.Controllers;
 public class NotificationController(
     IMediator mediator,
     INotificationService notificationService,
+    ICloudWatchService cloudWatch,
     ILogger<NotificationController> logger) : ControllerBase
 {
     private readonly IMediator _mediator = mediator;
     private readonly INotificationService _notificationService = notificationService;
+    private readonly ICloudWatchService _cloudWatch = cloudWatch;
     private readonly ILogger<NotificationController> _logger = logger;
 
     #region SSE Endpoints
@@ -46,6 +49,7 @@ public class NotificationController(
 
         // Register user connection
         _notificationService.RegisterUserConnection(userId, writer);
+        await _cloudWatch.PutMetricAsync("notification.sse.connected", 1, "Count");
 
         try
         {

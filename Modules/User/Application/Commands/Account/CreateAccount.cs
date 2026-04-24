@@ -2,10 +2,10 @@ using Modules.User.Application.Interfaces.Repositories;
 using Modules.User.Application.DTOs.Response;
 using MediatR;
 using Modules.User.Domain.Entities;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Modules.User.Application.Validators;
 using System.ComponentModel.DataAnnotations;
+using Modules.User.Application.Mappings;
 
 namespace Modules.User.Application.Commands;
 
@@ -15,10 +15,9 @@ public sealed record CreateAcountCommand(
     string Password
 ) : IRequest<AccountResDto>;
 
-public sealed class CreateAccountHandler(IAccountRepository repo, IMapper mapper, IUserDbContext db) : IRequestHandler<CreateAcountCommand, AccountResDto>
+public sealed class CreateAccountHandler(IAccountRepository repo, IUserDbContext db) : IRequestHandler<CreateAcountCommand, AccountResDto>
 {
     private readonly IAccountRepository _repo = repo;
-    private readonly IMapper _mapper = mapper;
     private readonly IUserDbContext _db = db;
 
     public async Task<AccountResDto> Handle(CreateAcountCommand request, CancellationToken ct)
@@ -56,6 +55,6 @@ public sealed class CreateAccountHandler(IAccountRepository repo, IMapper mapper
             throw new InvalidOperationException("Account creation failed due to database constraint.");
         }
 
-        return _mapper.Map<AccountResDto>(entity);
+        return entity.ToResDto();
     }
 }

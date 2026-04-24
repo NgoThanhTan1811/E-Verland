@@ -78,7 +78,10 @@ namespace Modules.User.Infrastructure.Repositories
                  .FirstOrDefaultAsync(ba => ba.Id == id, cancellationToken);
 
             if (existingBankAccount == null) return false;
-            _db.BankAccounts.Remove(existingBankAccount);
+
+            _db.Entry(existingBankAccount).Property(nameof(Domain.Entities.BankAccount.IsDeleted)).CurrentValue = true;
+            _db.Entry(existingBankAccount).Property(nameof(Domain.Entities.BankAccount.DeletedAt)).CurrentValue = DateTime.UtcNow;
+
             return true;
         }
 
@@ -90,9 +93,13 @@ namespace Modules.User.Infrastructure.Repositories
 
         public async Task<bool> DeleteBankAccountAsync(Guid bankAccountId, Guid profileId, CancellationToken ct)
         {
+            var now = DateTime.UtcNow;
+
             var affected = await _db.BankAccounts
                 .Where(x => x.Id == bankAccountId && x.ProfileId == profileId)
-                .ExecuteDeleteAsync(ct);
+                .ExecuteUpdateAsync(setters => setters
+                    .SetProperty(x => x.IsDeleted, true)
+                    .SetProperty(x => x.DeletedAt, now), ct);
 
             return affected > 0;
         }

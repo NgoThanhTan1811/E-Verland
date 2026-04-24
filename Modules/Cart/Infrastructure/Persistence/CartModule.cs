@@ -4,10 +4,11 @@ using Microsoft.EntityFrameworkCore;
 using Modules.Cart.Infrastructure.Persistence;
 using Modules.Product.Application.Services;
 using Modules.Cart.Application;
+using SharedKernel.Persistence;
 
 namespace Modules.Cart;
 
-public static class CartModuleExtensions
+public static class CartModuleExtension
 {
     public static IServiceCollection AddCartModule(this IServiceCollection services, IConfiguration configuration)
     {
@@ -17,7 +18,7 @@ public static class CartModuleExtensions
                 ?? throw new InvalidOperationException("Missing ConnectionStrings:CartDb");
 
         services.AddDbContext<CartDbContext>(options =>
-            options.UseNpgsql(conn));
+            options.ConfigureNpgsql(conn, typeof(CartDbContext).Assembly.GetName().Name!));
         // Add Repositories
         services.AddScoped<ICartRepository, CartRepository>();
         services.AddScoped<ICartItemRepository, CartItemRepository>();

@@ -4,10 +4,11 @@ using Modules.Order.Application.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Modules.Order.Infrastructure.Persistence;
 using Modules.Order.Infrastructure.Services;
+using SharedKernel.Persistence;
 
 namespace Modules.Order;
 
-public static class OrderModuleExtensions
+public static class OrderModuleExtension
 {
     public static IServiceCollection AddOrderModule(this IServiceCollection services, IConfiguration configuration)
     {
@@ -17,10 +18,7 @@ public static class OrderModuleExtensions
                 ?? throw new InvalidOperationException("Missing ConnectionStrings:OrderDb");
 
         services.AddDbContext<OrderDbContext>(options =>
-            options.UseNpgsql(conn, npgsql =>
-            {
-                npgsql.MigrationsAssembly(typeof(OrderDbContext).Assembly.GetName().Name);
-            }));
+            options.ConfigureNpgsql(conn, typeof(OrderDbContext).Assembly.GetName().Name!, readHeavy: true));
 
         // Add Repositories
         services.AddScoped<IOrderRepository, OrderRepository>();
@@ -30,8 +28,11 @@ public static class OrderModuleExtensions
 
         // Add Product Service for Order
         services.AddScoped<IProductService, ProductService>();
-        // Add AutoMapper
-        services.AddAutoMapper(typeof(OrderApplicationMarker).Assembly);
+        services.AddScoped<IOrderPaymentSyncService, OrderPaymentSyncService>();
+
+        // Add MediatR
+        services.AddMediatR(config =>
+            config.RegisterServicesFromAssembly(typeof(OrderApplicationMarker).Assembly));
 
         return services;
     }

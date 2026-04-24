@@ -1,8 +1,10 @@
+using System.Linq.Expressions;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Modules.Product.Application.Contracts;
 using Modules.Product.Domain;
+using SharedKernel.Entities;
 
 namespace Modules.Product.Infrastructure.Persistence;
 
@@ -17,6 +19,19 @@ public class ProductDbContext(DbContextOptions<ProductDbContext> options) : DbCo
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        // Apply global soft delete filter
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                var parameter = Expression.Parameter(entityType.ClrType, "e");
+                var property = Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
+                var filter = Expression.Lambda(Expression.Equal(property, Expression.Constant(false)), parameter);
+                entityType.SetQueryFilter(filter);
+                modelBuilder.Entity(entityType.ClrType).Property(nameof(BaseEntity.RowVersion)).IsRowVersion();
+            }
+        }
 
         var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         var imageUrlsConverter = new ValueConverter<List<string>, string>(
@@ -132,9 +147,15 @@ public class ProductDbContext(DbContextOptions<ProductDbContext> options) : DbCo
                 .HasConversion(attributesConverter)
                 .HasColumnType("jsonb");
 
+            entity.Property(x => x.RowVersion)
+                .IsRowVersion();
+
             entity.HasIndex(x => x.OptionValues).HasMethod("GIN");
 
             entity.HasIndex(x => x.SkuCode).IsUnique();
+            entity.HasIndex(x => x.ProductId);
+            entity.HasIndex(x => x.IsActive);
+            entity.HasIndex(x => x.Stock);
 
             entity.HasOne(x => x.Product)
                 .WithMany(x => x.SKUs)
@@ -147,6 +168,9 @@ public class ProductDbContext(DbContextOptions<ProductDbContext> options) : DbCo
             entity.ToTable("StockReservations");
             entity.HasKey(x => x.Id);
 
+            entity.Property(x => x.OrderId)
+                .IsRequired();
+
             entity.Property(x => x.PaymentId)
                 .IsRequired();
 
@@ -156,16 +180,31 @@ public class ProductDbContext(DbContextOptions<ProductDbContext> options) : DbCo
             entity.Property(x => x.Quantity)
                 .IsRequired();
 
+            entity.Property(x => x.ReservedAt)
+                .IsRequired();
+
+            entity.Property(x => x.ExpiresAt)
+                .IsRequired();
+
             entity.Property(x => x.Status)
                 .HasConversion<string>()
                 .IsRequired()
                 .HasDefaultValue(ReservationStatus.Reserved);
 
-            entity.Property(x => x.CreatedAt)
-                .IsRequired();
-
+            entity.HasIndex(x => x.OrderId);
             entity.HasIndex(x => x.PaymentId);
             entity.HasIndex(x => x.SkuId);
+            entity.HasIndex(x => x.Status);
+            entity.HasIndex(x => x.ExpiresAt);
         });
+
+        modelBuilder.Entity<Domain.Product>()
+            .HasIndex(x => x.Status);
+
+        modelBuilder.Entity<Domain.Product>()
+            .HasIndex(x => x.CreatedAt);
+
+        modelBuilder.Entity<Domain.Product>()
+            .HasIndex(x => x.ShopId);
     }
 }

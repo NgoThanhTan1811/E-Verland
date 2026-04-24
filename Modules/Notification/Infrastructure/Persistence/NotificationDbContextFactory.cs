@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using SharedKernel.Persistence;
 
 namespace Modules.Notification.Infrastructure.Persistence;
 
@@ -12,12 +13,9 @@ public sealed class NotificationDbContextFactory : IDesignTimeDbContextFactory<N
             ?? throw new InvalidOperationException(
                 "Missing env NotificationDb (design-time).");
 
-        var options = new DbContextOptionsBuilder<NotificationDbContext>()
-            .UseNpgsql(conn, npgsql =>
-            {
-                npgsql.MigrationsAssembly(typeof(NotificationDbContext).Assembly.GetName().Name);
-            })
-            .Options;
+        var optionsBuilder = new DbContextOptionsBuilder<NotificationDbContext>();
+        optionsBuilder.ConfigureNpgsql(conn, typeof(NotificationDbContext).Assembly.GetName().Name!, readHeavy: true);
+        var options = optionsBuilder.Options;
 
         return new NotificationDbContext(options);
     }

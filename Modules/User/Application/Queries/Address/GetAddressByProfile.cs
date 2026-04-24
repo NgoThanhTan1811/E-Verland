@@ -1,22 +1,21 @@
 
-using AutoMapper;
 using MediatR;
 using Modules.User.Application.DTOs.Response;
 using Modules.User.Application.Interfaces.Repositories;
+using Modules.User.Application.Mappings;
 
 namespace Modules.User.Application.Queries.Address
 {
-    public sealed record GetAddressByProfileQuery( Guid ProfileId) : IRequest<IReadOnlyList<AddressResDto>>;
+    public sealed record GetAddressByProfileQuery(Guid ProfileId) : IRequest<IReadOnlyList<AddressResDto>>;
 
-    public sealed class GetAddressByProfileHandler(IAddressRepository repo, IMapper mapper) : IRequestHandler<GetAddressByProfileQuery, IReadOnlyList<AddressResDto>>
+    public sealed class GetAddressByProfileHandler(IAddressRepository repo) : IRequestHandler<GetAddressByProfileQuery, IReadOnlyList<AddressResDto>>
     {
         private readonly IAddressRepository _repo = repo;
-        private readonly IMapper _mapper = mapper;
 
         public async Task<IReadOnlyList<AddressResDto>> Handle(GetAddressByProfileQuery request, CancellationToken ct)
         {
             var entity = await _repo.GetByProfileIdAsync(request.ProfileId, ct);
-            return _mapper.Map<IReadOnlyList<AddressResDto>>(entity);
+            return entity.Select(x => x.ToResDto()).ToList();
         }
     }
 

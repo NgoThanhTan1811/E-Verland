@@ -8,7 +8,7 @@ using Modules.Chat.Application.Contracts;
 namespace Modules.Chat.Application.Commands.Conversation
 {
     public sealed record CreateConversationCommand
-    (Guid UserId, Guid AdminId) 
+    (Guid CustomerId, Guid SellerId) 
     : IRequest<Guid>;
 
     public class CreateConversationCommandHandler(IConversationRepository converRepo) : IRequestHandler<CreateConversationCommand, Guid>
@@ -17,7 +17,7 @@ namespace Modules.Chat.Application.Commands.Conversation
 
         public async Task<Guid> Handle(CreateConversationCommand request, CancellationToken ct)
         {
-            var conversation = await _converRepo.GetOrCreateConversationAsync(request.UserId, request.AdminId, ct);
+            var conversation = await _converRepo.GetOrCreateConversationAsync(request.CustomerId, request.SellerId, ct);
             return conversation.Id;
         }
     }

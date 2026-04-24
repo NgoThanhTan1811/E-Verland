@@ -4,7 +4,7 @@ namespace Modules.Chat.Application.Contracts;
 
 public interface IMessageRepository
 {
-    Task<Microsoft.EntityFrameworkCore.ChangeTracking.EntityEntry<Message>> AddAsync(Message message, CancellationToken ct = default);
+    Task<Message> AddAsync(Message message, CancellationToken ct = default);
 
     Task<Domain.Message?> GetByIdAsync(Guid messageId, CancellationToken ct = default);
 

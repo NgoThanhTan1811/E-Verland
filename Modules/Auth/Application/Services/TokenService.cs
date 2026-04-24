@@ -44,6 +44,8 @@ namespace Modules.Auth.Application.Services
                 new(ClaimTypes.Email, account.Email),
                 new(ClaimTypes.Name, account.Username),
                 new(ClaimTypes.Role, account.Role.ToString()),
+                // Add custom "role" claim for Requirement 6 (Role-based authorization policies)
+                new("role", account.Role.ToString()),
                 new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 

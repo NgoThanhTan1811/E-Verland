@@ -16,7 +16,7 @@ namespace Modules.Chat.Application.Commands.Message
             var convo = await _conversationRepo.GetConversationByIdAsync(req.ConversationId, ct)
                 ?? throw new InvalidOperationException("Conversation not found.");
 
-            if (req.SenderId != convo.UserId && req.SenderId != convo.AdminId)
+            if (req.SenderId != convo.CustomerId && req.SenderId != convo.SellerId)
                 throw new UnauthorizedAccessException("Sender is not in this conversation.");
 
             var message = new Domain.Message(req.ConversationId, req.SenderId, req.Content);

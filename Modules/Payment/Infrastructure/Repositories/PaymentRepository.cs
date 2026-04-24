@@ -21,7 +21,10 @@ namespace Modules.Payment.Infrastructure.Repositories
         {
             var payment = await _dbContext.Payments.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
             if (payment == null) return false;
-            _dbContext.Payments.Remove(payment);
+
+            _dbContext.Entry(payment).Property(nameof(Domain.Payment.IsDeleted)).CurrentValue = true;
+            _dbContext.Entry(payment).Property(nameof(Domain.Payment.DeletedAt)).CurrentValue = DateTime.UtcNow;
+
             return true;
         }
 
