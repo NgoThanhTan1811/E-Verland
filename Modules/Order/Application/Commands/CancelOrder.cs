@@ -33,16 +33,6 @@ public sealed class CancelOrderHandler(
     private readonly ISQSService _sqsService = sqsService;
     private readonly IConfiguration _configuration = configuration;
     private readonly ILogger<CancelOrderHandler> _logger = logger;
-    private IOrderRepository repo;
-    private IOrderDbContext db;
-    private ICloudWatchService cloudWatch;
-
-    public CancelOrderHandler(IOrderRepository repo, IOrderDbContext db, ICloudWatchService cloudWatch)
-    {
-        this.repo = repo;
-        this.db = db;
-        this.cloudWatch = cloudWatch;
-    }
 
     public async Task<Unit> Handle(CancelOrderCommand request, CancellationToken ct)
     {
