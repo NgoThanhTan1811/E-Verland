@@ -36,6 +36,7 @@ public static class ProductModuleExtension
         services.AddScoped<IProductSyncPublisher, ProductSyncPublisher>();
         services.AddScoped<IProductModerationAuditLog, ProductModerationAuditLog>();
         services.AddHostedService<OpenSearchConsumer>();
+        services.AddHostedService<ProductOrderCanceledConsumer>();
 
         // Add MediatR
         services.AddMediatR(config =>

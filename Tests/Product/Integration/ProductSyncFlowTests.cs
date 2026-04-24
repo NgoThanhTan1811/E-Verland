@@ -3,6 +3,7 @@ using Infra.AWS.CloudWatch;
 using Infra.AWS.SQS;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Modules.Media.Application.Interfaces;
 using Modules.Product.Application.Commands;
 using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Events;
@@ -11,6 +12,7 @@ using Modules.Product.Application.Services;
 using Modules.Product.Domain;
 using Modules.Product.Infrastructure.Services;
 using NSubstitute;
+using StackExchange.Redis;
 using Xunit;
 
 namespace Tests.Product.Integration;
@@ -67,6 +69,8 @@ public class ProductSyncFlowTests
         var dbContext = Substitute.For<IProductDbContext>();
         var skuGenerator = new SKUGeneratorService();
         var syncPublisher = CreateRealPublisher(sqsService, cloudWatch);
+        var redis = Substitute.For<IRedis>();
+        var mediaRepo= Substitute.For<IMediaFileRepository>();
 
         sqsService.SendMessageAsync(Arg.Any<string>(), Arg.Any<ProductSyncEvent>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult("msg-id"));
@@ -75,8 +79,8 @@ public class ProductSyncFlowTests
         cloudWatch.PutMetricAsync(Arg.Any<string>(), Arg.Any<double>(), Arg.Any<string>(),
             Arg.Any<Dictionary<string, string>>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
-        var handler = new CreateProduc(productRepo, categoryRepo, skuRepo, dbContext,
-            skuGenerator, syncPublisher, cloudWatch);
+        var handler = new CreateProductHandler(productRepo, categoryRepo, skuRepo, dbContext,
+            skuGenerator, syncPublisher, cloudWatch, mediaRepo);
 
         ProductSyncEvent? captured = null;
         sqsService.When(s => s.SendMessageAsync(QueueUrl, Arg.Any<ProductSyncEvent>(), Arg.Any<CancellationToken>()))

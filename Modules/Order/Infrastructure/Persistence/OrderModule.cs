@@ -30,6 +30,9 @@ public static class OrderModuleExtension
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IOrderPaymentSyncService, OrderPaymentSyncService>();
 
+        // Add MediatR
+        services.AddMediatR(config =>
+            config.RegisterServicesFromAssembly(typeof(OrderApplicationMarker).Assembly));
 
         return services;
     }

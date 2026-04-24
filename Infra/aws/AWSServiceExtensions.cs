@@ -13,8 +13,7 @@ using Infra.AWS.Configuration;
 using Infra.AWS.Storage;
 using Infra.AWS.Storage.MinIO;
 using Infra.Meilisearch;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
+
 
 namespace Infra.AWS;
 

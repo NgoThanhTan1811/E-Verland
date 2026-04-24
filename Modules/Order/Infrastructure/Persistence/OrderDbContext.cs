@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Modules.Order.Application.Contracts;
 using Modules.Order.Domain;
@@ -12,6 +13,11 @@ public class OrderDbContext(DbContextOptions<OrderDbContext> options) : DbContex
 {
     public DbSet<Domain.Order> Orders => Set<Domain.Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+
+    public async Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken ct)
+    {
+        return await Database.BeginTransactionAsync(ct); 
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

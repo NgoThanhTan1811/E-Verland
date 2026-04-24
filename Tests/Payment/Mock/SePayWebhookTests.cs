@@ -6,6 +6,8 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
+using Modules.Order.Application.Contracts;
 using Modules.Payment.Api.Controllers;
 using Modules.Payment.Application.Contracts;
 using Modules.Payment.Application.DTOs.Response;
@@ -28,6 +30,7 @@ public class SePayWebhookTests
         var webhookIdempotency = Substitute.For<IWebhookIdempotencyService>();
         var ledgerService = Substitute.For<ILedgerService>();
         var sellerBalanceService = Substitute.For<ISellerBalanceService>();
+        var orderRepository = Substitute.For<IOrderRepository>();
 
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -49,9 +52,11 @@ public class SePayWebhookTests
             reservationService,
             cloudWatch,
             config,
+            NullLogger<PaymentController>.Instance,
             webhookIdempotency,
             ledgerService,
-            sellerBalanceService);
+            sellerBalanceService,
+            orderRepository);
         return (controller, mediator, cloudWatch);
     }
 

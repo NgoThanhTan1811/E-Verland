@@ -28,7 +28,7 @@ public class CancelOrderHandlerTests
     private static Modules.Order.Domain.Order PendingOrder(Guid userId) => new()
     {
         UserId = userId,
-        Code = "ORD-01012025-1234",
+        Code = "ORD-01012025-1234", 
         Status = OrderStatus.Pending,
         Receiver = ReceiverSnapshot.Create("Alice", "0123456789", "789 Oak Ave"),
         Items = []

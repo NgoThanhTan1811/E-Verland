@@ -34,17 +34,16 @@ public sealed class EventBridgeService : IEventBridgeService
 
             var request = new PutEventsRequest
             {
-                Entries = new List<PutEventsRequestEntry>
-                {
-                    new PutEventsRequestEntry
-                    {
+                Entries =
+                [
+                    new() {
                         Source = source,
                         DetailType = detailType,
                         Detail = detailJson,
                         EventBusName = _options.EventBusName,
                         Time = DateTime.UtcNow
                     }
-                }
+                ]
             };
 
             var response = await AwsRetryPolicy.ExecuteAsync(() => _eventBridgeClient.PutEventsAsync(request, ct), 3, ct);

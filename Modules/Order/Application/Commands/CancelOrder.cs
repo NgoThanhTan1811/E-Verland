@@ -1,9 +1,13 @@
 using Infra.AWS.CloudWatch;
+using Infra.AWS.SNS;
+using Infra.AWS.SQS;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Modules.Order.Application.Contracts;
+using Modules.Order.Application.DTOs.Events;
 using Modules.Order.Domain;
-using Modules.Product.Application.Contracts;
 
 namespace Modules.Order.Application.Commands;
 
@@ -16,11 +20,29 @@ public sealed class CancelOrderHandler(
     IOrderRepository repo,
     IOrderDbContext db,
     ICloudWatchService cloudWatch,
-    IProductReservationService productReservationService)
+    ISNSService snsService,
+    ISQSService sqsService,
+    IConfiguration configuration,
+    ILogger<CancelOrderHandler> logger)
     : IRequestHandler<CancelOrderCommand, Unit>
 {
     private readonly IOrderRepository _repo = repo;
     private readonly IOrderDbContext _db = db;
+    private readonly ICloudWatchService _cloudWatch = cloudWatch;
+    private readonly ISNSService _snsService = snsService;
+    private readonly ISQSService _sqsService = sqsService;
+    private readonly IConfiguration _configuration = configuration;
+    private readonly ILogger<CancelOrderHandler> _logger = logger;
+    private IOrderRepository repo;
+    private IOrderDbContext db;
+    private ICloudWatchService cloudWatch;
+
+    public CancelOrderHandler(IOrderRepository repo, IOrderDbContext db, ICloudWatchService cloudWatch)
+    {
+        this.repo = repo;
+        this.db = db;
+        this.cloudWatch = cloudWatch;
+    }
 
     public async Task<Unit> Handle(CancelOrderCommand request, CancellationToken ct)
     {
@@ -43,22 +65,71 @@ public sealed class CancelOrderHandler(
 
         await _repo.UpdateAsync(order, ct);
 
-        if (order.PaymentId.HasValue)
+        using var transaction = await _db.BeginTransactionAsync(ct);
+        try
         {
-            await productReservationService.ReleaseReservationAsync(order.PaymentId.Value, ct);
+            order.Status = OrderStatus.Canceled;
+            await _repo.UpdateAsync(order, ct);
+            await _db.SaveChangesAsync(ct);
+
+            // Publish OrderCanceledEvent to SNS/SQS for Product Module to consume
+            // Product Module will handle releasing stock reservations asynchronously
+            await PublishOrderCanceledEventAsync(order, ct);
+
+            await transaction.CommitAsync(ct);
         }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync(ct);
+            _logger.LogError(ex, "Failed to cancel order {OrderId}", request.OrderId);
+            throw new InvalidOperationException("Failed to cancel order.", ex);
+        }
+
+        await _cloudWatch.PutMetricAsync("order.cancelled", 1, "Count", ct: ct);
+        return Unit.Value;
+    }
+
+    private async Task PublishOrderCanceledEventAsync(Domain.Order order, CancellationToken ct)
+    {
+        var orderCanceledEvent = new OrderCanceledEvent
+        {
+            OrderId = order.Id,
+            UserId = order.UserId,
+            PaymentId = order.PaymentId,
+            OrderCode = order.Code,
+            TotalPrice = order.TotalPrice,
+            CanceledAtUtc = DateTime.UtcNow
+        };
 
         try
         {
-            await _db.SaveChangesAsync(ct);
+            // Try publishing via SNS first (if configured)
+            var snsTopicArn = _configuration["AWS:SNS:OrderEventsTopicArn"]
+                ?? _configuration["SNS:OrderEventsTopicArn"]
+                ?? Environment.GetEnvironmentVariable("AWS_SNS_ORDER_EVENTS_TOPIC_ARN");
+
+            if (!string.IsNullOrWhiteSpace(snsTopicArn))
+            {
+                await _snsService.PublishAsync(snsTopicArn, orderCanceledEvent, "OrderCanceled", ct);
+                _logger.LogInformation("Published OrderCanceled event for order {OrderId} via SNS", order.Id);
+            }
+
+            // Also publish to SQS (if configured) so Product Module can subscribe
+            var sqsQueueUrl = _configuration["AWS:SQS:OrderEventsQueueUrl"]
+                ?? _configuration["SQS:OrderEventsQueueUrl"]
+                ?? Environment.GetEnvironmentVariable("AWS_SQS_ORDER_EVENTS_QUEUE_URL");
+
+            if (!string.IsNullOrWhiteSpace(sqsQueueUrl))
+            {
+                await _sqsService.SendMessageAsync(sqsQueueUrl, orderCanceledEvent, ct);
+                _logger.LogInformation("Published OrderCanceled event for order {OrderId} via SQS", order.Id);
+            }
         }
-        catch (DbUpdateException)
+        catch (Exception ex)
         {
-            throw new InvalidOperationException("Order cancellation failed due to database error.");
+            _logger.LogWarning(ex, "Failed to publish OrderCanceled event for order {OrderId}, but order was canceled successfully", order.Id);
+            // Don't rethrow - the order was already canceled in DB
+            // Product Module will eventually release reservations on next sync
         }
-
-        await cloudWatch.PutMetricAsync("order.cancelled", 1, "Count");
-
-        return Unit.Value;
     }
 }

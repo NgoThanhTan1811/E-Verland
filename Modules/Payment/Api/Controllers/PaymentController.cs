@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Modules.Order.Application.Contracts;
 using Modules.Payment.Application.Contracts;
 using Modules.Payment.Application.Commands;
@@ -28,6 +29,7 @@ public class PaymentController(
     IProductReservationService reservationService,
     ICloudWatchService cloudWatch,
     IConfiguration configuration,
+    ILogger<PaymentController> logger,
     IWebhookIdempotencyService webhookIdempotency,
     ILedgerService ledgerService,
     ISellerBalanceService sellerBalanceService,
@@ -37,6 +39,7 @@ public class PaymentController(
     private readonly IProductReservationService _reservationService = reservationService;
     private readonly ICloudWatchService _cloudWatch = cloudWatch;
     private readonly IConfiguration _configuration = configuration;
+    private readonly ILogger<PaymentController> _logger = logger;
     private readonly IWebhookIdempotencyService _webhookIdempotency = webhookIdempotency;
     private readonly ILedgerService _ledgerService = ledgerService;
     private readonly ISellerBalanceService _sellerBalanceService = sellerBalanceService;
@@ -185,6 +188,7 @@ public class PaymentController(
         if (string.IsNullOrWhiteSpace(sepayKey))
         {
             await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
+            _logger.LogWarning("Rejected SePay webhook because the signature key is not configured.");
             return BadRequest(new { message = "SePay signature key is not configured" });
         }
 
@@ -197,6 +201,7 @@ public class PaymentController(
         if (string.IsNullOrWhiteSpace(receivedSignature))
         {
             await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
+            _logger.LogWarning("Rejected SePay webhook because the X-SePay-Signature header is missing.");
             return BadRequest(new { message = "Missing X-SePay-Signature" });
         }
 
@@ -207,6 +212,7 @@ public class PaymentController(
         if (!signatureValid)
         {
             await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
+            _logger.LogWarning("Rejected SePay webhook because the signature is invalid.");
             return BadRequest(new { message = "Invalid signature" });
         }
 
@@ -218,12 +224,14 @@ public class PaymentController(
         catch
         {
             await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
+            _logger.LogWarning("Rejected SePay webhook because the payload could not be parsed.");
             return BadRequest(new { message = "Invalid payload" });
         }
 
         if (payload is null || string.IsNullOrEmpty(payload.PaymentCode))
         {
             await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
+            _logger.LogWarning("Rejected SePay webhook because payment_code was missing.");
             return BadRequest(new { message = "Missing payment_code" });
         }
 
@@ -247,6 +255,7 @@ public class PaymentController(
         if (normalizedStatus is null)
         {
             await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
+            _logger.LogWarning("Rejected SePay webhook because transaction_status was unsupported: {TransactionStatus}", payload.TransactionStatus);
             return BadRequest(new { message = "Unsupported transaction_status. Allowed: success, failed, refunded." });
         }
 
