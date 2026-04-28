@@ -4,7 +4,7 @@ public sealed class StorageOptions
 {
     public const string SectionName = "Storage";
 
-    public string Provider { get; set; } = "MinIO";
+    public string Provider { get; set; } = "S3";
     public string BaseUrl { get; set; } = string.Empty;
 
     public string ProductsPrefix { get; set; } = "products";

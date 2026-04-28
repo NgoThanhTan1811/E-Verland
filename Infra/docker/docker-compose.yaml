@@ -1,9 +1,26 @@
+version: "3.8"
 services:
-  e-verland:
-    image: thanhtan1811/everland:latest
-    container_name: e-verland
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
+    volumes:
+      - meili_data:/data
+    restart: always
+
+  loki:
+    image: grafana/loki:latest
     ports:
-      - "${APP_PORT:-8080}:8080"
-    env_file:
-      - .env
-    restart: unless-stopped
+      - "3100:3100"
+    restart: always
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+    restart: always
+
+volumes:
+  meili_data:

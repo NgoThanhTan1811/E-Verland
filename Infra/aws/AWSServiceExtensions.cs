@@ -4,6 +4,7 @@ using Amazon.SimpleNotificationService;
 using Amazon.EventBridge;
 using Amazon.Runtime;
 using Amazon;
+using Amazon.Extensions.NETCore.Setup;
 using Infra.AWS.S3;
 using Infra.AWS.SQS;
 using Infra.AWS.SNS;
@@ -13,6 +14,7 @@ using Infra.AWS.Configuration;
 using Infra.AWS.Storage;
 using Infra.AWS.Storage.MinIO;
 using Infra.Meilisearch;
+using Microsoft.Extensions.Options;
 
 
 namespace Infra.AWS;
@@ -51,10 +53,10 @@ public static class AWSServiceExtensions
         ValidateAwsConfiguration(configuration, awsAccessKey, awsSecretKey);
 
         // Register AWS SDK clients
-        services.AddAWSService<IAmazonS3>();
         services.AddAWSService<IAmazonSQS>();
         services.AddAWSService<IAmazonSimpleNotificationService>();
         services.AddAWSService<IAmazonEventBridge>();
+        services.AddSingleton<IAmazonS3>(sp => CreateS3Client(sp, awsOptions));
 
         // Register custom services
         services.AddSingleton<IS3StorageService, S3StorageService>();
@@ -70,11 +72,11 @@ public static class AWSServiceExtensions
 
     private static void RegisterStorageProvider(IServiceCollection services, IConfiguration configuration)
     {
-        var provider = ConfigurationValueResolver.GetOptional(configuration, "Storage:Provider", "STORAGE_PROVIDER") ?? "MinIO";
+        var provider = ConfigurationValueResolver.GetOptional(configuration, "Storage:Provider", "STORAGE_PROVIDER") ?? "S3";
 
         if (provider.Equals("S3", StringComparison.OrdinalIgnoreCase))
         {
-            services.AddSingleton<IStorageService>(sp =>
+            services.AddSingleton(sp =>
                 (IStorageService)sp.GetRequiredService<IS3StorageService>());
             return;
         }
@@ -109,6 +111,21 @@ public static class AWSServiceExtensions
             options.Region = string.IsNullOrWhiteSpace(options.Region)
                 ? Environment.GetEnvironmentVariable("AWS_REGION") ?? "us-east-1"
                 : options.Region;
+            options.ServiceUrl = string.IsNullOrWhiteSpace(options.ServiceUrl)
+                ? Environment.GetEnvironmentVariable("AWS_S3_SERVICE_URL") ?? string.Empty
+                : options.ServiceUrl;
+            options.AccessKey = string.IsNullOrWhiteSpace(options.AccessKey)
+                ? Environment.GetEnvironmentVariable("AWS_S3_ACCESS_KEY_ID") ?? string.Empty
+                : options.AccessKey;
+            options.SecretKey = string.IsNullOrWhiteSpace(options.SecretKey)
+                ? Environment.GetEnvironmentVariable("AWS_S3_SECRET_ACCESS_KEY") ?? string.Empty
+                : options.SecretKey;
+
+            var forcePathStyle = Environment.GetEnvironmentVariable("AWS_S3_FORCE_PATH_STYLE");
+            if (!string.IsNullOrWhiteSpace(forcePathStyle) && bool.TryParse(forcePathStyle, out var parsedForcePathStyle))
+            {
+                options.ForcePathStyle = parsedForcePathStyle;
+            }
         });
 
         services.PostConfigure<SQSOptions>(options =>
@@ -153,13 +170,7 @@ public static class AWSServiceExtensions
 
     private static void ValidateAwsConfiguration(IConfiguration configuration, string? awsAccessKey, string? awsSecretKey)
     {
-        var shouldValidateCredentials = HasAnyConfiguredValue(configuration,
-            "AWS:SQS:OrderEventsQueueUrl",
-            "AWS:SNS:OrderNotificationsTopicArn",
-            "AWS:EventBridge:EventBusName") ||
-            string.Equals(ConfigurationValueResolver.GetOptional(configuration, "Storage:Provider", "STORAGE_PROVIDER"), "S3", StringComparison.OrdinalIgnoreCase);
-
-        if (!shouldValidateCredentials)
+        if (string.IsNullOrWhiteSpace(awsAccessKey) && string.IsNullOrWhiteSpace(awsSecretKey))
         {
             return;
         }
@@ -173,6 +184,36 @@ public static class AWSServiceExtensions
         {
             throw new InvalidOperationException("Missing required configuration 'AWS:SecretKey' (or environment variable 'AWS_SECRET_ACCESS_KEY').");
         }
+    }
+
+    private static IAmazonS3 CreateS3Client(IServiceProvider sp, AWSOptions awsOptions)
+    {
+        var s3Options = sp.GetRequiredService<IOptions<S3Options>>().Value;
+        var config = new AmazonS3Config
+        {
+            RegionEndpoint = awsOptions.Region
+        };
+
+        if (!string.IsNullOrWhiteSpace(s3Options.ServiceUrl))
+        {
+            config.ServiceURL = s3Options.ServiceUrl;
+            config.ForcePathStyle = s3Options.ForcePathStyle;
+            config.UseHttp = s3Options.ServiceUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase);
+            config.AuthenticationRegion = s3Options.Region;
+        }
+
+        if (!string.IsNullOrWhiteSpace(s3Options.AccessKey) && !string.IsNullOrWhiteSpace(s3Options.SecretKey))
+        {
+            var credentials = new BasicAWSCredentials(s3Options.AccessKey, s3Options.SecretKey);
+            return new AmazonS3Client(credentials, config);
+        }
+
+        if (awsOptions.Credentials != null)
+        {
+            return new AmazonS3Client(awsOptions.Credentials, config);
+        }
+
+        return new AmazonS3Client(config);
     }
 
     private static bool HasAnyConfiguredValue(IConfiguration configuration, params string[] keys)
