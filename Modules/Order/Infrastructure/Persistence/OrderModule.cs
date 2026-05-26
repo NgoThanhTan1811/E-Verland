@@ -3,8 +3,8 @@ using Modules.Order.Infrastructure.Repositories;
 using Modules.Order.Application.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Modules.Order.Infrastructure.Persistence;
-using Modules.Order.Infrastructure.Services;
 using SharedKernel.Persistence;
+using Modules.Order.Infrastructure.Services;
 
 namespace Modules.Order;
 
@@ -13,8 +13,7 @@ public static class OrderModuleExtension
     public static IServiceCollection AddOrderModule(this IServiceCollection services, IConfiguration configuration)
     {
         // Add DbContext
-        var conn = configuration.GetConnectionString("OrderDb")
-                ?? Environment.GetEnvironmentVariable("OrderDb")
+        var conn = configuration["ConnectionStrings:OrderDb"]
                 ?? throw new InvalidOperationException("Missing ConnectionStrings:OrderDb");
 
         services.AddDbContext<OrderDbContext>(options =>
@@ -29,6 +28,9 @@ public static class OrderModuleExtension
         // Add Product Service for Order
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IOrderPaymentSyncService, OrderPaymentSyncService>();
+
+        services.AddHostedService<Modules.Order.Infrastructure.Consumers.PaymentStatusConsumer>();
+        services.AddHostedService<Modules.Order.Infrastructure.Consumers.ShippingStatusConsumer>();
 
         // Add MediatR
         services.AddMediatR(config =>

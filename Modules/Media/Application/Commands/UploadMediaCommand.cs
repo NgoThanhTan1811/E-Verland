@@ -9,6 +9,7 @@ public sealed record UploadMediaCommand(
     string FileName,
     string ContentType,
     MediaType MediaType,
+    MediaResourceType ResourceType,
     Guid UploadedBy
 ) : IRequest<UploadMediaResult>;
 
@@ -39,6 +40,7 @@ public sealed class UploadMediaHandler : IRequestHandler<UploadMediaCommand, Upl
             request.FileStream,
             request.FileName,
             request.ContentType,
+            request.ResourceType,
             ct);
 
         // Save metadata to database

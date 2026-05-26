@@ -81,6 +81,33 @@ namespace Modules.Chat.Api.Controllers
             }
         }
 
+        [HttpGet("messages")]
+        public async Task<IActionResult> GetMessages(
+            [FromQuery] Guid conversationId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 30,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                pageSize = Math.Clamp(pageSize, 1, 50);
+                if (page < 1) page = 1;
+
+                var query = new GetMessagesByConversationIdQuery(conversationId);
+                var result = await _mediator.Send(query, cancellationToken);
+
+                if (result == null || result.Count == 0)
+                    return Ok(new List<MessageResponseDto>());
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving messages");
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
     }
 }
 

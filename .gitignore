@@ -3,18 +3,16 @@
 .vs/
 .env*
 .kiro/*
-
-terraform.tfvars
-
 *logs
 *.log
 
 .vscode/
 .idea/
+
 *.tfstate
 *.tfstate.*
 .terraform/
 .terraform.lock.hcl
 *.tfvars
 *.tfvars.json
-variables.tf
+terraform.tfvars

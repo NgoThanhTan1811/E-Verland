@@ -9,8 +9,16 @@ public sealed class ProductDbContextFactory : IDesignTimeDbContextFactory<Produc
 {
     public ProductDbContext CreateDbContext(string[] args)
     {
-        var conn =
-            Environment.GetEnvironmentVariable("ProductDb")
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: true)
+            .AddJsonFile("appsettings.Development.json", optional: true)
+            .AddUserSecrets<ProductDbContextFactory>() // Nạp User Secrets của máy local vào đây
+            .AddEnvironmentVariables()
+            .Build();
+
+        var conn = configuration["ConnectionStrings:ProductDb"]
+
             ?? throw new InvalidOperationException(
                 "Missing env ProductDb (design-time).");
 

@@ -15,11 +15,26 @@ public class Address : BaseEntity
     public string Street { get; set; } = default!;
     public string District { get; set; } = default!;
     public string Province { get; set; } = default!;
+    public int? ProvinceId { get; set; }
+    public int? DistrictId { get; set; }
+    public string? WardCode { get; set; }
 
     public bool IsDefault { get; set; } = false;
 
     private Address() { }
-    public Address(Guid profileId, LableAddress label, string city, string province, string district, string ward, string street, string detail, bool isDefault)
+    public Address(
+        Guid profileId,
+        LableAddress label,
+        string city,
+        string province,
+        string district,
+        string ward,
+        string street,
+        string detail,
+        bool isDefault,
+        int? provinceId,
+        int? districtId,
+        string? wardCode)
     {
 
         ProfileId = profileId;
@@ -31,11 +46,25 @@ public class Address : BaseEntity
         District = district;
         Province = province;
         IsDefault = isDefault;
+        ProvinceId = provinceId;
+        DistrictId = districtId;
+        WardCode = wardCode;
     }
 
     public void SetAsDefault() => IsDefault = true;
 
-    public void Update(LableAddress? label, string? city, string? province, string? district, string? ward, string? street, string? detail, bool? isDefault)
+    public void Update(
+        LableAddress? label,
+        string? city,
+        string? province,
+        string? district,
+        string? ward,
+        string? street,
+        string? detail,
+        bool? isDefault,
+        int? provinceId,
+        int? districtId,
+        string? wardCode)
     {
         if (label.HasValue) Label = label.Value;
         if (city is not null) City = city.Trim();
@@ -45,6 +74,9 @@ public class Address : BaseEntity
         if (street is not null) Street = street.Trim();
         if (detail is not null) Detail = detail.Trim();
         if (isDefault.HasValue) IsDefault = isDefault.Value;
+        if (provinceId.HasValue) ProvinceId = provinceId.Value;
+        if (districtId.HasValue) DistrictId = districtId.Value;
+        if (wardCode is not null) WardCode = wardCode.Trim();
     }
 
 };

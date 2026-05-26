@@ -8,7 +8,7 @@ public sealed class S3Options
     public const string SectionName = "AWS:S3";
 
     public string BucketName { get; set; } = string.Empty;
-    public string Region { get; set; } = "us-east-1";
+    public string Region { get; set; } = "auto"; // Use "auto" to let AWS SDK determine the region based on credentials
     public string ServiceUrl { get; set; } = string.Empty;
     public string AccessKey { get; set; } = string.Empty;
     public string SecretKey { get; set; } = string.Empty;

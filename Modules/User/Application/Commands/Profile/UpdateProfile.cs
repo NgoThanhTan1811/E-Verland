@@ -50,11 +50,19 @@ namespace Modules.User.Application.Commands
             if (request.PhoneNumber is not null)
                 entity.PhoneNumber = request.PhoneNumber.Trim();
 
+            // Ensure avatar is stored as a relative path. If client passed a full URL (presigned), extract the key.
+            string? avatarRelative = request.AvatarUrl;
+            if (!string.IsNullOrWhiteSpace(avatarRelative) && Uri.IsWellFormedUriString(avatarRelative, UriKind.Absolute))
+            {
+                var u = new Uri(avatarRelative);
+                avatarRelative = u.AbsolutePath.TrimStart('/');
+            }
+
             entity.Update(
                 request.FirstName,
                 request.LastName,
                 request.DateOfBirth,
-                request.AvatarUrl,
+                avatarRelative,
                 request.Gender,
                 request.Bio
             );

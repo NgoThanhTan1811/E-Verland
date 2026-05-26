@@ -16,7 +16,6 @@ public sealed class DashboardController(IMediator mediator) : ControllerBase
 
     [HttpGet("admin")]
     [Authorize(Policy = "AdminPolicy")]
-    [ProducesResponseType(typeof(AdminDashboardDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<AdminDashboardDto>> GetAdminDashboard(CancellationToken ct)
     {
         var result = await _mediator.Send(new GetAdminDashboardQuery(), ct);
@@ -25,8 +24,6 @@ public sealed class DashboardController(IMediator mediator) : ControllerBase
 
     [HttpGet("seller")]
     [Authorize(Policy = "SellerPolicy")]
-    [ProducesResponseType(typeof(SellerDashboardDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<SellerDashboardDto>> GetSellerDashboard(CancellationToken ct)
     {
         var userIdRaw = User.FindFirstValue(ClaimTypes.NameIdentifier);

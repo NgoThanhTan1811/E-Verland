@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Modules.Order.Application.Contracts;
 using Modules.Order.Application.DTOs.Events;
 using Modules.Order.Domain;
+using SharedKernel.Events;
 
 namespace Modules.Order.Application.Commands;
 
@@ -114,12 +115,36 @@ public sealed class CancelOrderHandler(
                 await _sqsService.SendMessageAsync(sqsQueueUrl, orderCanceledEvent, ct);
                 _logger.LogInformation("Published OrderCanceled event for order {OrderId} via SQS", order.Id);
             }
+
+            await PublishShippingCancelRequestedAsync(order, ct);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to publish OrderCanceled event for order {OrderId}, but order was canceled successfully", order.Id);
             // Don't rethrow - the order was already canceled in DB
             // Product Module will eventually release reservations on next sync
+        }
+    }
+
+    private async Task PublishShippingCancelRequestedAsync(Domain.Order order, CancellationToken ct)
+    {
+        var queueUrl = _configuration["AWS:SQS:ShippingDraftQueueUrl"]
+            ?? _configuration["SQS:ShippingDraftQueueUrl"]
+            ?? Environment.GetEnvironmentVariable("AWS_SQS_SHIPPING_DRAFT_QUEUE_URL");
+
+        if (string.IsNullOrWhiteSpace(queueUrl))
+        {
+            return;
+        }
+
+        try
+        {
+            var evt = new ShippingCancelRequested(order.Id, "Order canceled");
+            await _sqsService.SendMessageAsync(queueUrl, evt, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to publish ShippingCancelRequested for order {OrderId}", order.Id);
         }
     }
 }

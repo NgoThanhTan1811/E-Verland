@@ -7,13 +7,13 @@ public static class AuthenticationExtension
     public static IServiceCollection AddCustomJwtAuthentication( this IServiceCollection services, IConfiguration configuration)
     {
         var jwtKey = configuration["Jwt:Key"]
-                     ?? Environment.GetEnvironmentVariable("JWT_KEY");
+                        ?? throw new InvalidOperationException("Missing Jwt:Key.");
 
         var jwtIssuer = configuration["Jwt:Issuer"]
-                        ?? "e-verland-platform";
+                        ?? throw new InvalidOperationException("Missing Jwt:Issuer.");
 
         var jwtAudience = configuration["Jwt:Audience"]
-                          ?? "e-verland-platform";
+                          ?? throw new InvalidOperationException("Missing Jwt:Audience.");
 
         if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
             throw new InvalidOperationException("JWT Key must be at least 32 characters.");

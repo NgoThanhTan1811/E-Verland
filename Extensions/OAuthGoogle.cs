@@ -9,11 +9,11 @@ public static class OAuthGmailExtension
 
     public static void AddGoogleOAuth(this WebApplicationBuilder builder)
     {
-        var clientId = Environment.GetEnvironmentVariable("Client_Id")
-            ?? builder.Configuration["Authentication:Google:ClientId"];
+        var clientId = builder.Configuration["Authentication:Google:ClientId"]
+            ?? throw new InvalidOperationException("Missing Authentication:Google:ClientId.");
 
-        var clientSecret = Environment.GetEnvironmentVariable("Client_Secret")
-            ?? builder.Configuration["Authentication:Google:ClientSecret"];
+        var clientSecret = builder.Configuration["Authentication:Google:ClientSecret"]
+            ?? throw new InvalidOperationException("Missing Authentication:Google:ClientSecret.");
 
         if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
         {

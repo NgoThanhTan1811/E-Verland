@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Linq;
 using Amazon.XRay.Recorder.Core;
 using Infra.AWS.CloudWatch;
 using Infra.AWS.EventBridge;
@@ -10,12 +11,23 @@ using Modules.Order.Application.Contracts;
 using Modules.Order.Application.DTOs.Request;
 using Modules.Order.Application.DTOs.Response;
 using Modules.Order.Domain;
+using SharedKernel.Events;
 
 namespace Modules.Order.Application.Commands;
 
 public sealed record CreateOrderCommand(
     Guid UserId,
+    ShippingAddressRequestDto ShippingAddress,
     ReceiverRequestDto Receiver,
+    int Weight,
+    int Length,
+    int Width,
+    int Height,
+    int? ServiceId,
+    int? ServiceTypeId,
+    decimal? InsuranceValue,
+    string? Note,
+    string? RequiredNote,
     PaymentMethod PaymentMethod,
     decimal? VoucherCode,
     List<CreateOrderItemRequestDto> Items
@@ -46,13 +58,27 @@ public sealed class CreateOrderHandler(
         if (request.Items == null || request.Items.Count == 0)
             throw new ArgumentException("Order must have at least one item");
 
+        if (request.Weight <= 0 || request.Length <= 0 || request.Width <= 0 || request.Height <= 0)
+            throw new ArgumentException("Shipping dimensions must be greater than 0");
+
+        if (request.ShippingAddress is null)
+            throw new ArgumentException("Shipping address is required");
+
+        if (request.ShippingAddress.DistrictId <= 0 || string.IsNullOrWhiteSpace(request.ShippingAddress.WardCode))
+            throw new ArgumentException("Shipping address is missing district/ward codes");
+
+        if (string.IsNullOrWhiteSpace(request.ShippingAddress.Address))
+            throw new ArgumentException("Shipping address detail is required");
+
         var sw = Stopwatch.StartNew();
         try
         {
+            var receiverAddress = request.ShippingAddress.Address;
+
             var receiverSnapshot = ReceiverSnapshot.Create(
                 request.Receiver.Name,
                 request.Receiver.Phone,
-                request.Receiver.Address
+                receiverAddress
             );
 
             var order = new Domain.Order
@@ -110,6 +136,8 @@ public sealed class CreateOrderHandler(
             logger.LogInformation("Order created. {OrderId} {UserId} {LatencyMs}", order.Id, request.UserId, sw.ElapsedMilliseconds);
             await cloudWatch.PutMetricAsync("order.created", 1, "Count", ct: ct);
             await cloudWatch.PutMetricAsync("order.latency_ms", sw.ElapsedMilliseconds, "Milliseconds", ct: ct);
+
+            await PublishShippingDraftRequestedAsync(order, request, ct);
             await PublishOrderEventAsync(order, "OrderCreated", ct);
 
             return new CreateOrderResponseDto(order.Id, order.Code);
@@ -140,6 +168,77 @@ public sealed class CreateOrderHandler(
         } while (await _repo.CodeExistsAsync(code, ct));
 
         return code;
+    }
+
+    private async Task PublishShippingDraftRequestedAsync(
+        Domain.Order order,
+        CreateOrderCommand request,
+        CancellationToken ct)
+    {
+        if (_configuration == null || _sqsService == null)
+        {
+            return;
+        }
+
+        var queueUrl = _configuration["AWS:SQS:ShippingDraftQueueUrl"]
+            ?? _configuration["SQS:ShippingDraftQueueUrl"]
+            ?? Environment.GetEnvironmentVariable("AWS_SQS_SHIPPING_DRAFT_QUEUE_URL");
+
+        if (string.IsNullOrWhiteSpace(queueUrl))
+        {
+            return;
+        }
+
+        var totalUnits = Math.Max(1, order.Items.Sum(i => i.Quantity));
+        var itemWeight = Math.Max(1, request.Weight / totalUnits);
+
+        var items = order.Items.Select(i => new ShippingDraftItem(
+            i.ProductName,
+            i.SkuId.ToString(),
+            i.Quantity,
+            (int)i.UnitPrice,
+            itemWeight,
+            request.Length,
+            request.Width,
+            request.Height)).ToList();
+
+        var paymentTypeId = order.PaymentMethod == PaymentMethod.COD ? 2 : 1;
+        var codAmount = order.PaymentMethod == PaymentMethod.COD ? order.GrandTotal : 0m;
+
+        var evt = new ShippingDraftRequested(
+            order.Id,
+            order.Code,
+            order.UserId,
+            request.Receiver.Name,
+            request.Receiver.Phone,
+            request.ShippingAddress.Address,
+            request.ShippingAddress.DistrictId,
+            request.ShippingAddress.WardCode,
+            request.ShippingAddress.WardName,
+            request.ShippingAddress.DistrictName,
+            request.ShippingAddress.ProvinceName,
+            request.Weight,
+            request.Length,
+            request.Width,
+            request.Height,
+            request.ServiceId,
+            request.ServiceTypeId,
+            paymentTypeId,
+            codAmount,
+            request.InsuranceValue ?? order.GrandTotal,
+            request.Note,
+            request.RequiredNote,
+            items
+        );
+
+        try
+        {
+            await _sqsService.SendMessageAsync(queueUrl, evt, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to publish shipping draft request for order {OrderId}", order.Id);
+        }
     }
 
     private async Task PublishOrderEventAsync(Domain.Order order, string eventType, CancellationToken ct)

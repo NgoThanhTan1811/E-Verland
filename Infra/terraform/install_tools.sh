@@ -2,7 +2,7 @@
 set -euo pipefail
 
 apt-get update
-apt-get install -y docker.io docker-compose awscli
+apt-get install -y docker.io docker-compose awscli jq
 
 mkdir -p /app
 cd /app
@@ -36,9 +36,10 @@ volumes:
   meili_data:
 EOF
 
-echo "MEILI_MASTER_KEY=$(aws ssm get-parameter --name \"/everland/meili_key\" --with-decryption --query \"Parameter.Value\" --output text)" > .env
-echo "GRAFANA_ADMIN_PASSWORD=$(aws ssm get-parameter --name \"/everland/grafana_admin_password\" --with-decryption --query \"Parameter.Value\" --output text)" >> .env
+SECRETS_JSON=$(aws secretsmanager get-secret-value --secret-id "e-verland/secret-key" --query "SecretString" --output text)
 
+echo "MEILI_MASTER_KEY=$(echo '$SECRETS_JSON' | jq -r '.Meilisearch.MasterKey')" > .env
+echo "GRAFANA_ADMIN_PASSWORD=$(echo '$SECRETS_JSON' | jq -r '.Grafana.AdminPassword')" >> .env
 docker-compose up -d
 
 wget -q https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb

@@ -18,6 +18,9 @@ public sealed record CreateAddressCommand(
     string Detail,
     string District,
     string Province,
+    int ProvinceId,
+    int DistrictId,
+    string WardCode,
     LableAddress Label,
     bool IsDefault
 ) : IRequest<AddressResDto>;
@@ -37,7 +40,10 @@ public sealed class CreateAddressHandler(IAddressRepository repo, IUserDbContext
             District = request.District,
             Ward = request.Ward,
             Street = request.Street,
-            Detail = request.Detail
+            Detail = request.Detail,
+            ProvinceId = request.ProvinceId,
+            DistrictId = request.DistrictId,
+            WardCode = request.WardCode
         });
 
         if (validationResult != ValidationResult.Success)
@@ -57,7 +63,10 @@ public sealed class CreateAddressHandler(IAddressRepository repo, IUserDbContext
             request.Ward,
             request.Street,
             request.Detail,
-            request.IsDefault
+            request.IsDefault,
+            request.ProvinceId,
+            request.DistrictId,
+            request.WardCode
         );
 
         await _repo.CreateAsync(entity, ct);

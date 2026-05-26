@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Modules.Media.Application.Commands;
+using Modules.Media.Application.DTOs;
 using Modules.Media.Application.Queries;
 using Modules.Media.Domain;
 using System.Security.Claims;
@@ -23,31 +24,37 @@ public class MediaController : ControllerBase
     [HttpPost("upload")]
     [Authorize(Policy = "SellerPolicy")]
     [RequestSizeLimit(52428800)] // 50MB
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [Consumes("multipart/form-data")] // Vẫn nên giữ kèm dòng này
     public async Task<IActionResult> UploadMedia(
-        [FromForm] IFormFile file,
-        [FromForm] string mediaType,
-        CancellationToken ct)
+         [FromForm] UploadMediaRequest request, // Gom lại thành 1 object
+         CancellationToken ct)
     {
-        if (file == null || file.Length == 0)
+        // 1. Thay 'file' bằng 'request.File'
+        if (request.File == null || request.File.Length == 0)
             return BadRequest(new { message = "No file uploaded" });
 
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        if (!Enum.TryParse<MediaType>(mediaType, out var parsedMediaType))
+        // 2. Thay 'mediaType' bằng 'request.MediaType'
+        if (!Enum.TryParse<MediaType>(request.MediaType, out var parsedMediaType))
             return BadRequest(new { message = "Invalid media type" });
 
-        using var stream = file.OpenReadStream();
+        // 3. Thay 'resourceType' bằng 'request.ResourceType'
+        if (!TryParseResourceType(request.ResourceType, out var parsedResourceType))
+            return BadRequest(new { message = "Invalid resource type. Allowed: products, avatars, shops, reviews" });
+
+        // 4. Mở stream từ request.File
+        using var stream = request.File.OpenReadStream();
 
         UploadMediaResult result;
         try
         {
             var command = new UploadMediaCommand(
                 stream,
-                file.FileName,
-                file.ContentType,
+                request.File.FileName,     // Thay file -> request.File
+                request.File.ContentType,  // Thay file -> request.File
                 parsedMediaType,
+                parsedResourceType,
                 userId);
 
             result = await _mediator.Send(command, ct);
@@ -70,18 +77,19 @@ public class MediaController : ControllerBase
 
     [HttpPost("presigned-upload")]
     [Authorize(Policy = "SellerPolicy")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> GeneratePresignedUploadUrl(
         [FromBody] GeneratePresignedUploadUrlRequest request,
         CancellationToken ct)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+        if (!TryParseResourceType(request.ResourceType, out var parsedResourceType))
+            return UnprocessableEntity(new { message = "Invalid resource type. Allowed: products, avatars, shops, reviews" });
+
         try
         {
             var command = new GeneratePresignedUploadUrlCommand(
-                request.ResourceType,
+                parsedResourceType,
                 request.ObjectId,
                 request.FileName,
                 request.ContentType,
@@ -98,8 +106,6 @@ public class MediaController : ControllerBase
     }
 
     [HttpGet("{id}/url")]
-    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetMediaUrl(Guid id, [FromQuery] string? size, CancellationToken ct)
     {
         var query = new GetMediaUrlQuery(id, size);
@@ -112,9 +118,6 @@ public class MediaController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> DeleteMedia(Guid id, CancellationToken ct)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -133,6 +136,15 @@ public class MediaController : ControllerBase
         {
             return Forbid(ex.Message);
         }
+    }
+
+    private static bool TryParseResourceType(string? value, out MediaResourceType resourceType)
+    {
+        resourceType = MediaResourceType.Products;
+        if (string.IsNullOrWhiteSpace(value))
+            return true;
+
+        return Enum.TryParse(value, true, out resourceType);
     }
 }
 

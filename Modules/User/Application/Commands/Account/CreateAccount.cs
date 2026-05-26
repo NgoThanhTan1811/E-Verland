@@ -15,10 +15,11 @@ public sealed record CreateAcountCommand(
     string Password
 ) : IRequest<AccountResDto>;
 
-public sealed class CreateAccountHandler(IAccountRepository repo, IUserDbContext db) : IRequestHandler<CreateAcountCommand, AccountResDto>
+public sealed class CreateAccountHandler(IAccountRepository repo, IUserDbContext db, Infra.AWS.CloudWatch.ICloudWatchService cloudWatch) : IRequestHandler<CreateAcountCommand, AccountResDto>
 {
     private readonly IAccountRepository _repo = repo;
     private readonly IUserDbContext _db = db;
+    private readonly Infra.AWS.CloudWatch.ICloudWatchService _cloudWatch = cloudWatch;
 
     public async Task<AccountResDto> Handle(CreateAcountCommand request, CancellationToken ct)
     {
@@ -49,6 +50,7 @@ public sealed class CreateAccountHandler(IAccountRepository repo, IUserDbContext
         try
         {
             await _db.SaveChangesAsync(ct);
+            await _cloudWatch.PutMetricAsync("user.account.created", 1, "Count", ct: ct);
         }
         catch (DbUpdateException)
         {

@@ -9,15 +9,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Modules.Order.Application.Contracts;
-using Modules.Payment.Application.Contracts;
 using Modules.Payment.Application.Commands;
 using Modules.Payment.Application.DTOs.Request;
 using Modules.Payment.Application.DTOs.Response;
 using Modules.Payment.Application.Queries;
 using Modules.Payment.Domain;
 using Modules.Payment.Infrastructure.Services;
-using Modules.Product.Application.Contracts;
 
 namespace Modules.Payment.Api.Controllers;
 
@@ -26,29 +23,21 @@ namespace Modules.Payment.Api.Controllers;
 [Route("api/[controller]")]
 public class PaymentController(
     IMediator mediator,
-    IProductReservationService reservationService,
+    Product.Application.Contracts.IProductReservationService reservationService,
     ICloudWatchService cloudWatch,
     IConfiguration configuration,
     ILogger<PaymentController> logger,
-    IWebhookIdempotencyService webhookIdempotency,
-    ILedgerService ledgerService,
-    ISellerBalanceService sellerBalanceService,
-    IOrderRepository orderRepository) : ControllerBase
+    Application.Contracts.IWebhookIdempotencyService webhookIdempotency) : ControllerBase
 {
     private readonly IMediator _mediator = mediator;
-    private readonly IProductReservationService _reservationService = reservationService;
     private readonly ICloudWatchService _cloudWatch = cloudWatch;
     private readonly IConfiguration _configuration = configuration;
     private readonly ILogger<PaymentController> _logger = logger;
-    private readonly IWebhookIdempotencyService _webhookIdempotency = webhookIdempotency;
-    private readonly ILedgerService _ledgerService = ledgerService;
-    private readonly ISellerBalanceService _sellerBalanceService = sellerBalanceService;
-    private readonly IOrderRepository _orderRepository = orderRepository;
+
+    // ── Commands ─────────────────────────────────────────────────────────────
 
     [Authorize]
     [HttpPost]
-    [ProducesResponseType(typeof(InitiatePaymentResponseDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<InitiatePaymentResponseDto>> InitiatePayment(
         [FromBody] InitiatePaymentRequestDto dto,
         CancellationToken ct)
@@ -60,8 +49,7 @@ public class PaymentController(
                 dto.UserId,
                 dto.Amount,
                 dto.Method,
-                dto.Items.Select(i => new OrderItemDto(i.SkuId, i.Quantity)).ToList()
-            );
+                dto.Items.Select(i => new OrderItemDto(i.SkuId, i.Quantity)).ToList());
 
             var result = await _mediator.Send(command, ct);
             return CreatedAtAction(nameof(GetPaymentById), new { id = result.Id }, result);
@@ -79,71 +67,8 @@ public class PaymentController(
         }
     }
 
-    [Authorize]
-    [HttpGet("{id}")]
-    [ProducesResponseType(typeof(PaymentResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<PaymentResponseDto>> GetPaymentById(Guid id, CancellationToken ct)
-    {
-        try
-        {
-            var query = new GetPaymentByIdQuery(id);
-            var result = await _mediator.Send(query, ct);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-    }
-
-    [Authorize]
-    [HttpGet("payment-order/{orderId}")]
-    [ProducesResponseType(typeof(PaymentResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<PaymentResponseDto>> GetPaymentByOrderId(Guid orderId, CancellationToken ct)
-    {
-        var query = new GetPaymentByOrderIdQuery(orderId);
-        var result = await _mediator.Send(query, ct);
-
-        if (result == null)
-            return NotFound(new { message = "Payment not found for this order" });
-
-        return Ok(result);
-    }
-
-    [Authorize]
-    [HttpGet("payment-code/{code}")]
-    [ProducesResponseType(typeof(PaymentResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<PaymentResponseDto>> GetPaymentByCode(string code, CancellationToken ct)
-    {
-        var query = new GetPaymentByCodeQuery(code);
-        var result = await _mediator.Send(query, ct);
-
-        if (result == null)
-            return NotFound(new { message = "Payment not found" });
-
-        return Ok(result);
-    }
-
-    [Authorize]
-    [HttpGet("payment-user/{userId}")]
-    [ProducesResponseType(typeof(List<PaymentOverviewResponseDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<List<PaymentOverviewResponseDto>>> GetUserPayments(
-        Guid userId,
-        CancellationToken ct)
-    {
-        var query = new GetUserPaymentsQuery(userId);
-        var result = await _mediator.Send(query, ct);
-        return Ok(result);
-    }
-
     [Authorize(Policy = "AdminPolicy")]
     [HttpPatch("payment:{id}/status")]
-    [ProducesResponseType(typeof(PaymentResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<PaymentResponseDto>> UpdatePaymentStatus(
         Guid id,
         [FromBody] UpdatePaymentStatusRequestDto dto,
@@ -165,43 +90,91 @@ public class PaymentController(
         }
     }
 
+    // ── Queries ──────────────────────────────────────────────────────────────
+
+    [Authorize]
+    [HttpGet("{id}")]
+    public async Task<ActionResult<PaymentResponseDto>> GetPaymentById(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var result = await _mediator.Send(new GetPaymentByIdQuery(id), ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    [Authorize]
+    [HttpGet("payment-order/{orderId}")]
+    public async Task<ActionResult<PaymentResponseDto>> GetPaymentByOrderId(Guid orderId, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GetPaymentByOrderIdQuery(orderId), ct);
+        return result is null
+            ? NotFound(new { message = "Payment not found for this order" })
+            : Ok(result);
+    }
+
+    [Authorize]
+    [HttpGet("payment-code/{code}")]
+    public async Task<ActionResult<PaymentResponseDto>> GetPaymentByCode(string code, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GetPaymentByCodeQuery(code), ct);
+        return result is null
+            ? NotFound(new { message = "Payment not found" })
+            : Ok(result);
+    }
+
+    [Authorize]
+    [HttpGet("payment-user/{userId}")]
+    public async Task<ActionResult<List<PaymentOverviewResponseDto>>> GetUserPayments(
+        Guid userId, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GetUserPaymentsQuery(userId), ct);
+        return Ok(result);
+    }
+
+    // ── Webhook ───────────────────────────────────────────────────────────────
+    // Responsibility: verify HMAC signature, parse payload, then delegate to handler.
+    // No business logic lives here.
+
     [AllowAnonymous]
     [HttpPost("webhook/sepay")]
     [DisableRequestSizeLimit]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> SePayWebhook(CancellationToken ct)
     {
         await _cloudWatch.PutMetricAsync("payment.webhook.received", 1, "Count", ct: ct);
 
+        // ── Read raw body for HMAC verification ──────────────────────────────
         Request.EnableBuffering();
         using var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: true);
         var rawBody = await reader.ReadToEndAsync(ct);
         Request.Body.Position = 0;
 
-        var sepayKey = _configuration["Payment:SePay:SecretKey"]
+        // ── Verify HMAC-SHA256 signature ──────────────────────────────────────
+        var sepayKey = _configuration["SePay:Key"]
             ?? Environment.GetEnvironmentVariable("SEPAY_SECRET_KEY")
             ?? Environment.GetEnvironmentVariable("SEPAY_KEY")
             ?? string.Empty;
-
+    
         if (string.IsNullOrWhiteSpace(sepayKey))
         {
             await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-            _logger.LogWarning("Rejected SePay webhook because the signature key is not configured.");
+            _logger.LogWarning("Rejected SePay webhook: signature key not configured");
             return BadRequest(new { message = "SePay signature key is not configured" });
         }
 
-        var keyBytes = Encoding.UTF8.GetBytes(sepayKey);
-        var bodyBytes = Encoding.UTF8.GetBytes(rawBody);
-        var computedHash = HMACSHA256.HashData(keyBytes, bodyBytes);
-        var computedSignature = Convert.ToHexString(computedHash).ToLowerInvariant();
+        var computedSignature = Convert.ToHexString(
+            HMACSHA256.HashData(Encoding.UTF8.GetBytes(sepayKey), Encoding.UTF8.GetBytes(rawBody))
+        ).ToLowerInvariant();
 
         var receivedSignature = Request.Headers["X-SePay-Signature"].ToString().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(receivedSignature))
         {
             await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-            _logger.LogWarning("Rejected SePay webhook because the X-SePay-Signature header is missing.");
+            _logger.LogWarning("Rejected SePay webhook: missing X-SePay-Signature header");
             return BadRequest(new { message = "Missing X-SePay-Signature" });
         }
 
@@ -212,10 +185,11 @@ public class PaymentController(
         if (!signatureValid)
         {
             await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-            _logger.LogWarning("Rejected SePay webhook because the signature is invalid.");
+            _logger.LogWarning("Rejected SePay webhook: invalid signature");
             return BadRequest(new { message = "Invalid signature" });
         }
 
+        // ── Parse payload ─────────────────────────────────────────────────────
         SePayWebhookDto? payload;
         try
         {
@@ -224,212 +198,97 @@ public class PaymentController(
         catch
         {
             await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-            _logger.LogWarning("Rejected SePay webhook because the payload could not be parsed.");
+            _logger.LogWarning("Rejected SePay webhook: payload could not be parsed");
             return BadRequest(new { message = "Invalid payload" });
         }
 
         if (payload is null || string.IsNullOrEmpty(payload.PaymentCode))
         {
             await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-            _logger.LogWarning("Rejected SePay webhook because payment_code was missing.");
+            _logger.LogWarning("Rejected SePay webhook: missing payment_code");
             return BadRequest(new { message = "Missing payment_code" });
-        }
-
-        var idempotencyKey = !string.IsNullOrWhiteSpace(payload.WebhookId)
-            ? payload.WebhookId
-            : payload.PaymentCode;
-
-        if (await _webhookIdempotency.IsProcessedAsync(idempotencyKey, ct))
-        {
-            return Ok(new { success = true });
-        }
-
-        var payment = await _mediator.Send(new GetPaymentByCodeQuery(payload.PaymentCode), ct);
-        if (payment is null)
-        {
-            await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-            return NotFound(new { message = "Payment not found" });
         }
 
         var normalizedStatus = NormalizeTransactionStatus(payload.TransactionStatus);
         if (normalizedStatus is null)
         {
             await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-            _logger.LogWarning("Rejected SePay webhook because transaction_status was unsupported: {TransactionStatus}", payload.TransactionStatus);
-            return BadRequest(new { message = "Unsupported transaction_status. Allowed: success, failed, refunded." });
-        }
-
-        if ((normalizedStatus == "success" && payment.Status == PaymentStatus.Success) ||
-            (normalizedStatus == "failed" && payment.Status == PaymentStatus.Failed) ||
-            (normalizedStatus == "refunded" && payment.Status == PaymentStatus.Refunded))
-        {
-            await _webhookIdempotency.TryMarkAsProcessedAsync(
-                idempotencyKey,
-                payload.PaymentCode,
-                normalizedStatus,
-                ct);
-            return Ok(new { success = true });
-        }
-
-        if (normalizedStatus == "success")
-        {
-            var order = await _orderRepository.GetByIdAsync(payment.OrderId, ct);
-            if (order is not null && order.Status == Modules.Order.Domain.OrderStatus.Canceled)
+            _logger.LogWarning("Rejected SePay webhook: unsupported transaction_status {Status}",
+                payload.TransactionStatus);
+            return BadRequest(new
             {
-                await _ledgerService.RecordIncomingPaymentAsync(
-                    payment.OrderId,
-                    payment.Amount,
-                    "VND",
-                    $"incoming:{idempotencyKey}",
-                    "sepay-webhook",
-                    ct);
-
-                await _ledgerService.RecordIncomingPaymentReversalAsync(
-                    payment.OrderId,
-                    payment.Amount,
-                    "VND",
-                    $"incoming-reversal:{idempotencyKey}",
-                    "sepay-webhook-compensation",
-                    ct);
-
-                await _sellerBalanceService.ReversePendingBalanceAsync(payment.OrderId, "canceled-order-webhook", ct);
-                await _cloudWatch.PutMetricAsync("payment.webhook.compensated", 1, "Count", ct: ct);
-
-                await _webhookIdempotency.TryMarkAsProcessedAsync(
-                    idempotencyKey,
-                    payload.PaymentCode,
-                    "compensated",
-                    ct);
-                return Ok(new { success = true, compensated = true });
-            }
-
-            var incomingPosted = false;
-            try
-            {
-                await _reservationService.ConfirmReservationAsync(payment.Id, ct);
-
-                incomingPosted = await _ledgerService.RecordIncomingPaymentAsync(
-                    payment.OrderId,
-                    payment.Amount,
-                    "VND",
-                    $"incoming:{idempotencyKey}",
-                    "sepay-webhook",
-                    ct);
-
-                var sellerId = payload.SellerId ?? Guid.Empty;
-                var releaseDelayDays = int.TryParse(
-                    _configuration["Payment:Payout:ReleaseDelayDays"],
-                    out var configuredDelayDays)
-                    ? Math.Max(1, configuredDelayDays)
-                    : 3;
-
-                await _sellerBalanceService.EnsurePendingBalanceAsync(
-                    payment.OrderId,
-                    sellerId,
-                    payment.Amount,
-                    "VND",
-                    DateTime.UtcNow.AddDays(releaseDelayDays),
-                    ct);
-
-                await _mediator.Send(new UpdatePaymentStatusCommand(payment.Id, PaymentStatus.Success), ct);
-
-                await _webhookIdempotency.TryMarkAsProcessedAsync(
-                    idempotencyKey,
-                    payload.PaymentCode,
-                    normalizedStatus,
-                    ct);
-                return Ok(new { success = true });
-            }
-            catch (Exception ex)
-            {
-                await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-
-                try
-                {
-                    await _reservationService.ReleaseReservationAsync(payment.Id, ct);
-                    if (incomingPosted)
-                    {
-                        await _ledgerService.RecordIncomingPaymentReversalAsync(
-                            payment.OrderId,
-                            payment.Amount,
-                            "VND",
-                            $"incoming-reversal:{idempotencyKey}",
-                            "sepay-webhook-compensation",
-                            ct);
-                    }
-                    await _sellerBalanceService.ReversePendingBalanceAsync(payment.OrderId, "webhook-success-failure", ct);
-                }
-                catch (Exception compensationEx)
-                {
-                    return StatusCode(StatusCodes.Status500InternalServerError, new
-                    {
-                        code = "PAYMENT_COMPENSATION_FAILED",
-                        message = "Payment processing failed and compensation failed.",
-                        detail = $"{ex.Message} | Compensation: {compensationEx.Message}"
-                    });
-                }
-
-                return BadRequest(new
-                {
-                    code = "PAYMENT_PROCESSING_FAILED",
-                    message = "Payment processing failed and has been compensated.",
-                    detail = ex.Message
-                });
-            }
+                message = "Unsupported transaction_status. Allowed: success, failed, refunded."
+            });
         }
 
-        if (normalizedStatus == "failed")
+        // ── Dispatch to handler ───────────────────────────────────────────────
+        var idempotencyKey = !string.IsNullOrWhiteSpace(payload.WebhookId)
+            ? payload.WebhookId
+            : payload.PaymentCode;
+
+        try
         {
-            await _mediator.Send(new UpdatePaymentStatusCommand(payment.Id, PaymentStatus.Failed), ct);
-            await _reservationService.ReleaseReservationAsync(payment.Id, ct);
-            await _sellerBalanceService.ReversePendingBalanceAsync(payment.OrderId, "payment-failed", ct);
+            var command = new ProcessSePayWebhookCommand(
+                IdempotencyKey: idempotencyKey,
+                PaymentCode: payload.PaymentCode,
+                TransactionStatus: normalizedStatus,
+                Amount: payload.Amount,
+                SellerId: payload.SellerId);
+
+            var result = await _mediator.Send(command, ct);
+            return Ok(new { success = result.Success, compensated = result.Compensated });
         }
-        else if (normalizedStatus == "refunded")
+        catch (KeyNotFoundException ex)
         {
-            await _mediator.Send(new UpdatePaymentStatusCommand(payment.Id, PaymentStatus.Refunded), ct);
-            await _reservationService.ReleaseReservationAsync(payment.Id, ct);
-            await _ledgerService.RecordIncomingPaymentReversalAsync(
-                payment.OrderId,
-                payment.Amount,
-                "VND",
-                $"refund:{idempotencyKey}",
-                "sepay-refund",
-                ct);
-            await _sellerBalanceService.ReversePendingBalanceAsync(payment.OrderId, "payment-refunded", ct);
+            await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
+            return NotFound(new { message = ex.Message });
         }
-
-        await _webhookIdempotency.TryMarkAsProcessedAsync(
-            idempotencyKey,
-            payload.PaymentCode,
-            normalizedStatus,
-            ct);
-
-        return Ok(new { success = true });
+        catch (AggregateException ex)
+        {
+            _logger.LogError(ex, "Webhook processing and compensation both failed for {PaymentCode}",
+                payload.PaymentCode);
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                code = "PAYMENT_COMPENSATION_FAILED",
+                message = "Payment processing failed and compensation also failed.",
+                detail = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
+            _logger.LogError(ex, "Webhook processing failed for {PaymentCode}", payload.PaymentCode);
+            return BadRequest(new
+            {
+                code = "PAYMENT_PROCESSING_FAILED",
+                message = "Payment processing failed and has been compensated.",
+                detail = ex.Message
+            });
+        }
     }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
 
     private static string? NormalizeTransactionStatus(string? status)
     {
-        if (string.IsNullOrWhiteSpace(status))
+        if (string.IsNullOrWhiteSpace(status)) return null;
+        return status.Trim().ToLowerInvariant() switch
         {
-            return null;
-        }
-
-        var normalized = status.Trim().ToLowerInvariant();
-        return normalized switch
-        {
-            "success" => normalized,
-            "failed" => normalized,
-            "refunded" => normalized,
-            _ => null
+            "success"  => "success",
+            "failed"   => "failed",
+            "refunded" => "refunded",
+            _          => null
         };
     }
 }
 
+// ── Webhook payload DTO ───────────────────────────────────────────────────────
+
 public sealed record SePayWebhookDto(
-    [property: JsonPropertyName("webhook_id")] string? WebhookId,
-    [property: JsonPropertyName("payment_code")] string PaymentCode,
-    [property: JsonPropertyName("transaction_status")] string TransactionStatus,
-    [property: JsonPropertyName("transaction_id")] string TransactionId,
-    [property: JsonPropertyName("amount")] decimal Amount,
-    [property: JsonPropertyName("seller_id")] Guid? SellerId
+    [property: JsonPropertyName("webhook_id")]          string?  WebhookId,
+    [property: JsonPropertyName("payment_code")]        string   PaymentCode,
+    [property: JsonPropertyName("transaction_status")]  string   TransactionStatus,
+    [property: JsonPropertyName("transaction_id")]      string   TransactionId,
+    [property: JsonPropertyName("amount")]              decimal  Amount,
+    [property: JsonPropertyName("seller_id")]           Guid?    SellerId
 );

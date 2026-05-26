@@ -19,17 +19,17 @@ namespace Modules.Payment.Infrastructure.Services
             _http = http;
             _logger = logger;
 
-            var apiKey = configuration["Payment:SePay:ApiKey"]
+            var apiKey = configuration["SePay:Api"]
                 ?? Environment.GetEnvironmentVariable("SEPAY_API_KEY")
                 ?? Environment.GetEnvironmentVariable("SEPAY_API")
                 ?? throw new InvalidOperationException("Missing Payment:SePay:ApiKey (or SEPAY_API_KEY environment variable).");
 
-            _baseUrl = configuration["Payment:SePay:BaseUrl"]
+            _baseUrl = configuration["SePay:BaseUrl"]
                 ?? Environment.GetEnvironmentVariable("SEPAY_BASE_URL")
                 ?? "https://my.sepay.vn/userapi";
 
             _maxRetries = int.TryParse(
-                configuration["Payment:SePay:MaxRetries"] ?? Environment.GetEnvironmentVariable("SEPAY_MAX_RETRIES"),
+                configuration["SePay:MaxRetries"] ?? Environment.GetEnvironmentVariable("SEPAY_MAX_RETRIES"),
                 out var retries)
                 ? Math.Max(1, retries)
                 : 3;

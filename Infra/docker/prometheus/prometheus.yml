@@ -1,0 +1,31 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # ── E-Verland backend app (/metrics endpoint via prometheus-net) ──────────
+  - job_name: "e-verland-app"
+    dns_sd_configs:
+      - names:
+          - "app.e-verland.local"
+        type: "A"
+        port: 8080
+    metrics_path: /metrics
+
+  # ── Grafana self-metrics ──────────────────────────────────────────────────
+  - job_name: "grafana"
+    static_configs:
+      - targets: ["grafana.e-verland.local:3000"]
+    metrics_path: /metrics
+
+  # ── Loki self-metrics ─────────────────────────────────────────────────────
+  - job_name: "loki"
+    static_configs:
+      - targets: ["loki.e-verland.local:3100"]
+    metrics_path: /metrics
+
+  # ── Meilisearch self-metrics ──────────────────────────────────────────────
+  - job_name: "meilisearch"
+    static_configs:
+      - targets: ["meilisearch.e-verland.local:7700"]
+    metrics_path: /metrics

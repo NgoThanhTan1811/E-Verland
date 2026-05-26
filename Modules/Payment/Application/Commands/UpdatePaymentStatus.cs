@@ -6,7 +6,6 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Modules.Order.Application.Contracts;
 using Modules.Payment.Application.Contracts;
 using Modules.Payment.Application.DTOs.Response;
 using Modules.Payment.Domain;
@@ -22,7 +21,6 @@ public sealed class UpdatePaymentStatusHandler(
     IPaymentRepository repo,
     IPaymentDbContext db,
     IMapper mapper,
-    IOrderPaymentSyncService orderPaymentSyncService,
     ILogger<UpdatePaymentStatusHandler> logger,
     IConfiguration? configuration = null,
     ISQSService? sqsService = null,
@@ -56,11 +54,8 @@ public sealed class UpdatePaymentStatusHandler(
         try
         {
             await _db.SaveChangesAsync(ct);
-            await orderPaymentSyncService.SyncPaymentAsync(
-                payment.OrderId,
-                payment.Id,
-                payment.Status.ToString(),
-                ct);
+            // Order status sync is handled asynchronously by PaymentStatusConsumer
+            // in the Order module via the PaymentEvents SQS queue — no direct call needed.
             await PublishPaymentStatusEventAsync(payment, request.Status, ct);
         }
         catch (DbUpdateException)

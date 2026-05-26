@@ -9,10 +9,8 @@ namespace Modules.Auth.Infrastructure.Persistence
     {
         public static IServiceCollection AddAuthModule(this IServiceCollection services, IConfiguration configuration)
         {
-            var conn = configuration.GetConnectionString("AuthDb")
-                ?? Environment.GetEnvironmentVariable("AuthDb");
-            if (string.IsNullOrWhiteSpace(conn))
-                throw new InvalidOperationException("Missing connection string for AuthDb.");
+            var conn = configuration["ConnectionStrings:AuthDb"] 
+                    ?? throw new InvalidOperationException("Missing connection string for AuthDb.");
 
             // Register DbContext
             services.AddDbContext<AuthDbContext>(options =>

@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Modules.Redis.Infrastructure;
 
 namespace Modules.Product.Api.Controllers
 {
     [ApiController]
     [Route("api/test")]
+    [Authorize(Policy = "AdminPolicy")]
     public class TestController : ControllerBase
     {
         private readonly ICacheService _cacheService;

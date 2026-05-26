@@ -8,8 +8,16 @@ public sealed class OrderDbContextFactory : IDesignTimeDbContextFactory<OrderDbC
 {
     public OrderDbContext CreateDbContext(string[] args)
     {
+        var configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile("appsettings.json", optional: true)
+            .AddJsonFile("appsettings.Development.json", optional: true)
+            .AddUserSecrets<OrderDbContextFactory>() // Nạp User Secrets của máy local vào đây
+            .AddEnvironmentVariables()
+            .Build();
+
         var conn =
-            Environment.GetEnvironmentVariable("OrderDb")
+            configuration["ConnectionStrings:OrderDb"]
             ?? throw new InvalidOperationException(
                 "Missing env OrderDb (design-time).");
 

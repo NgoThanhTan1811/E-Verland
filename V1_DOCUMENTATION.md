@@ -38,6 +38,8 @@ E-Verland/
 |   +-- Chat/
 |   +-- Notification/
 |   +-- Redis/
+|   +-- Meida/
+|   +-- Dashboard/
 +-- SharedKernel/                # BaseEntity, IRepository, Pagination, Validators
 ```
 

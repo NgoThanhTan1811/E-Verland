@@ -54,6 +54,27 @@ public class MediaStorageService : IMediaStorageService
         }
     }
 
+    public async Task<string> UploadAsync(Stream fileStream, string fileName, string contentType, MediaResourceType resourceType, CancellationToken ct = default)
+    {
+        var extension = Path.GetExtension(fileName);
+        var objectId = Guid.NewGuid().ToString("N");
+        var uniqueFileName = $"{DateTime.UtcNow:yyyyMMddTHHmmssZ}-{Guid.NewGuid():N}{extension}";
+        var pathPrefix = GetPathPrefix(resourceType);
+        var key = $"{pathPrefix}/{objectId}/{uniqueFileName}";
+
+        try
+        {
+            var result = await _storageService.UploadAsync(fileStream, key, contentType, ct);
+            await _cloudWatch.PutMetricAsync("media.upload.success", 1, "Count", ct: ct);
+            return result;
+        }
+        catch
+        {
+            await _cloudWatch.PutMetricAsync("media.upload.failed", 1, "Count", ct: ct);
+            throw;
+        }
+    }
+
     public async Task<string> UploadAtPathAsync(Stream fileStream, string filePath, string contentType, CancellationToken ct = default)
     {
         var result = await _storageService.UploadAsync(fileStream, filePath, contentType, ct);
@@ -80,11 +101,26 @@ public class MediaStorageService : IMediaStorageService
 
     private string GetPathPrefix(string contentType)
     {
-        return contentType.ToLower() switch
+        var ct = contentType.ToLowerInvariant();
+
+        if (ct.StartsWith("image/"))
+            return _storageOptions.AvatarsPrefix;
+
+        if (ct.StartsWith("video/"))
+            return _storageOptions.ProductsPrefix;
+
+        return _storageOptions.ReviewsPrefix;
+    }
+
+    private string GetPathPrefix(MediaResourceType resourceType)
+    {
+        return resourceType switch
         {
-            var ct when ct.StartsWith("image/") => _storageOptions.ProductsPrefix,
-            var ct when ct.StartsWith("video/") => _storageOptions.ProductsPrefix,
-            _ => _storageOptions.ReviewsPrefix
+            MediaResourceType.Products => _storageOptions.ProductsPrefix,
+            MediaResourceType.Avatars => _storageOptions.AvatarsPrefix,
+            MediaResourceType.Shops => _storageOptions.ShopsPrefix,
+            MediaResourceType.Reviews => _storageOptions.ReviewsPrefix,
+            _ => _storageOptions.ProductsPrefix
         };
     }
 }
