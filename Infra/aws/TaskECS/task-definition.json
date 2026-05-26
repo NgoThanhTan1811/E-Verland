@@ -1,0 +1,113 @@
+{
+  "family": "${family}",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "${cpu}",
+  "memory": "${memory}",
+  "executionRoleArn": "${execution_role_arn}",
+  "taskRoleArn": "${task_role_arn}",
+  "containerDefinitions": [
+    {
+      "name": "${container_name}",
+      "image": "${image_uri}",
+      "portMappings": [
+        {
+          "containerPort": 8080,
+          "hostPort": 8080,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        { "name": "ASPNETCORE_ENVIRONMENT", "value": "Production" },
+        { "name": "ASPNETCORE_URLS", "value": "http://+:8080" },
+        { "name": "App__BackendUrl", "value": "${backend_url}" },
+        { "name": "App__FrontendUrl", "value": "${frontend_url}" },
+        { "name": "Domain", "value": "${domain_name}" },
+        { "name": "AWS_REGION", "value": "${aws_region}" },
+        { "name": "Storage__Provider", "value": "S3" },
+        { "name": "Storage__BaseUrl", "value": "${storage_base_url}" },
+        { "name": "AWS__S3__BucketName", "value": "${s3_bucket_name}" },
+        { "name": "AWS__S3__Region", "value": "${s3_region}" },
+        { "name": "AWS__S3__BaseUrl", "value": "${storage_base_url}" },
+        { "name": "AWS__S3__ServiceUrl", "value": "${s3_service_url}" },
+        {
+          "name": "AWS__S3__ForcePathStyle",
+          "value": "${s3_force_path_style}"
+        },
+        {
+          "name": "AWS__SQS__OrderEventsQueueUrl",
+          "value": "${order_events_queue_url}"
+        },
+        {
+          "name": "AWS__SQS__PaymentEventsQueueUrl",
+          "value": "${payment_events_queue_url}"
+        },
+        {
+          "name": "AWS__SQS__ProductSyncQueueUrl",
+          "value": "${product_sync_queue_url}"
+        },
+        {
+          "name": "AWS__SQS__ProductSyncDeadLetterQueueUrl",
+          "value": "${product_sync_dlq_url}"
+        },
+        { "name": "AWS__SQS__MaxReceiveCount", "value": "3" },
+        {
+          "name": "AWS__SNS__NotificationTopicArn",
+          "value": "${notification_events_topic_arn}"
+        },
+        {
+          "name": "AWS__SNS__OrderEventsTopicArn",
+          "value": "${order_events_topic_arn}"
+        },
+        {
+          "name": "AWS__SNS__PaymentEventsTopicArn",
+          "value": "${payment_events_topic_arn}"
+        },
+        {
+          "name": "AWS__SNS__ProductEventsTopicArn",
+          "value": "${product_events_topic_arn}"
+        },
+        {
+          "name": "AWS__EventBridge__EventBusName",
+          "value": "${event_bus_name}"
+        },
+        {
+          "name": "AWS__EventBridge__OrderEventSource",
+          "value": "e-verland.orders"
+        },
+        {
+          "name": "AWS__EventBridge__PaymentEventSource",
+          "value": "e-verland.payments"
+        },
+        {
+          "name": "AWS__EventBridge__ProductEventSource",
+          "value": "e-verland.products"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "ConnectionStrings__DefaultConnection",
+          "valueFrom": "${db_connection_secret_arn}"
+        },
+        { "name": "Jwt__Key", "valueFrom": "${jwt_key_secret_arn}" },
+        {
+          "name": "AWS__S3__AccessKey",
+          "valueFrom": "${s3_access_key_secret_arn}"
+        },
+        {
+          "name": "AWS__S3__SecretKey",
+          "valueFrom": "${s3_secret_key_secret_arn}"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "${log_group_name}",
+          "awslogs-region": "${aws_region}",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

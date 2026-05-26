@@ -6,8 +6,9 @@ using Modules.Chat.Application.Contracts;
 namespace Modules.Chat.Api.Hubs;
 
 [Authorize]
-public class ChatHub(ICloudWatchService cloudWatch, IConversationRepository conversationRepository) : Hub
+public class ChatHub(ICloudWatchService cloudWatch, IConversationRepository conversationRepository, Modules.Chat.Application.Contracts.IMessageRepository messageRepository) : Hub
 {
+    private readonly Modules.Chat.Application.Contracts.IMessageRepository _messageRepository = messageRepository;
     public override async Task OnConnectedAsync()
     {
         await cloudWatch.PutMetricAsync("chat.hub.connected", 1);
@@ -29,9 +30,19 @@ public class ChatHub(ICloudWatchService cloudWatch, IConversationRepository conv
         // For hub-level sends we work with the conversationId directly
         await cloudWatch.PutMetricAsync("chat.message.sent", 1);
 
-        // Broadcast to group
+        // Persist message before broadcasting
+        if (!Guid.TryParse(conversationId, out var convoId))
+            throw new HubException("Invalid conversation id");
+
+        if (!Guid.TryParse(Context.UserIdentifier, out var senderId))
+            throw new HubException("Invalid sender identifier");
+
+        var msg = new Modules.Chat.Domain.Message(convoId, senderId, content);
+        await _messageRepository.AddAsync(msg);
+
+        // Broadcast to group with persisted message timestamp and id
         await Clients.Group(conversationId)
-            .SendAsync("ReceiveMessage", Context.UserIdentifier, content, DateTime.UtcNow);
+            .SendAsync("ReceiveMessage", Context.UserIdentifier, content, msg.SentAtUtc, msg.Id);
     }
 
     /// <summary>

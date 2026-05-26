@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Mail;
+using Microsoft.Extensions.Options;
 
 namespace Modules.Auth.Infrastructure.Services
 {
@@ -13,16 +14,20 @@ namespace Modules.Auth.Infrastructure.Services
     {
         private readonly ILogger<EmailService> _logger;
         private readonly SmtpClient _smtpClient;
+        private readonly IConfiguration _configuration;
+        private readonly SmtpOptions _smtpOptions;
 
-        public EmailService( ILogger<EmailService> logger)
+        public EmailService(ILogger<EmailService> logger, IConfiguration configuration, IOptions<SmtpOptions> smtpOptions)
         {
             _logger = logger;
+            _configuration = configuration;
+            _smtpOptions = smtpOptions.Value;
 
-            var smtpHost = Environment.GetEnvironmentVariable("Email__Smtp__Host");
-            var smtpPort = int.Parse(Environment.GetEnvironmentVariable("Email__Smtp__Port") ?? "587");
-            var smtpUser = Environment.GetEnvironmentVariable("Email__Smtp__UserName");
-            var smtpPassword =  Environment.GetEnvironmentVariable("Email__Smtp__Password");
-            var enableSsl = bool.Parse(Environment.GetEnvironmentVariable("Email__Smtp__SmtpEnableSsl") ?? "true");
+            var smtpHost = _smtpOptions.Host;
+            var smtpPort = _smtpOptions.Port;
+            var smtpUser = _smtpOptions.UserName;
+            var smtpPassword = _smtpOptions.Password;
+            var enableSsl = _smtpOptions.SmtpEnableSsl;
 
             if (string.IsNullOrWhiteSpace(smtpHost)
                 || string.IsNullOrWhiteSpace(smtpUser)
@@ -43,7 +48,7 @@ namespace Modules.Auth.Infrastructure.Services
         {
             try
             {
-                var appName = Environment.GetEnvironmentVariable("Email__Smtp__FromName") ?? "E-Verland";
+                var appName = _configuration["Email:Smtp:FromName"] ?? "E-Verland";
 
                 var htmlBody = $@"
 <!DOCTYPE html>
@@ -155,7 +160,7 @@ namespace Modules.Auth.Infrastructure.Services
         {
             try
             {
-                var senderEmail = Environment.GetEnvironmentVariable("Email__Smtp__UserName");
+                var senderEmail = _smtpOptions.UserName;
 
                 if (string.IsNullOrWhiteSpace(senderEmail))
                 {

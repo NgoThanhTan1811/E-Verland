@@ -13,8 +13,7 @@ public static class CartModuleExtension
     public static IServiceCollection AddCartModule(this IServiceCollection services, IConfiguration configuration)
     {
         // Add DbContext
-        var conn = configuration.GetConnectionString("CartDb")
-                ?? Environment.GetEnvironmentVariable("CartDb")
+        var conn = configuration["ConnectionStrings:CartDb"]
                 ?? throw new InvalidOperationException("Missing ConnectionStrings:CartDb");
 
         services.AddDbContext<CartDbContext>(options =>

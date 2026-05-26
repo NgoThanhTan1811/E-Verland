@@ -41,6 +41,9 @@ namespace Modules.User.Application.Commands
                 request.DateOfBirth
             );
 
+            // Ensure newly created profile has no avatar URL set
+            entity.AvatarUrl = null;
+
             entity.PhoneNumber = request.PhoneNumber?.Trim();
 
             await _repo.CreateAsync(entity, ct);

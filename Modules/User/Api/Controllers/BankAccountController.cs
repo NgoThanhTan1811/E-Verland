@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Modules.User.Application.Commands;
@@ -11,14 +12,12 @@ namespace Modules.User.Api.Controllers;
 [ApiController]
 [EnableRateLimiting("user")]
 [Route("api/profile/{profileId}/[controller]")]
+[Authorize]
 public class BankAccountController(IMediator mediator) : ControllerBase
 {
     private readonly IMediator _mediator = mediator;
 
     [HttpPost]
-    [ProducesResponseType(typeof(BankAccountResDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<BankAccountResDto>> CreateBankAccount(Guid profileId, [FromBody] CreateBankAccountReqDto dto, CancellationToken ct)
     {
         try
@@ -48,8 +47,6 @@ public class BankAccountController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [ProducesResponseType(typeof(BankAccountResDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<BankAccountResDto>> GetBankAccountById(Guid profileId, Guid id, CancellationToken ct)
     {
         try
@@ -65,7 +62,6 @@ public class BankAccountController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(IReadOnlyList<BankAccountResDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<BankAccountResDto>>> GetBankAccountsByProfile(Guid profileId, CancellationToken ct)
     {
         try
@@ -81,10 +77,6 @@ public class BankAccountController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id}")]
-    [ProducesResponseType(typeof(BankAccountResDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<BankAccountResDto>> UpdateBankAccount(Guid profileId, Guid id, [FromBody] UpdateBankAccountReqDto dto, CancellationToken ct)
     {
         try
@@ -119,8 +111,6 @@ public class BankAccountController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteBankAccount(Guid profileId, Guid id, CancellationToken ct)
     {
         try

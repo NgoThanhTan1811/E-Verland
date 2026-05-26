@@ -98,23 +98,25 @@ public sealed class SQSService : ISQSService
 
             var response = await AwsRetryPolicy.ExecuteAsync(() => _sqsClient.ReceiveMessageAsync(request, ct), 3, ct);
 
-            var messages = response.Messages.Select(msg =>
-            {
-                var body = JsonSerializer.Deserialize<T>(msg.Body)!;
-                var receiveCount = int.TryParse(msg.Attributes.GetValueOrDefault("ApproximateReceiveCount"), out var rc) ? rc : 1;
-                var sentTimestampRaw = msg.Attributes.GetValueOrDefault("SentTimestamp");
-                var sentTimestamp = long.TryParse(sentTimestampRaw, out var ts)
-                    ? DateTimeOffset.FromUnixTimeMilliseconds(ts).DateTime
-                    : DateTime.UtcNow;
+            var rawMessages = response.Messages ?? [];
 
-                return new SQSMessage<T>(
-                    msg.MessageId,
-                    msg.ReceiptHandle,
-                    body,
-                    receiveCount,
-                    sentTimestamp
-                );
-            }).ToList();
+            var messages = rawMessages.Select(msg =>
+         {
+             var body = JsonSerializer.Deserialize<T>(msg.Body)!;
+             var receiveCount = int.TryParse(msg.Attributes.GetValueOrDefault("ApproximateReceiveCount"), out var rc) ? rc : 1;
+             var sentTimestampRaw = msg.Attributes.GetValueOrDefault("SentTimestamp");
+             var sentTimestamp = long.TryParse(sentTimestampRaw, out var ts)
+                 ? DateTimeOffset.FromUnixTimeMilliseconds(ts).DateTime
+                 : DateTime.UtcNow;
+
+             return new SQSMessage<T>(
+                 msg.MessageId,
+                 msg.ReceiptHandle,
+                 body,
+                 receiveCount,
+                 sentTimestamp
+             );
+         }).ToList();
 
             _logger.LogDebug(
                 "Received {Count} messages from SQS queue {QueueUrl}",
@@ -124,6 +126,14 @@ public sealed class SQSService : ISQSService
         }
         catch (Exception ex)
         {
+            // Nếu lỗi do hệ thống chủ động hủy Task (ví dụ dừng app), chỉ LogInformation hoặc bỏ qua
+            if (ex is OperationCanceledException || ex is TaskCanceledException)
+            {
+                _logger.LogInformation("SQS message receiving was canceled or timed out gracefully for queue {QueueUrl}.", queueUrl);
+                if (ct.IsCancellationRequested) throw; 
+                return []; 
+            }
+
             _logger.LogError(ex, "Failed to receive messages from SQS queue {QueueUrl}", queueUrl);
             throw;
         }

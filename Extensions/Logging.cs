@@ -1,6 +1,7 @@
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Compact;
+using Serilog.Sinks.Grafana.Loki;
 
 namespace EVerland.Extentions;
 
@@ -13,7 +14,23 @@ public static class LoggingExtension
 
         var loggerConfiguration = new LoggerConfiguration()
             .ReadFrom.Configuration(builder.Configuration)
-            .WriteTo.Console(new RenderedCompactJsonFormatter());
+            .WriteTo.Console(
+                restrictedToMinimumLevel: LogEventLevel.Warning, 
+                outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}" 
+            );
+
+        var lokiUrl = builder.Configuration["Logging:Loki:Url"] ?? builder.Configuration["LOKI_URL"];
+
+        if (!string.IsNullOrWhiteSpace(lokiUrl))
+        {
+            loggerConfiguration.WriteTo.GrafanaLoki(
+                lokiUrl,
+                labels:
+                [
+                    new LokiLabel { Key = "app", Value = "e-verland" },
+                    new LokiLabel { Key = "env", Value = builder.Environment.EnvironmentName }
+                ]);
+        }
 
         if (options.Enabled)
         {

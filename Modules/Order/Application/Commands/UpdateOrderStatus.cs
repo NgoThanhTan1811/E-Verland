@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Modules.Order.Application.Contracts;
 using Modules.Order.Application.DTOs.Response;
 using Modules.Order.Domain;
+using SharedKernel.Events;
 
 namespace Modules.Order.Application.Commands;
 
@@ -57,6 +58,7 @@ public sealed class UpdateOrderStatusHandler(
         {
             await _db.SaveChangesAsync(ct);
             await PublishOrderStatusEventAsync(order, request.Status, ct);
+            await PublishShippingRequestAsync(order, request.Status, ct);
         }
         catch (DbUpdateException)
         {
@@ -134,6 +136,41 @@ public sealed class UpdateOrderStatusHandler(
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to publish order status event {EventType} for order {OrderId}", eventType, order.Id);
+        }
+    }
+
+    private async Task PublishShippingRequestAsync(Domain.Order order, OrderStatus status, CancellationToken ct)
+    {
+        if (_configuration == null || _sqsService == null)
+        {
+            return;
+        }
+
+        if (status is not (OrderStatus.Confirmed or OrderStatus.Canceled))
+        {
+            return;
+        }
+
+        var queueUrl = _configuration["AWS:SQS:ShippingDraftQueueUrl"]
+            ?? _configuration["SQS:ShippingDraftQueueUrl"]
+            ?? Environment.GetEnvironmentVariable("AWS_SQS_SHIPPING_DRAFT_QUEUE_URL");
+
+        if (string.IsNullOrWhiteSpace(queueUrl))
+        {
+            return;
+        }
+
+        object evt = status == OrderStatus.Confirmed
+            ? new ShippingActivationRequested(order.Id)
+            : new ShippingCancelRequested(order.Id, "Order canceled");
+
+        try
+        {
+            await _sqsService.SendMessageAsync(queueUrl, evt, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to publish shipping request for order {OrderId}", order.Id);
         }
     }
 

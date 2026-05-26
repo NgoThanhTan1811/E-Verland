@@ -11,8 +11,7 @@ public static class UserModule
 {
     public static IServiceCollection AddUserModule(this IServiceCollection services, IConfiguration configuration)
     {
-        var conn = configuration.GetConnectionString("UserDb")
-                 ?? Environment.GetEnvironmentVariable("UserDb")
+        var conn = configuration["ConnectionStrings:UserDb"]
              ?? throw new InvalidOperationException("Missing ConnectionStrings:UserDb");
 
         services.AddDbContext<UserDbContext>(options =>

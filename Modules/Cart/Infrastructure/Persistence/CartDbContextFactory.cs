@@ -9,15 +9,21 @@ public sealed class CartDbContextFactory : IDesignTimeDbContextFactory<CartDbCon
 {
     public CartDbContext CreateDbContext(string[] args)
     {
+        var configuration = new ConfigurationBuilder()
+           .SetBasePath(Directory.GetCurrentDirectory())
+           .AddJsonFile("appsettings.json", optional: true)
+           .AddJsonFile("appsettings.Development.json", optional: true)
+           .AddUserSecrets<CartDbContextFactory>() 
+           .AddEnvironmentVariables()
+           .Build();
+
         var conn =
-            Environment.GetEnvironmentVariable("CartDb")
+            configuration["ConnectionStrings:CartDb"]
             ?? throw new InvalidOperationException(
                 "Missing env CartDb (design-time).");
 
         var optionsBuilder = new DbContextOptionsBuilder<CartDbContext>();
         optionsBuilder.ConfigureNpgsql(conn, typeof(CartDbContext).Assembly.GetName().Name!);
-        var options = optionsBuilder.Options;
-
-        return new CartDbContext(options);
+        return new CartDbContext(optionsBuilder.Options);
     }
 }

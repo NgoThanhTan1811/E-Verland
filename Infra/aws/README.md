@@ -117,15 +117,11 @@ Use these environment variables when you do not store secrets in appsettings fil
 - `AWS_SNS_ORDER_EVENTS_TOPIC_ARN`
 - `AWS_SNS_PAYMENT_EVENTS_TOPIC_ARN`
 - `AWS_SNS_PRODUCT_EVENTS_TOPIC_ARN`
-- `STORAGE_PROVIDER` (`MinIO` or `S3`)
-
-When `STORAGE_PROVIDER=MinIO`:
-
-- `MINIO_ENDPOINT`
-- `MINIO_ACCESS_KEY`
-- `MINIO_SECRET_KEY`
-- `MINIO_BUCKET_NAME`
-
-When `STORAGE_PROVIDER=S3`:
-
-- `AWS:S3:BucketName` from appsettings or `AWS_S3_BUCKET_NAME` if you add custom mapping in your deployment environment.
+- `STORAGE_PROVIDER` (`S3` for R2-compatible deployments)
+- `AWS_S3_BUCKET_NAME`
+- `AWS_S3_BASE_URL`
+- `AWS_S3_SERVICE_URL`
+- `AWS_S3_ACCESS_KEY_ID`
+- `AWS_S3_SECRET_ACCESS_KEY`
+- `AWS_S3_FORCE_PATH_STYLE`
+- `AWS_REGION`

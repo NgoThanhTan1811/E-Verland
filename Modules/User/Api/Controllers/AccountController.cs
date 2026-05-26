@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Modules.User.Application.Commands;
@@ -13,14 +14,13 @@ namespace Modules.User.Api.Controllers;
 [ApiController]
 [EnableRateLimiting("user")]
 [Route("api/[controller]")]
+[Authorize]
 public class AccountController(IMediator mediator) : ControllerBase
 {
     private readonly IMediator _mediator = mediator;
 
     [HttpPost]
-    [ProducesResponseType(typeof(AccountResDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [Authorize(Policy = "AdminPolicy")]
     public async Task<ActionResult<AccountResDto>> CreateAccount([FromBody] CreateAccountReqDto dto, CancellationToken ct)
     {
         try
@@ -40,8 +40,7 @@ public class AccountController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [ProducesResponseType(typeof(AccountResDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Authorize(Policy = "AdminPolicy")]
     public async Task<ActionResult<AccountResDto>> GetAccountById(Guid id, CancellationToken ct)
     {
         try
@@ -57,8 +56,7 @@ public class AccountController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("email/{email}")]
-    [ProducesResponseType(typeof(AccountResDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Authorize(Policy = "AdminPolicy")]
     public async Task<ActionResult<AccountResDto>> GetAccountByEmail(string email, CancellationToken ct)
     {
         try
@@ -74,8 +72,7 @@ public class AccountController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("username/{username}")]
-    [ProducesResponseType(typeof(AccountResDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Authorize(Policy = "AdminPolicy")]
     public async Task<ActionResult<AccountResDto>> GetAccountByUsername(string username, CancellationToken ct)
     {
         try
@@ -91,7 +88,7 @@ public class AccountController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(PageResult<AccountResDto>), StatusCodes.Status200OK)]
+    [Authorize(Policy = "AdminPolicy")]
     public async Task<ActionResult<PageResult<AccountResDto>>> GetAccounts([FromQuery] AccountFilter filter, CancellationToken ct)
     {
         try
@@ -107,10 +104,7 @@ public class AccountController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id}")]
-    [ProducesResponseType(typeof(AccountResDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    [Authorize(Policy = "AdminPolicy")]
     public async Task<ActionResult<AccountResDto>> UpdateAccount(Guid id, [FromBody] UpdateAccountReqDto dto, CancellationToken ct)
     {
         try
@@ -138,8 +132,7 @@ public class AccountController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [Authorize(Policy = "AdminPolicy")]
     public async Task<IActionResult> DeleteAccount(Guid id, CancellationToken ct)
     {
         try

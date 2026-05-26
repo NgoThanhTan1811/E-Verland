@@ -71,8 +71,7 @@ namespace Modules.Auth.Application.Services
 
         private byte[] GetJwtKey()
         {
-            var rawKey = Environment.GetEnvironmentVariable("JWT_KEY")?.Split('\n', '\r')[0].Trim()
-                ?? _configuration["Jwt:Key"];
+            var rawKey =  _configuration["Jwt:Key"];
 
             if (string.IsNullOrWhiteSpace(rawKey))
                 throw new InvalidOperationException("JWT Key is not configured.");
@@ -82,16 +81,13 @@ namespace Modules.Auth.Application.Services
 
         private string GetJwtIssuer()
         {
-            return Environment.GetEnvironmentVariable("JWT_ISSUER")
-                ?? _configuration["Jwt:Issuer"]
-                ?? "E-Verland";
+            return _configuration["Jwt:Issuer"]!;
         }
 
         private string GetJwtAudience()
         {
-            return Environment.GetEnvironmentVariable("JWT_AUDIENCE")
-                ?? _configuration["Jwt:Audience"]
-                ?? "E-Verland";
+            return _configuration["Jwt:Audience"]!;
+               
         }
 
         private int GetIntSetting(string key, int fallback)

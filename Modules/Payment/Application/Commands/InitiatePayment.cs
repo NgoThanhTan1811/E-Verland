@@ -9,12 +9,11 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Modules.Order.Application.Contracts;
 using Modules.Payment.Application.Contracts;
 using Modules.Payment.Application.Helpers;
 using Modules.Payment.Domain;
 using Modules.Payment.Infrastructure.Persistence;
-using Modules.Product.Application.Contracts;
+using SharedKernel.Events;
 
 namespace Modules.Payment.Application.Commands;
 
@@ -38,11 +37,9 @@ public sealed record InitiatePaymentResponseDto(
 public sealed class InitiatePaymentHandler(
     IPaymentRepository repo,
     PaymentDbContext paymentDbContext,
-    IProductReservationService reservationService,
     ISePayClient sePayClient,
     ICloudWatchService cloudWatch,
     ILogger<InitiatePaymentHandler> logger,
-    IOrderPaymentSyncService orderPaymentSyncService,
     IConfiguration? configuration = null,
     ISQSService? sqsService = null,
     ISNSService? snsService = null,
@@ -58,6 +55,13 @@ public sealed class InitiatePaymentHandler(
     public async Task<InitiatePaymentResponseDto> Handle(InitiatePaymentCommand request, CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
+        if (request.Amount <= 0)
+            throw new ArgumentException("Payment amount must be greater than 0");
+
+        if (request.Items == null || request.Items.Count == 0)
+            throw new ArgumentException("Payment requires at least one item");
+
+        var paymentAmount = request.Amount;
 
         // Idempotency check
         var existing = await repo.GetByOrderIdAsync(request.OrderId, ct);
@@ -69,7 +73,7 @@ public sealed class InitiatePaymentHandler(
             Code = PaymentCodeHelper.Generate(),
             OrderId = request.OrderId,
             UserId = request.UserId,
-            Amount = request.Amount,
+            Amount = paymentAmount,
             Method = request.Method,
             Status = PaymentStatus.Pending
         };
@@ -80,13 +84,28 @@ public sealed class InitiatePaymentHandler(
         AWSXRayRecorder.Instance.BeginSubsegment("Payment.DB");
         try
         {
-            // Reserve stock before persisting
-            await reservationService.ReserveStockAsync(
-                request.OrderId,
-                payment.Id,
-                request.Items.Select(i => (i.SkuId, i.Quantity)),
-                ct);
-            stockReserved = true;
+            // Publish stock reservation request to the Product module via SQS
+            try
+            {
+                if (_sqsService != null)
+                {
+                    var queueUrl = _configuration?["AWS:SQS:StockReserveQueueUrl"]
+                        ?? _configuration?["SQS:StockReserveQueueUrl"]
+                        ?? Environment.GetEnvironmentVariable("AWS_SQS_STOCK_RESERVE_QUEUE_URL");
+
+                    if (!string.IsNullOrWhiteSpace(queueUrl))
+                    {
+                        var items = request.Items.Select(i => (i.SkuId, i.Quantity)).ToList();
+                        var evt = new StockReserveRequested(payment.Id, request.OrderId, items, DateTime.UtcNow);
+                        await _sqsService.SendMessageAsync(queueUrl, evt, ct);
+                        stockReserved = true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to publish StockReserveRequested for order {OrderId}", request.OrderId);
+            }
 
             await using var tx = await _paymentDbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
             try
@@ -106,11 +125,6 @@ public sealed class InitiatePaymentHandler(
 
                 await _paymentDbContext.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
-                await orderPaymentSyncService.SyncPaymentAsync(
-                    payment.OrderId,
-                    payment.Id,
-                    payment.Status.ToString(),
-                    ct);
             }
             catch (Exception ex)
             {
@@ -123,16 +137,25 @@ public sealed class InitiatePaymentHandler(
             Exception? compensationError = null;
             try
             {
-                if (stockReserved)
+                if (stockReserved && _sqsService != null)
                 {
-                    await reservationService.ReleaseReservationAsync(payment.Id, ct);
-                }
+                    try
+                    {
+                        var queueUrl = _configuration?["AWS:SQS:StockReleaseQueueUrl"]
+                            ?? _configuration?["SQS:StockReleaseQueueUrl"]
+                            ?? Environment.GetEnvironmentVariable("AWS_SQS_STOCK_RELEASE_QUEUE_URL");
 
-                await orderPaymentSyncService.SyncPaymentAsync(
-                    payment.OrderId,
-                    payment.Id,
-                    PaymentStatus.Pending.ToString(),
-                    ct);
+                        if (!string.IsNullOrWhiteSpace(queueUrl))
+                        {
+                            var releaseEvt = new StockReleaseRequested(payment.Id, payment.OrderId, DateTime.UtcNow);
+                            await _sqsService.SendMessageAsync(queueUrl, releaseEvt, ct);
+                        }
+                    }
+                    catch (Exception compEx)
+                    {
+                        logger.LogWarning(compEx, "Failed to publish StockReleaseRequested for payment {PaymentId}", payment.Id);
+                    }
+                }
             }
             catch (Exception compEx)
             {

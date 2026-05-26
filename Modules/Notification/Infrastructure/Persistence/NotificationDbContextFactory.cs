@@ -8,8 +8,16 @@ public sealed class NotificationDbContextFactory : IDesignTimeDbContextFactory<N
 {
     public NotificationDbContext CreateDbContext(string[] args)
     {
+        var configuration = new ConfigurationBuilder()
+           .SetBasePath(Directory.GetCurrentDirectory())
+           .AddJsonFile("appsettings.json", optional: true)
+           .AddJsonFile("appsettings.Development.json", optional: true)
+           .AddUserSecrets<NotificationDbContextFactory>() // Nạp User Secrets của máy local vào đây
+           .AddEnvironmentVariables()
+           .Build(); 
+
         var conn =
-            Environment.GetEnvironmentVariable("NotificationDb")
+            configuration["ConnectionStrings:NotificationDb"]
             ?? throw new InvalidOperationException(
                 "Missing env NotificationDb (design-time).");
 

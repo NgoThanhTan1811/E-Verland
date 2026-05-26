@@ -1,0 +1,37 @@
+# Copy this file to terraform.tfvars and fill in the values.
+# Do NOT commit terraform.tfvars to version control — add it to .gitignore.
+
+# ─── AWS & Infrastructure ─────────────────────────────────────────────────────
+project_name         = "e-verland"
+aws_region           = "ap-southeast-1"
+domain_name          = "your-domain"
+cloudflare_api_token = "YOUR_CLOUDFLARE_API_TOKEN_HERE"
+
+# ─── Application URLs ─────────────────────────────────────────────────────────
+backend_url  = "https://api.your-domain"
+frontend_url = "https://your-domain"
+
+# ─── Storage: Cloudflare R2 (S3-compatible) ───────────────────────────────────
+# R2 endpoint format: https://<r2_account_id>.r2.cloudflarestorage.com
+r2_account_id       = "YOUR_R2_ACCOUNT_ID"
+storage_base_url    = "https://pub-XXXX.r2.dev"          # R2 public bucket URL
+s3_bucket_name      = "e-verland-media"
+s3_region           = "auto"                              # R2 uses "auto"
+s3_service_url      = "https://YOUR_R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+s3_force_path_style = true
+
+# ─── HTTPS / ACM ──────────────────────────────────────────────────────────────
+# Certificate must be in the same region as the ALB (ap-southeast-1)
+acm_certificate_arn = "arn:aws:acm:ap-southeast-1:ACCOUNT_ID:certificate/YOUR_CERT_ID"
+
+# ─── ECS / Fargate ────────────────────────────────────────────────────────────
+container_image = "ACCOUNT_ID.dkr.ecr.ap-southeast-1.amazonaws.com/e-verland-backend:latest"
+desired_count   = 2
+ecs_cpu         = 1024
+ecs_memory      = 2048
+
+# ─── AWS Secrets Manager ARNs ─────────────────────────────────────────────────
+# Create these secrets in AWS Secrets Manager before running terraform apply.
+app_secrets_arn = "arn:aws:secretsmanager:ap-southeast-1:ACCOUNT_ID:secret:e-verland/production-secrets"
+app_secrets_ssm_arn = "arn:aws:ssm:ap-southeast-1:ACCOUNT_ID:parameter/e-verland/production-secrets"
+

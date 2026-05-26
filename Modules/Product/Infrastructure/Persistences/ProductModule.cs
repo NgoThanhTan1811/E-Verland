@@ -14,8 +14,7 @@ public static class ProductModuleExtension
     public static IServiceCollection AddProductModule(this IServiceCollection services, IConfiguration configuration)
     {
         // Add DbContext
-        var conn = configuration.GetConnectionString("ProductDb")
-                ?? Environment.GetEnvironmentVariable("ProductDb")
+        var conn = configuration["ConnectionStrings:ProductDb"]
                 ?? throw new InvalidOperationException("Missing ConnectionStrings:ProductDb");
 
         services.AddDbContext<ProductDbContext>(options =>
@@ -31,6 +30,7 @@ public static class ProductModuleExtension
         services.AddScoped<SKUGeneratorService>();
         services.AddScoped<IProductReservationService, ProductReservationService>();
         services.AddHostedService<StockReservationExpiryService>();
+        services.AddHostedService<Modules.Product.Infrastructure.Consumers.StockReserveConsumer>();
 
         // Add Infrastructure Services
         services.AddScoped<IProductSyncPublisher, ProductSyncPublisher>();

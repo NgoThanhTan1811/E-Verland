@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - main
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      infra: ${{ steps.filter.outputs.infra }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'Host/**'
+              - 'Modules/**'
+              - 'SharedKernel/**'
+              - 'Extensions/**'
+              - 'Infra/aws/**'
+              - 'Infra/third-party/**'
+            infra:
+              - 'Infra/terraform/**'
+              - 'Infra/docker/**'
+
+  infra-validate:
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Format Check
+        run: terraform -chdir=Infra/terraform fmt -check -recursive
+
+      - name: Terraform Init (no backend)
+        run: terraform -chdir=Infra/terraform init -backend=false
+
+      - name: Terraform Validate
+        run: terraform -chdir=Infra/terraform validate
+
+  test:
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.x
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ hashFiles('**/*.csproj') }}
+          restore-keys: nuget-
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build E-Verland.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test Tests/Tests.csproj -c Release --no-build --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: "**/*.trx"
+
+      - name: Docker build smoke test
+        run: docker build -f Infra/docker/dockerfile -t e-verland-ci .

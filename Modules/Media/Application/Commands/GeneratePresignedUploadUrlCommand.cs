@@ -7,7 +7,7 @@ using Modules.Media.Infrastructure.Options;
 namespace Modules.Media.Application.Commands;
 
 public sealed record GeneratePresignedUploadUrlCommand(
-    string ResourceType,
+    MediaResourceType ResourceType,
     string ObjectId,
     string FileName,
     string ContentType,
@@ -24,14 +24,6 @@ public sealed record GeneratePresignedUploadUrlResult(
 
 public sealed class GeneratePresignedUploadUrlHandler : IRequestHandler<GeneratePresignedUploadUrlCommand, GeneratePresignedUploadUrlResult>
 {
-    private static readonly HashSet<string> AllowedResourceTypes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "products",
-        "avatars",
-        "shops",
-        "reviews"
-    };
-
     private readonly IMediaStorageService _storageService;
     private readonly IMediaFileRepository _repository;
     private readonly MediaOptions _mediaOptions;
@@ -48,9 +40,6 @@ public sealed class GeneratePresignedUploadUrlHandler : IRequestHandler<Generate
 
     public async Task<GeneratePresignedUploadUrlResult> Handle(GeneratePresignedUploadUrlCommand request, CancellationToken ct)
     {
-        if (!AllowedResourceTypes.Contains(request.ResourceType))
-            throw new InvalidOperationException("Invalid resource type. Allowed: products, avatars, shops, reviews.");
-
         var inferredType = InferMediaType(request.ContentType);
         if (inferredType != request.MediaType)
             throw new InvalidOperationException("Declared mediaType does not match ContentType.");
@@ -59,7 +48,7 @@ public sealed class GeneratePresignedUploadUrlHandler : IRequestHandler<Generate
         if (string.IsNullOrWhiteSpace(extension))
             throw new InvalidOperationException("FileName must include extension.");
 
-        var key = $"{request.ResourceType}/{request.ObjectId}/{DateTime.UtcNow:yyyyMMddTHHmmssZ}-{Guid.NewGuid():N}{extension}";
+        var key = $"{ToResourcePath(request.ResourceType)}/{request.ObjectId}/{DateTime.UtcNow:yyyyMMddTHHmmssZ}-{Guid.NewGuid():N}{extension}";
         var expiresMinutes = Math.Clamp(_mediaOptions.PresignedUrlExpirationMinutes, 5, 10);
         var url = await _storageService.GetPresignedUrlAsync(key, expiresMinutes, ct);
 
@@ -93,5 +82,17 @@ public sealed class GeneratePresignedUploadUrlHandler : IRequestHandler<Generate
             return MediaType.Video;
 
         throw new InvalidOperationException("Unsupported content type. Only image/* or video/* are accepted.");
+    }
+
+    private static string ToResourcePath(MediaResourceType resourceType)
+    {
+        return resourceType switch
+        {
+            MediaResourceType.Products => "products",
+            MediaResourceType.Avatars => "avatars",
+            MediaResourceType.Shops => "shops",
+            MediaResourceType.Reviews => "reviews",
+            _ => "products"
+        };
     }
 }

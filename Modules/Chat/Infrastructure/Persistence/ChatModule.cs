@@ -8,12 +8,9 @@ public static class ChatModuleExtension
 {
     public static IServiceCollection AddChatModule(this IServiceCollection services, IConfiguration configuration)
     {
-        // Read MongoDB connection string
-        var connectionString =
-            configuration["MongoDB:ChatConnectionString"]
-            ?? Environment.GetEnvironmentVariable("ChatDb")
-            ?? throw new InvalidOperationException(
-                "Missing MongoDB connection string. Set 'MongoDB:ChatConnectionString' in configuration or 'MONGODB_CHAT_CONNECTION_STRING' environment variable.");
+        var connectionString = configuration["ConnectionStrings:ChatDb"]
+         ?? throw new InvalidOperationException(
+            "Missing MongoDB connection string. Set 'MongoDB:ChatConnectionString' in configuration or 'MONGODB_CHAT_CONNECTION_STRING' environment variable.");
 
         // Register IMongoClient as singleton
         services.AddSingleton<IMongoClient>(_ => new MongoClient(connectionString));

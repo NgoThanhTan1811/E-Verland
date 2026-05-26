@@ -9,8 +9,16 @@ public sealed class PaymentDbContextFactory : IDesignTimeDbContextFactory<Paymen
 {
     public PaymentDbContext CreateDbContext(string[] args)
     {
+        var configuration = new ConfigurationBuilder()
+           .SetBasePath(Directory.GetCurrentDirectory())
+           .AddJsonFile("appsettings.json", optional: true)
+           .AddJsonFile("appsettings.Development.json", optional: true)
+           .AddUserSecrets<PaymentDbContextFactory>() // Nạp User Secrets của máy local vào đây
+           .AddEnvironmentVariables()
+           .Build();
+           
         var conn =
-            Environment.GetEnvironmentVariable("PaymentDb")
+            configuration["ConnectionStrings:PaymentDb"]
             ?? throw new InvalidOperationException(
                 "Missing env PaymentDb (design-time).");
 

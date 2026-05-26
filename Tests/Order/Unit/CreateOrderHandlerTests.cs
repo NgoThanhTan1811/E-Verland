@@ -1,5 +1,4 @@
 using Amazon.XRay.Recorder.Core;
-using AutoMapper;
 using Infra.AWS.CloudWatch;
 using Microsoft.Extensions.Logging.Abstractions;
 using Modules.Order.Application.Commands;
@@ -21,7 +20,6 @@ public class CreateOrderHandlerTests
         var repo = Substitute.For<IOrderRepository>();
         var db = Substitute.For<IOrderDbContext>();
         var productService = Substitute.For<IProductService>();
-        var mapper = Substitute.For<IMapper>();
         var cloudWatch = Substitute.For<ICloudWatchService>();
 
         repo.CodeExistsAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns(false);
@@ -30,15 +28,28 @@ public class CreateOrderHandlerTests
         cloudWatch.PutMetricAsync(Arg.Any<string>(), Arg.Any<double>(), Arg.Any<string>(),
             Arg.Any<Dictionary<string, string>>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
-        var handler = new CreateOrderHandler(repo, db, productService, mapper, cloudWatch,
+        var handler = new CreateOrderHandler(repo, db, productService, cloudWatch,
             NullLogger<CreateOrderHandler>.Instance);
         return (handler, repo, db, productService, cloudWatch);
     }
 
+    private static ShippingAddressRequestDto ValidAddress() =>
+        new("123 Main St", 1442, "W001", "Ward", "District", "Province");
+
     private static CreateOrderCommand ValidCommand(Guid? userId = null) =>
         new(
             userId ?? Guid.NewGuid(),
-            new ReceiverRequestDto("John Doe", "0123456789", "123 Main St"),
+            ValidAddress(),
+            new ReceiverRequestDto("John Doe", "0123456789"),
+            1000,
+            20,
+            15,
+            10,
+            null,
+            null,
+            null,
+            null,
+            null,
             PaymentMethod.COD,
             null,
             [new CreateOrderItemRequestDto(Guid.NewGuid(), Guid.NewGuid(), 2)]
@@ -77,7 +88,17 @@ public class CreateOrderHandlerTests
         var (handler, _, _, _, _) = BuildHandler();
         var command = new CreateOrderCommand(
             Guid.NewGuid(),
-            new ReceiverRequestDto("Jane", "0987654321", "456 Elm St"),
+            new ShippingAddressRequestDto("456 Elm St", 1442, "W002", "Ward", "District", "Province"),
+            new ReceiverRequestDto("Jane", "0987654321"),
+            1000,
+            20,
+            15,
+            10,
+            null,
+            null,
+            null,
+            null,
+            null,
             PaymentMethod.COD,
             null,
             []

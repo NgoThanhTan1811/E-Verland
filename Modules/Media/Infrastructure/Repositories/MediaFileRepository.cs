@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Modules.Media.Application.Interfaces;
 using Modules.Media.Domain;
-using Modules.Media.Infrastructure.Data;
+using Modules.Media.Infrastructure.Persistence;
 
 namespace Modules.Media.Infrastructure.Repositories;
 
