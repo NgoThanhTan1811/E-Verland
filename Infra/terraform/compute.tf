@@ -206,9 +206,12 @@ locals {
         { name = "ConnectionStrings__NotificationDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__NotificationDb::" },
         { name = "ConnectionStrings__MediaDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__MediaDb::" },
         { name = "ConnectionStrings__ShippingDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__ShippingDb::" },
-        { name = "ConnectionStrings__ChatModule", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__MongoChatDb::" },
         { name = "ConnectionStrings__Redis__URL", valueFrom = "${var.app_secrets_arn}:Redis__URL::" },
         { name = "ConnectionStrings__Redis__Password", valueFrom = "${var.app_secrets_arn}:Redis__Password::" },
+        { name = "MongoDB__Host", valueFrom = "${var.app_secrets_arn}:MongoDB__Host::" },
+        { name = "MongoDB__User", valueFrom = "${var.app_secrets_arn}:MongoDB__User::" },
+        { name = "MongoDB__Password", valueFrom = "${var.app_secrets_arn}:MongoDB__Password::" },
+        { name = "MongoDB__AppName", valueFrom = "${var.app_secrets_arn}:MongoDB__AppName::" },
         # Các biến nhạy cảm khác
         { name = "Email__Smtp__Username", valueFrom = "${var.app_secrets_arn}:Email__Smtp__Username::" },
         { name = "Email__Smtp__Password", valueFrom = "${var.app_secrets_arn}:Email__Smtp__Password::" },
@@ -219,6 +222,7 @@ locals {
         { name = "GHN__Token", valueFrom = "${var.app_secrets_arn}:GHN__Token::" },
         { name = "GHN__ShopId", valueFrom = "${var.app_secrets_arn}:GHN__ShopId::" },
         { name = "GHN__ApiUrl", valueFrom = "${var.app_secrets_arn}:GHN__ApiUrl::" },
+
 
       ]
 
