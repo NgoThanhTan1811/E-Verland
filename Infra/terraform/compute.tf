@@ -117,7 +117,7 @@ resource "aws_lb_listener" "http" {
 
 // Khai báo Data Source để Terraform tự đi tìm Certificate đã tạo
 data "aws_acm_certificate" "e_verland_cert" {
-  domain   = "*.${var.domain_name}"
+  domain   = "*.e-verland.site"
   statuses = ["ISSUED"]
   most_recent = true
 }
