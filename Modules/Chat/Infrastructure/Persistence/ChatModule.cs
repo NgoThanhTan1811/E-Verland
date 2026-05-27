@@ -8,8 +8,14 @@ public static class ChatModuleExtension
 {
     public static IServiceCollection AddChatModule(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("MongoChatDb")
-         ?? throw new InvalidOperationException("Missing ConnectionStrings:MongoChatDb connection string.");
+
+        var host = configuration["MongoDB:Host"];
+        var user = configuration["MongoDB:User"];
+        var pass = configuration["MongoDB:Password"];
+        var appName = configuration["MongoDB:AppName"];
+
+        var connectionString = $"mongodb+srv://{user}:{pass}@{host}/?appName={appName}"
+             ?? throw new InvalidOperationException("Missing ConnectionStrings:MongoChatDb connection string.");
 
         // Register IMongoClient as singleton
         services.AddSingleton<IMongoClient>(_ => new MongoClient(connectionString));
