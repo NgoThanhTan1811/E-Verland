@@ -5,7 +5,7 @@ WORKDIR /src
 COPY E-Verland.sln .
 COPY Host/*.csproj                    Host/
 COPY SharedKernel/*.csproj            SharedKernel/
-
+COPY Tests/*.csproj                   Tests/
 
 RUN dotnet restore
 
