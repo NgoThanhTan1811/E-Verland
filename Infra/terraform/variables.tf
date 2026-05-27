@@ -118,3 +118,8 @@ variable "app_secrets_arn" {
   type        = string
 }
 
+variable "zone_id" {
+  description = "Cloudflare Zone ID for the domain. Used to manage DNS records."
+  type        = string
+  default     = ""
+}

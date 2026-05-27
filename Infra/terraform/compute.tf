@@ -2,9 +2,7 @@
 data "cloudflare_ip_ranges" "cloudflare" {}
 
 data "cloudflare_zone" "main" {
-  filter = {
-    name = var.domain_name
-  }
+    zone_id = var.zone_id
 }
 
 # Security Group cho ALB - Chỉ cho phép Cloudflare
