@@ -58,6 +58,7 @@ jobs:
         working-directory: Infra/terraform
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }} 
+          TF_VAR_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
         run: |
           terraform init
           terraform apply -auto-approve 2>&1 | tee terraform.log
