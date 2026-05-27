@@ -41,7 +41,7 @@ jobs:
       - name: Terraform Apply
         working-directory: Infra/terraform
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_api_token ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TF_VAR_app_secrets_arn: ${{ secrets.APP_SECRETS_ARN }}
           TF_VAR_container_image: ${{ steps.ecr.outputs.registry }}/e-verland-backend:latest
         run: |
