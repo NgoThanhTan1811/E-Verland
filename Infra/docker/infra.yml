@@ -49,7 +49,7 @@ jobs:
           ecs_memory          = 2048
 
           mongodb_database_name = "e-verland-chat"
-          app_secrets_arn       = "${{ secrets.P }}"
+          app_secrets_arn       = "${{ secrets.AWS_SECRETS_ARN }}"
           EOF
 
       - name: Terraform Init
