@@ -25,6 +25,7 @@ var builder = WebApplication.CreateBuilder(args);
 // var envPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", ".env"));
 // Env.Load(envPath);
 builder.AddLocalFileLogging();
+builder.Configuration.AddEnvironmentVariables();
 
 var xrayOptions = builder.Configuration.GetSection(XRayOptions.SectionName).Get<XRayOptions>();
 
