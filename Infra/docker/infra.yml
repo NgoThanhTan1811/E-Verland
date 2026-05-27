@@ -29,8 +29,8 @@ jobs:
           cat > Infra/terraform/terraform.tfvars <<EOF
           project_name         = "e-verland"
           aws_region           = "ap-southeast-1"
-
           domain_name          = "e-verland.site"
+          zone_id              = "${{ secrets.CLOUDFLARE_ZONE_ID }}"
           cloudflare_api_token = "${{ secrets.CLOUDFLARE_API_TOKEN }}"
 
           backend_url  = "https://api.e-verland.site"
