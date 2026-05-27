@@ -30,11 +30,32 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init & Apply
+        working-directory: Infra/terraform
+        id: tf_run
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }} 
         run: |
           terraform init
           terraform apply -auto-approve
+      
+      - name: Force Unlock if Cancelled or Failed
+        if: always() && (steps.tf_run.outcome == 'cancelled' || steps.tf_run.outcome == 'failure')
+        working-directory: Infra/terraform
+        run: |
+          echo "Terraform run was ${{ steps.tf_run.outcome }}. Attempting to force unlock if necessary..."
+          
+          if [ -f terraform.log ]; then
+            LOCK_ID=$(grep -oE "ID:\s+[0-9a-fA-F-]+" terraform.log | awk '{print $2}' | head -n 1)
+            
+            if [ ! -z "$LOCK_ID" ]; then
+              echo "Found Lock ID: $LOCK_ID. Attempting to force unlock..."
+              terraform force-unlock -force $LOCK_ID
+            else
+              echo "No Lock ID found in log. Please check the log file for details."
+            fi
+          else
+            echo "No log file found."
+          fi
 
   # JOB 2: Build App và Deploy lên ECS
   build-and-deploy:
