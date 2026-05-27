@@ -14,7 +14,7 @@ variable "aws_region" {
 variable "domain_name" {
   description = "Public domain (Cloudflare zone name)."
   type        = string
-  default     = ""
+  default     = "e-verland.site"
 }
 
 variable "cloudflare_api_token" {
@@ -27,13 +27,13 @@ variable "cloudflare_api_token" {
 variable "backend_url" {
   description = "Public backend URL used by the app."
   type        = string
-  default     = ""
+  default     = "https://api.e-verland.site"
 }
 
 variable "frontend_url" {
   description = "Frontend URL used by auth callbacks and CORS."
   type        = string
-  default     = ""
+  default     = "https://e-verland.site"
 }
 
 // Storage Configuration
