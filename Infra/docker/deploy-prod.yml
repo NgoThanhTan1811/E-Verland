@@ -38,7 +38,7 @@ jobs:
         working-directory: Infra/terraform
         env:
           # Truyền các secret cần thiết cho Terraform
-          TF_VAR_cloudflare_api_token ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TF_VAR_app_secrets_arn: ${{ secrets.APP_SECRETS_ARN }}
           TF_VAR_container_image: ${{ steps.ecr.outputs.registry }}/e-verland-backend:latest
           TF_VAR_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
