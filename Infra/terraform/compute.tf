@@ -191,11 +191,6 @@ locals {
         { name = "AWS__SNS__OrderEventsTopicArn", valueFrom = "${var.app_secrets_arn}:AWS__SNS__OrderEventsTopicArn::" },
         { name = "AWS__SNS__PaymentEventsTopicArn", valueFrom = "${var.app_secrets_arn}:AWS__SNS__PaymentEventsTopicArn::" },
         { name = "AWS__SNS__ProductEventsTopicArn", valueFrom = "${var.app_secrets_arn}:AWS__SNS__ProductEventsTopicArn::" },
-        # EventBridge
-        { name = "AWS__EventBridge__EventBusName", valueFrom = "${var.app_secrets_arn}:AWS__EventBridge__EventBusName::" },
-        { name = "AWS__EventBridge__OrderEventSource", valueFrom = "${var.app_secrets_arn}:AWS__EventBridge__OrderEventSource::" },
-        { name = "AWS__EventBridge__PaymentEventSource", valueFrom = "${var.app_secrets_arn}:AWS__EventBridge__PaymentEventSource::" },
-        { name = "AWS__EventBridge__ProductEventSource", valueFrom = "${var.app_secrets_arn}:AWS__EventBridge__ProductEventSource::" },
         # Credentials & DBs
         { name = "Jwt__Key", valueFrom = "${var.app_secrets_arn}:Jwt__Key::" },
         { name = "AWS__S3__ServiceUrl", valueFrom = "${var.app_secrets_arn}:AWS__S3__ServiceUrl::" },
