@@ -165,6 +165,7 @@ resource "aws_efs_mount_target" "loki" {
   for_each = { for idx, subnet_id in module.vpc.private_subnets : idx => subnet_id }
   file_system_id = aws_efs_file_system.loki.id
   subnet_id      = each.value 
+  security_groups = [aws_security_group.loki_efs_sg.id]
 
 }
 

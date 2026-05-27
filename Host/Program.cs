@@ -33,6 +33,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddMemoryCache();
 
+// Health Checks
+builder.Services.AddHealthChecks();
 // TraceId / Request context
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<SharedKernel.Context.IRequestContext, SharedKernel.Context.HttpRequestContext>();
@@ -94,7 +96,7 @@ if (xrayOptions?.Enabled == true)
 }
 app.UseRateLimiter();
 app.UseAuthorization();
-
+app.MapHealthChecks("/health");
 
 app.UseCors("AllowCredentials");
 
