@@ -30,7 +30,6 @@ jobs:
           project_name         = "e-verland"
           aws_region           = "ap-southeast-1"
 
-          # Đặt cứng domain để giảm bớt gánh nặng tạo GitHub Secret
           domain_name          = "e-verland.site"
           cloudflare_api_token = "${{ secrets.CLOUDFLARE_API_TOKEN }}"
 
