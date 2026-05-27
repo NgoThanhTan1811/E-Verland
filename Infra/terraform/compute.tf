@@ -181,7 +181,6 @@ locals {
 
       # Các biến nhạy cảm lấy từ Secrets Manager
       secrets = [
-        { name = "AWS__S3__ServiceUrl", valueFrom = "${var.app_secrets_arn}:AWS__S3__ServiceUrl::" },
         # SQS URLs
         { name = "AWS__SQS__OrderEventsQueueUrl", valueFrom = "${var.app_secrets_arn}:AWS__SQS__OrderEventsQueueUrl::" },
         { name = "AWS__SQS__PaymentEventsQueueUrl", valueFrom = "${var.app_secrets_arn}:AWS__SQS__PaymentEventsQueueUrl::" },
@@ -201,8 +200,10 @@ locals {
         { name = "AWS__EventBridge__ProductEventSource", valueFrom = "${var.app_secrets_arn}:AWS__EventBridge__ProductEventSource::" },
         # Credentials & DBs
         { name = "Jwt__Key", valueFrom = "${var.app_secrets_arn}:Jwt__Key::" },
+        { name = "AWS__S3__ServiceUrl", valueFrom = "${var.app_secrets_arn}:AWS__S3__ServiceUrl::" },
         { name = "AWS__S3__AccessKey", valueFrom = "${var.app_secrets_arn}:AWS__S3__AccessKey::" },
         { name = "AWS__S3__SecretKey", valueFrom = "${var.app_secrets_arn}:AWS__S3__SecretKey::" },
+        # Database connection strings
         { name = "ConnectionStrings__UserDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__UserDb::" },
         { name = "ConnectionStrings__AuthDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__AuthDb::" },
         { name = "ConnectionStrings__PaymentDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__PaymentDb::" },
@@ -214,7 +215,18 @@ locals {
         { name = "ConnectionStrings__ShippingDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__ShippingDb::" },
         { name = "ConnectionStrings__ChatModule", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__MongoChatDb::" },
         { name = "ConnectionStrings__Redis__URL", valueFrom = "${var.app_secrets_arn}:Redis__URL::" },
-        { name = "ConnectionStrings__Redis__Password", valueFrom = "${var.app_secrets_arn}:Redis__Password::" }
+        { name = "ConnectionStrings__Redis__Password", valueFrom = "${var.app_secrets_arn}:Redis__Password::" },
+        # Các biến nhạy cảm khác
+        { name = "Email__Smtp__Username", valueFrom = "${var.app_secrets_arn}:Email__Smtp__Username::" },
+        { name = "Email__Smtp__Password", valueFrom = "${var.app_secrets_arn}:Email__Smtp__Password::" },
+        { name = "Sepay_Api", valueFrom = "${var.app_secrets_arn}:SePay__Api::" },
+        { name = "Sepay_Key", valueFrom = "${var.app_secrets_arn}:SePay__Key::" },
+        { name = "Grafana__AdminPassword", valueFrom = "${var.app_secrets_arn}:Grafana__AdminPassword::" },
+        { name = "Meilisearch__MasterKey", valueFrom = "${var.app_secrets_arn}:Meilisearch__MasterKey::" },
+        { name = "GHN__Token", valueFrom = "${var.app_secrets_arn}:GHN__Token::" },
+        { name = "GHN__ShopId", valueFrom = "${var.app_secrets_arn}:GHN__ShopId::" },
+        { name = "GHN__ApiUrl", valueFrom = "${var.app_secrets_arn}:GHN__ApiUrl::" },
+
       ]
 
       logConfiguration = {
