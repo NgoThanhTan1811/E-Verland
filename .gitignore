@@ -2,3 +2,17 @@
 **/obj/
 .vs/
 .env*
+.kiro/*
+*logs
+*.log
+
+.vscode/
+.idea/
+
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+*.tfvars.json
+terraform.tfvars

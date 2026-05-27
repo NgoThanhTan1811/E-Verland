@@ -1,28 +1,18 @@
-using Microsoft.EntityFrameworkCore;
 using Modules.Notification.Application.Contracts;
 using Modules.Notification.Infrastructure.Repository;
-using Modules.Notification.Infrastructure.Persistence;
 using Modules.Notification.Infrastructure.Services;
 
 namespace Modules.Notification.Infrastructure;
 
-public static class NotificationModuleExtensions
+public static class NotificationModuleExtension
 {
     public static IServiceCollection AddNotificationModule(this IServiceCollection services, IConfiguration configuration)
     {
-        // Add DbContext
-        var conn = configuration.GetConnectionString("NotificationDb")
-                ?? Environment.GetEnvironmentVariable("NotificationDb")
-            ?? throw new InvalidOperationException("Missing ConnectionStrings:NotificationDb");
-
-        services.AddDbContext<NotificationDbContext>(options =>
-            options.UseNpgsql(conn, npgsql =>
-            {
-                npgsql.MigrationsAssembly(typeof(NotificationDbContext).Assembly.GetName().Name);
-            }));
+        // IConnectionMultiplexer is registered by AddRedisModule — no new Redis connection needed.
+        // ISNSService is registered by AddAWSInfrastructure — no re-registration needed.
 
         // Add Repositories
-        services.AddScoped<INotificationRepository, NotificationRepository>();
+        services.AddScoped<INotificationRepository, RedisNotificationRepository>();
 
         // Add Singleton for real-time SSE connections
         services.AddSingleton<INotificationService, NotificationService>();

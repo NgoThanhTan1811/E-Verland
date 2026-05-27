@@ -1,4 +1,6 @@
-﻿namespace SharedKernel.Entities;
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace SharedKernel.Entities;
 
 public abstract class BaseEntity
 {
@@ -9,7 +11,12 @@ public abstract class BaseEntity
 
     public DateTime? UpdatedAt { get; protected set; }
     public string? UpdatedBy { get; protected set; }
-    // public byte[] RowVersion { get; private set; } = [];
 
+    // Soft delete support
+    public bool IsDeleted { get; protected set; } = false;
+    public DateTime? DeletedAt { get; protected set; }
 
+    // Optimistic concurrency control (EF Core timestamp)
+    [Timestamp]
+    public byte[] RowVersion { get; protected set; } = [];
 }

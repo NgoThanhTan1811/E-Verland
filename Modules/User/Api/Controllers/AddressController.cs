@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Modules.User.Application.Commands;
@@ -12,13 +13,12 @@ namespace Modules.User.Api.Controllers;
 [ApiController]
 [EnableRateLimiting("user")]
 [Route("api/profile/{profileId}/[controller]")]
+[Authorize]
 public class AddressController(IMediator mediator) : ControllerBase
 {
     private readonly IMediator _mediator = mediator;
 
     [HttpPost]
-    [ProducesResponseType(typeof(AddressResDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<AddressResDto>> CreateAddress(Guid profileId, [FromBody] CreateAddressReqDto dto, CancellationToken ct)
     {
         try
@@ -31,6 +31,9 @@ public class AddressController(IMediator mediator) : ControllerBase
                 dto.Detail,
                 dto.District,
                 dto.Province,
+                dto.ProvinceId,
+                dto.DistrictId,
+                dto.WardCode,
                 dto.Label,
                 false
             );
@@ -48,8 +51,6 @@ public class AddressController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [ProducesResponseType(typeof(AddressResDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AddressResDto>> GetAddressById(Guid profileId, Guid id, CancellationToken ct)
     {
         try
@@ -65,7 +66,6 @@ public class AddressController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(IEnumerable<AddressResDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<AddressResDto>>> GetAddressesByProfile(Guid profileId, CancellationToken ct)
     {
         try
@@ -81,8 +81,6 @@ public class AddressController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("default")]
-    [ProducesResponseType(typeof(AddressResDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AddressResDto>> GetDefaultAddress(Guid profileId, CancellationToken ct)
     {
         try
@@ -98,9 +96,6 @@ public class AddressController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{id}")]
-    [ProducesResponseType(typeof(AddressResDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<AddressResDto>> UpdateAddress(Guid profileId, Guid id, [FromBody] UpdateAddressReqDto dto, CancellationToken ct)
     {
         try
@@ -115,7 +110,10 @@ public class AddressController(IMediator mediator) : ControllerBase
                 dto.Ward,
                 dto.Street,
                 dto.Detail,
-                dto.IsDefault
+                dto.IsDefault,
+                dto.ProvinceId,
+                dto.DistrictId,
+                dto.WardCode
             );
             var result = await _mediator.Send(command, ct);
             return Ok(result);
@@ -135,8 +133,6 @@ public class AddressController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteAddress(Guid profileId, Guid id, CancellationToken ct)
     {
         try

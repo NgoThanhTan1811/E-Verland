@@ -5,20 +5,20 @@ using Modules.Product.Application.Contracts;
 using Microsoft.EntityFrameworkCore;
 using Modules.Product.Infrastructure.Persistence;
 using Modules.Product.Infrastructure.Services;
+using SharedKernel.Persistence;
 
 namespace Modules.Product;
 
-public static class ProductModuleExtensions
+public static class ProductModuleExtension
 {
     public static IServiceCollection AddProductModule(this IServiceCollection services, IConfiguration configuration)
     {
         // Add DbContext
-        var conn = configuration.GetConnectionString("ProductDb")
-                ?? Environment.GetEnvironmentVariable("ProductDb")
+        var conn = configuration["ConnectionStrings:ProductDb"]
                 ?? throw new InvalidOperationException("Missing ConnectionStrings:ProductDb");
 
         services.AddDbContext<ProductDbContext>(options =>
-            options.UseNpgsql(conn));
+            options.ConfigureNpgsql(conn, typeof(ProductDbContext).Assembly.GetName().Name!, readHeavy: true));
         // Add Repositories
         services.AddScoped<IBrandRepository, BrandRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();
@@ -30,6 +30,13 @@ public static class ProductModuleExtensions
         services.AddScoped<SKUGeneratorService>();
         services.AddScoped<IProductReservationService, ProductReservationService>();
         services.AddHostedService<StockReservationExpiryService>();
+        services.AddHostedService<Modules.Product.Infrastructure.Consumers.StockReserveConsumer>();
+
+        // Add Infrastructure Services
+        services.AddScoped<IProductSyncPublisher, ProductSyncPublisher>();
+        services.AddScoped<IProductModerationAuditLog, ProductModerationAuditLog>();
+        services.AddHostedService<OpenSearchConsumer>();
+        services.AddHostedService<ProductOrderCanceledConsumer>();
 
         // Add MediatR
         services.AddMediatR(config =>

@@ -1,0 +1,63 @@
+name: Deploy Staging
+
+on:
+  push:
+    branches: [main, v2/be]
+    paths:
+      - 'Host/**'
+      - 'Modules/**'
+      - 'SharedKernel/**'
+      - 'Extensions/**'
+      - 'Infra/docker/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      ECS_CLUSTER: e-verland-production
+      ECS_SERVICE: e-verland-app
+      ECS_TASK_FAMILY: e-verland-task
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_ROLE }}
+          aws-region: ap-southeast-1
+
+      - uses: aws-actions/amazon-ecr-login@v2
+        id: ecr
+
+      - run: |
+          docker build -f Infra/docker/dockerfile -t ${{ steps.ecr.outputs.registry }}/e-verland-backend:${{ github.sha }} .
+          docker tag ${{ steps.ecr.outputs.registry }}/e-verland-backend:${{ github.sha }} ${{ steps.ecr.outputs.registry }}/e-verland-backend:latest
+          docker push ${{ steps.ecr.outputs.registry }}/e-verland-backend:${{ github.sha }}
+          docker push ${{ steps.ecr.outputs.registry }}/e-verland-backend:latest
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Apply
+        working-directory: Infra/terraform
+        env:
+          TF_VAR_cloudflare_api_token ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_app_secrets_arn: ${{ secrets.APP_SECRETS_ARN }}
+          TF_VAR_container_image: ${{ steps.ecr.outputs.registry }}/e-verland-backend:latest
+        run: |
+          terraform init
+          terraform apply -auto-approve
+
+      - uses: aws-actions/amazon-ecs-render-task-definition@v1
+        id: taskdef
+        with:
+          task-definition: task-definition-clean.json
+          container-name: e-verland-app
+          image: ${{ steps.ecr.outputs.registry }}/e-verland-backend:latest
+
+      - uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          cluster: ${{ env.ECS_CLUSTER }}
+          service: ${{ env.ECS_SERVICE }}
+          task-definition: ${{ steps.taskdef.outputs.task-definition }}
+          wait-for-service-stability: true

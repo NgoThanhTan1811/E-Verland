@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SharedKernel.Entities;
 using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Domain;
@@ -29,10 +30,35 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var existing = await _db.Products.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+        var existing = await _db.Products.AsTracking().FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
         if (existing == null) return false;
 
-        _db.Products.Remove(existing);
+        _db.Entry(existing).Property(nameof(BaseEntity.IsDeleted)).CurrentValue = true;
+        _db.Entry(existing).Property(nameof(BaseEntity.DeletedAt)).CurrentValue = DateTime.UtcNow;
+        return true;
+    }
+
+    public async Task<Domain.Product?> GetByIdIncludingDeletedAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _db.Products
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+    }
+
+    public async Task<bool> RestoreAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        var existing = await _db.Products
+            .IgnoreQueryFilters()
+            .AsTracking()
+            .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+        if (existing == null)
+        {
+            return false;
+        }
+
+        _db.Entry(existing).Property(nameof(BaseEntity.IsDeleted)).CurrentValue = false;
+        _db.Entry(existing).Property(nameof(BaseEntity.DeletedAt)).CurrentValue = null;
         return true;
     }
 
@@ -56,7 +82,7 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
         query = ApplyKeywordFilter(query, filter.Keyword);
         query = ApplyBrandFilter(query, filter.BrandId);
         query = ApplyCategoryFilter(query, filter.CategoryId);
-        query = ApplyStatusFilter(query, ProductStatus.Active);
+        query = ApplyStatusFilter(query, ProductStatus.Published);
         query = ApplyPriceFilter(query, filter.MinPrice, filter.MaxPrice, useVirtualPrice: true);
         query = ApplySort(query, "newest");
         query = ApplyPaging(query, filter.Page, filter.Limit);
@@ -70,7 +96,7 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
             .AsNoTracking()
             .AnyAsync(p =>
                 p.Id == productId &&
-                p.Status == ProductStatus.Active, cancellationToken);
+                p.Status == ProductStatus.Published, cancellationToken);
     }
 
     public Task<int> CountProductsAsync(CancellationToken ct = default)
@@ -82,6 +108,7 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
     public async Task<Domain.Product> ChangeStatusAsync(Guid productId, ProductStatus newStatus, CancellationToken cancellationToken = default)
     {
         var product = await _db.Products
+            .AsTracking()
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken)
                 ?? throw new KeyNotFoundException("Product not found");
 

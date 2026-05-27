@@ -2,10 +2,10 @@ using Modules.User.Application.Interfaces.Repositories;
 using Modules.User.Application.DTOs.Response;
 using Modules.User.Domain.Entities;
 using MediatR;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using Modules.User.Application.Validators;
+using Modules.User.Application.Mappings;
 
 namespace Modules.User.Application.Commands
 {
@@ -18,12 +18,11 @@ namespace Modules.User.Application.Commands
         string? AccountHolderName
     ) : IRequest<BankAccountResDto>;
 
-    public sealed class UpdateBankAccountHandler(IBankAccountRepository repo, IMapper mapper, IUserDbContext db)
+    public sealed class UpdateBankAccountHandler(IBankAccountRepository repo, IUserDbContext db)
                 : IRequestHandler<UpdateBankAccountCommand, BankAccountResDto>
     {
         private readonly IBankAccountRepository _repo = repo;
         private readonly IUserDbContext _db = db;
-        private readonly IMapper _mapper = mapper;
 
         public async Task<BankAccountResDto> Handle(UpdateBankAccountCommand request, CancellationToken ct)
         {
@@ -64,7 +63,7 @@ namespace Modules.User.Application.Commands
                 throw new InvalidOperationException("Update failed due to a database constraint.");
             }
 
-            return _mapper.Map<BankAccountResDto>(entity);
+            return entity.ToResDto();
         }
     }
 }

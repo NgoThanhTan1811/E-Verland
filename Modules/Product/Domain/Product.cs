@@ -11,21 +11,31 @@ namespace Modules.Product.Domain
         public string Slug { get; set; } = default!;
 
         public List<string> ImageUrls { get; set; } = [];
+        public List<string> VideoUrls { get; set; } = [];
         public List<SKU> SKUs { get; set; } = [];
         public List<Category> Categories { get; set; } = [];
-        public ProductStatus Status { get; set; } = ProductStatus.Pending;
+        public ProductStatus Status { get; set; } = ProductStatus.Draft;
 
         public Dictionary<string, string> Attributes { get; set; } = [];
-        public Guid? BrandId { get; set; }
-        public Brand? Brand { get; set; } 
 
+        public Guid? BrandId { get; set; }
+        public Brand? Brand { get; set; }
+
+        // Seller/Shop relationship
+        public Guid? ShopId { get; set; }
+
+        // Analytics and engagement
+        public int ViewCount { get; set; } = 0;
+        public int SoldCount { get; set; } = 0;
+        public decimal? Rating { get; set; }
+        public int ReviewCount { get; set; } = 0;
     }
 
     public enum ProductStatus
     {
-        Active,
+        Draft,
+        Published,
         Inactive,
         OutOfStock,
-        Pending,
     }
 }

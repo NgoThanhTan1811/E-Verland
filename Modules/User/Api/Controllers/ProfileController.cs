@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Modules.User.Application.Commands;
@@ -13,13 +14,12 @@ namespace Modules.User.Api.Controllers;
 [ApiController]
 [EnableRateLimiting("user")]
 [Route("api/[controller]")]
+[Authorize]
 public class ProfileController(IMediator mediator) : ControllerBase
 {
     private readonly IMediator _mediator = mediator;
 
     [HttpPost]
-    [ProducesResponseType(typeof(ProfileResDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<ProfileResDto>> CreateProfile([FromBody] CreateProfileReqDto dto, [FromQuery] Guid accountId, CancellationToken ct)
     {
         try
@@ -45,8 +45,6 @@ public class ProfileController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [ProducesResponseType(typeof(ProfileResDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ProfileResDto>> GetProfileById(Guid id, CancellationToken ct)
     {
         try
@@ -62,8 +60,6 @@ public class ProfileController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("account/{accountId}")]
-    [ProducesResponseType(typeof(ProfileResDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ProfileResDto>> GetProfileByAccount(Guid accountId, CancellationToken ct)
     {
         try
@@ -79,8 +75,7 @@ public class ProfileController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet]
-    [ProducesResponseType(typeof(PageResult<ProfileResDto>), StatusCodes.Status200OK)]
-    // [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     public async Task<ActionResult<PageResult<ProfileResDto>>> GetProfiles([FromQuery] PagingFilter filter, CancellationToken ct)
     {
         try
@@ -96,9 +91,6 @@ public class ProfileController(IMediator mediator) : ControllerBase
     }
 
     [HttpPatch("{accountId}")]
-    [ProducesResponseType(typeof(ProfileResDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ProfileResDto>> UpdateProfile(Guid accountId, [FromBody] UpdateProfileReqDto dto, CancellationToken ct)
     {
         try
@@ -131,9 +123,7 @@ public class ProfileController(IMediator mediator) : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
-    // [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     public async Task<IActionResult> DeleteProfile(Guid id, CancellationToken ct)
     {
         try

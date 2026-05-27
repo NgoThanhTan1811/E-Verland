@@ -1,7 +1,9 @@
+using System.Linq.Expressions;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Modules.Cart.Application.Contracts;
 using Modules.Cart.Domain;
+using SharedKernel.Entities;
 
 namespace Modules.Cart.Infrastructure.Persistence;
 
@@ -14,6 +16,18 @@ public class CartDbContext(DbContextOptions<CartDbContext> options) : DbContext(
     {
         base.OnModelCreating(modelBuilder);
 
+        // Apply global soft delete filter
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                var parameter = Expression.Parameter(entityType.ClrType, "e");
+                var property = Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
+                var filter = Expression.Lambda(Expression.Equal(property, Expression.Constant(false)), parameter);
+                entityType.SetQueryFilter(filter);
+                modelBuilder.Entity(entityType.ClrType).Property(nameof(BaseEntity.RowVersion)).IsRowVersion();
+            }
+        }
 
         modelBuilder.Entity<Domain.Cart>(entity =>
         {

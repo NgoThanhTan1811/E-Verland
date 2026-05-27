@@ -1,18 +1,17 @@
 
-using AutoMapper;
 using MediatR;
 using Modules.User.Application.DTOs.Response;
 using Modules.User.Application.Interfaces.Repositories;
+using Modules.User.Application.Mappings;
 using SharedKernel.Pagination;
 
 namespace Modules.User.Application.Queries.Profile
 {
     public sealed record GetManyProfileByQuery(PagingFilter Filter) : IRequest<PageResult<ProfileResDto>>;
 
-    public sealed class GetManyProfileHandler(IProfileRepository repo, IMapper mapper) : IRequestHandler<GetManyProfileByQuery, PageResult<ProfileResDto>>
+    public sealed class GetManyProfileHandler(IProfileRepository repo) : IRequestHandler<GetManyProfileByQuery, PageResult<ProfileResDto>>
     {
         private readonly IProfileRepository _repo = repo;
-        private readonly IMapper _mapper = mapper;
 
         public async Task<PageResult<ProfileResDto>> Handle(GetManyProfileByQuery request, CancellationToken ct)
         {
@@ -21,7 +20,7 @@ namespace Modules.User.Application.Queries.Profile
 
             return new PageResult<ProfileResDto>
             {
-                Items = _mapper.Map<IReadOnlyCollection<ProfileResDto>>(result.Items),
+                Items = result.Items.Select(x => x.ToResDto()).ToList(),
                 TotalItems = result.TotalItems,
                 Page = result.Page,
                 Limit = result.Limit

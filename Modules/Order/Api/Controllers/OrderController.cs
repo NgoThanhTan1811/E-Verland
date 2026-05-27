@@ -21,8 +21,6 @@ public class OrderController(IMediator mediator) : ControllerBase
 
     [Authorize]
     [HttpPost]
-    [ProducesResponseType(typeof(CreateOrderResponseDto), StatusCodes.Status201Created)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<CreateOrderResponseDto>> CreateOrder(
         [FromBody] CreateOrderRequestDto dto,
         [FromQuery] Guid userId,
@@ -32,7 +30,17 @@ public class OrderController(IMediator mediator) : ControllerBase
         {
             var command = new CreateOrderCommand(
                 userId,
+                dto.ShippingAddress,
                 dto.Receiver,
+                dto.Weight,
+                dto.Length,
+                dto.Width,
+                dto.Height,
+                dto.ServiceId,
+                dto.ServiceTypeId,
+                dto.InsuranceValue,
+                dto.Note,
+                dto.RequiredNote,
                 dto.PaymentMethod,
                 dto.VoucherCode,
                 dto.Items
@@ -53,8 +61,6 @@ public class OrderController(IMediator mediator) : ControllerBase
 
     [Authorize]
     [HttpGet("{id}")]
-    [ProducesResponseType(typeof(OrderDetailResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<OrderDetailResponseDto>> GetOrderById(Guid id, CancellationToken ct)
     {
         try
@@ -72,7 +78,6 @@ public class OrderController(IMediator mediator) : ControllerBase
 
     [Authorize]
     [HttpGet]
-    [ProducesResponseType(typeof(PageResult<OrderOverviewResponseDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PageResult<OrderOverviewResponseDto>>> GetOrders(
         [FromQuery] Guid userId,
         [FromQuery] OrderStatus? status,
@@ -104,9 +109,8 @@ public class OrderController(IMediator mediator) : ControllerBase
     }
 
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     [HttpGet("admin/order")]
-    [ProducesResponseType(typeof(PageResult<OrderOverviewResponseDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<PageResult<OrderOverviewResponseDto>>> FilterOrdersAdmin(
         [FromQuery] Guid? userId,
         [FromQuery] OrderStatus? status,
@@ -141,11 +145,8 @@ public class OrderController(IMediator mediator) : ControllerBase
     }
 
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     [HttpPatch("{id}")]
-    [ProducesResponseType(typeof(OrderOverviewResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<OrderOverviewResponseDto>> UpdateOrderStatus(
         Guid id,
         [FromBody] UpdateOrderStatusRequest request,
@@ -170,8 +171,6 @@ public class OrderController(IMediator mediator) : ControllerBase
 
     [Authorize]
     [HttpDelete("{id}")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> CancelOrder(Guid id, [FromQuery] Guid userId, CancellationToken ct)
     {
         try

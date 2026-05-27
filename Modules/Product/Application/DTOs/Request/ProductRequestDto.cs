@@ -20,7 +20,7 @@ namespace Modules.Product.Application.DTOs.Request
         public Dictionary<string, string> Attributes { get; set; } = [];
         public Guid? BrandId { get; set; }
         public List<Guid> CategoryIds { get; set; } = [];
-        public ProductStatus Status { get; set; } = ProductStatus.Pending;
+        public ProductStatus Status { get; set; } = ProductStatus.Draft;
 
         // For SKU auto-generation
         public List<ProductVariantDto>? Variants { get; set; }
@@ -37,7 +37,7 @@ namespace Modules.Product.Application.DTOs.Request
         public Dictionary<string, string> Attributes { get; set; } = new Dictionary<string, string>();
         public Guid? BrandId { get; set; }
         public List<Guid> CategoryIds { get; set; } = new List<Guid>();
-        public ProductStatus Status { get; set; } = ProductStatus.Pending;
+        public ProductStatus Status { get; set; } = ProductStatus.Draft;
     }
 
     public record FilterProductAdminRequestDto : IPagingFilter

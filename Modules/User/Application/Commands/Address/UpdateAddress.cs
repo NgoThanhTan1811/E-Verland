@@ -2,11 +2,11 @@ using Modules.User.Application.Interfaces.Repositories;
 using Modules.User.Application.DTOs.Response;
 using Modules.User.Domain.Entities;
 using MediatR;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Modules.User.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
 using Modules.User.Application.Validators;
+using Modules.User.Application.Mappings;
 
 namespace Modules.User.Application.Commands
 {
@@ -20,15 +20,17 @@ namespace Modules.User.Application.Commands
         string? Ward,
         string? Street,
         string? Detail,
-        bool? IsDefault
+        bool? IsDefault,
+        int? ProvinceId,
+        int? DistrictId,
+        string? WardCode
     ) : IRequest<AddressResDto>;
 
-    public sealed class UpdateAddressHandler(IAddressRepository repo, IMapper mapper, IUserDbContext db)
+    public sealed class UpdateAddressHandler(IAddressRepository repo, IUserDbContext db)
                 : IRequestHandler<UpdateAddressCommand, AddressResDto>
     {
         private readonly IAddressRepository _repo = repo;
         private readonly IUserDbContext _db = db;
-        private readonly IMapper _mapper = mapper;
 
         public async Task<AddressResDto> Handle(UpdateAddressCommand request, CancellationToken ct)
         {
@@ -44,7 +46,10 @@ namespace Modules.User.Application.Commands
                 Ward = request.Ward,
                 Street = request.Street,
                 Detail = request.Detail,
-                IsDefault = request.IsDefault
+                IsDefault = request.IsDefault,
+                ProvinceId = request.ProvinceId,
+                DistrictId = request.DistrictId,
+                WardCode = request.WardCode
             });
 
             if (validationResult != ValidationResult.Success)
@@ -64,7 +69,10 @@ namespace Modules.User.Application.Commands
                 request.Ward,
                 request.Street,
                 request.Detail,
-                request.IsDefault
+                request.IsDefault,
+                request.ProvinceId,
+                request.DistrictId,
+                request.WardCode
             );
 
             try
@@ -76,7 +84,7 @@ namespace Modules.User.Application.Commands
                 throw new InvalidOperationException("Update failed due to a database constraint.");
             }
 
-            return _mapper.Map<AddressResDto>(entity);
+            return entity.ToResDto();
         }
     }
 }

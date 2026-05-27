@@ -20,8 +20,8 @@ namespace Modules.Chat.Application.Queries.Conversation
 
             return new ConversationResponseDto(
                 conversation.Id,
-                conversation.UserId,
-                conversation.AdminId,
+                conversation.CustomerId,
+                conversation.SellerId,
                 conversation.CreatedAtUtc
             );
         }

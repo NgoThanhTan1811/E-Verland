@@ -1,6 +1,6 @@
 using System.Security.Claims;
 using System.Text;
-using EVerland.Middleware;
+using EVerland.Extentions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Modules.Auth.Application.DTOs.Response;
@@ -29,13 +29,13 @@ namespace Modules.Auth.Api.Controllers
         [HttpGet("login")]
         public IActionResult LoginGoogle([FromQuery] string? returnUrl = null)
         {
-            return Challenge(BuildGoogleAuthProperties(returnUrl), OAuthGmailExtensions.GoogleScheme);
+            return Challenge(BuildGoogleAuthProperties(returnUrl), OAuthGmailExtension.GoogleScheme);
         }
 
         [HttpGet("register")]
         public IActionResult RegisterGoogle([FromQuery] string? returnUrl = null)
         {
-            return Challenge(BuildGoogleAuthProperties(returnUrl), OAuthGmailExtensions.GoogleScheme);
+            return Challenge(BuildGoogleAuthProperties(returnUrl), OAuthGmailExtension.GoogleScheme);
         }
 
         [HttpGet("callback")]
@@ -45,7 +45,7 @@ namespace Modules.Auth.Api.Controllers
 
             try
             {
-                authenticateResult = await HttpContext.AuthenticateAsync(OAuthGmailExtensions.GoogleCookieScheme);
+                authenticateResult = await HttpContext.AuthenticateAsync(OAuthGmailExtension.GoogleCookieScheme);
             }
             catch (Exception ex)
             {
@@ -66,7 +66,7 @@ namespace Modules.Auth.Api.Controllers
 
             var loginResult = await _authService.LoginWithGoogleAsync(email ?? string.Empty, displayName);
 
-            await HttpContext.SignOutAsync(OAuthGmailExtensions.GoogleCookieScheme);
+            await HttpContext.SignOutAsync(OAuthGmailExtension.GoogleCookieScheme);
 
             if (!loginResult.Success)
             {

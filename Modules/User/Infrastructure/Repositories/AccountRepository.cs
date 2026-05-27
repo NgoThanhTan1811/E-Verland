@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using Modules.User.Application.Interfaces.Repositories;
 using Modules.User.Application.DTOs.Request;
 using Modules.User.Domain.Entities;
-using Modules.User.Infrastructure.Persistence;
 using SharedKernel.Pagination;
 
 namespace Modules.User.Infrastructure.Persistence;
@@ -97,7 +96,9 @@ public class AccountRepository(UserDbContext db) : IAccountRepository
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (account == null) return false;
-        _db.Accounts.Remove(account);
+
+        _db.Entry(account).Property(nameof(Account.IsDeleted)).CurrentValue = true;
+        _db.Entry(account).Property(nameof(Account.DeletedAt)).CurrentValue = DateTime.UtcNow;
 
         return true;
     }

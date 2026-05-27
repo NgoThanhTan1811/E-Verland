@@ -8,8 +8,8 @@ namespace Modules.Chat.Application.DTOs.Response
     public record ConversationResponseDto
     (
         Guid Id,
-        Guid UserId,
-        Guid AdminId,
+        Guid CustomerId,
+        Guid SellerId,
 
         DateTime CreatedAtUtc
     );
@@ -17,7 +17,7 @@ namespace Modules.Chat.Application.DTOs.Response
     public record ConversationListItemResponseDto
     (
         Guid Id,
-        Guid UserId,
+        Guid CustomerId,
 
         string? LastMessagePreview,
         DateTime? LastMessageAtUtc

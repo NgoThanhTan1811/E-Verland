@@ -1,0 +1,32 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+# Copy solution and all project files first for layer-cached restore
+COPY E-Verland.sln .
+COPY Host/*.csproj                    Host/
+COPY SharedKernel/*.csproj            SharedKernel/
+COPY Tests/*.csproj                   Tests/
+
+RUN dotnet restore
+
+# Copy full source
+COPY . .
+
+RUN dotnet publish Host/E-Verland.csproj -c Release -o /app/publish /p:UseAppHost=false
+
+# ── Runtime image ─────────────────────────────────────────────────────────────
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+
+# Non-root user for security
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser \
+    && chown -R appuser:appgroup /app
+
+USER appuser
+
+COPY --from=build /app/publish .
+
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "E-Verland.dll"]

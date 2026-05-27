@@ -2,11 +2,11 @@
 using Modules.User.Application.Interfaces.Repositories;
 using Modules.User.Application.DTOs.Response;
 using MediatR;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Modules.User.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
 using Modules.User.Application.Validators;
+using Modules.User.Application.Mappings;
 
 namespace Modules.User.Application.Commands
 {
@@ -22,12 +22,11 @@ namespace Modules.User.Application.Commands
 
     ) : IRequest<ProfileResDto>;
 
-    public sealed class UpdateProfileHandler(IProfileRepository repo, IMapper mapper, IUserDbContext db)
+    public sealed class UpdateProfileHandler(IProfileRepository repo, IUserDbContext db)
                 : IRequestHandler<UpdateProfileCommand, ProfileResDto>
     {
         private readonly IProfileRepository _repo = repo;
         private readonly IUserDbContext _db = db;
-        private readonly IMapper _mapper = mapper;
 
         public async Task<ProfileResDto> Handle(UpdateProfileCommand request, CancellationToken ct)
         {
@@ -51,11 +50,19 @@ namespace Modules.User.Application.Commands
             if (request.PhoneNumber is not null)
                 entity.PhoneNumber = request.PhoneNumber.Trim();
 
+            // Ensure avatar is stored as a relative path. If client passed a full URL (presigned), extract the key.
+            string? avatarRelative = request.AvatarUrl;
+            if (!string.IsNullOrWhiteSpace(avatarRelative) && Uri.IsWellFormedUriString(avatarRelative, UriKind.Absolute))
+            {
+                var u = new Uri(avatarRelative);
+                avatarRelative = u.AbsolutePath.TrimStart('/');
+            }
+
             entity.Update(
                 request.FirstName,
                 request.LastName,
                 request.DateOfBirth,
-                request.AvatarUrl,
+                avatarRelative,
                 request.Gender,
                 request.Bio
             );
@@ -69,7 +76,7 @@ namespace Modules.User.Application.Commands
                 throw new InvalidOperationException("Update failed due to a database constraint.");
             }
 
-            return _mapper.Map<ProfileResDto>(entity);
+            return entity.ToResDto();
         }
     }
 }

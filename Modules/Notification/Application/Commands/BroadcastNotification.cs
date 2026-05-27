@@ -1,7 +1,9 @@
+using Infra.AWS.CloudWatch;
+using Infra.AWS.SNS;
 using MediatR;
-using Modules.Notification.Application.DTOs.Request;
-using Modules.Notification.Application.DTOs.Response;
+using Microsoft.Extensions.Configuration;
 using Modules.Notification.Application.Contracts;
+using Modules.Notification.Application.DTOs.Request;
 
 namespace Modules.Notification.Application.Commands;
 
@@ -10,12 +12,18 @@ public sealed record BroadcastNotificationCommand(BroadcastNotificationRequestDt
 
 public class BroadcastNotificationCommandHandler(
     INotificationRepository notificationRepo,
-    INotificationService notificationService)
+    INotificationService notificationService,
+    ISNSService snsService,
+    ICloudWatchService cloudWatch,
+    IConfiguration configuration)
     : IRequestHandler<BroadcastNotificationCommand, List<Guid>>
 {
     public async Task<List<Guid>> Handle(BroadcastNotificationCommand request, CancellationToken ct)
     {
         var notificationIds = new List<Guid>();
+        var topicArn = configuration["AWS:SNS:NotificationTopicArn"]
+            ?? configuration["SNS:NotificationTopicArn"]
+            ?? Environment.GetEnvironmentVariable("AWS_SNS_NOTIFICATION_TOPIC_ARN");
 
         foreach (var userId in request.Request.UserIds)
         {
@@ -30,9 +38,27 @@ public class BroadcastNotificationCommandHandler(
 
             // Send via SSE if user is connected
             await notificationService.SendToUserAsync(userId, notification);
+
+            // Publish to SNS (graceful skip if not configured)
+            if (!string.IsNullOrWhiteSpace(topicArn))
+            {
+                var payload = new
+                {
+                    notificationId = created.Id,
+                    userId = created.UserId,
+                    title = created.Title,
+                    content = created.Content,
+                    createdAt = created.CreatedAtUtc
+                };
+
+                await snsService.PublishAsync(topicArn, payload, ct: ct);
+            }
         }
 
         await notificationRepo.SaveChangesAsync(ct);
+
+        await cloudWatch.PutMetricAsync("notification.broadcast", 1, "Count", ct: ct);
+
         return notificationIds;
     }
 }

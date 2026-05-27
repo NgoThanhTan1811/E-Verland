@@ -68,7 +68,9 @@ namespace Modules.User.Infrastructure.Repositories
 
             if (existingProfile == null) return false;
 
-            _db.Profiles.Remove(existingProfile);
+            _db.Entry(existingProfile).Property(nameof(Domain.Entities.Profile.IsDeleted)).CurrentValue = true;
+            _db.Entry(existingProfile).Property(nameof(Domain.Entities.Profile.DeletedAt)).CurrentValue = DateTime.UtcNow;
+
             return true;
         }
 

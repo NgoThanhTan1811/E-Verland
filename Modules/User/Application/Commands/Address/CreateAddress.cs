@@ -2,11 +2,11 @@ using Modules.User.Application.Interfaces.Repositories;
 using Modules.User.Application.DTOs.Response;
 using MediatR;
 using Modules.User.Domain.Entities;
-using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Modules.User.Domain.Enums;
 using System.ComponentModel.DataAnnotations;
 using Modules.User.Application.Validators;
+using Modules.User.Application.Mappings;
 
 namespace Modules.User.Application.Commands;
 
@@ -18,14 +18,16 @@ public sealed record CreateAddressCommand(
     string Detail,
     string District,
     string Province,
+    int ProvinceId,
+    int DistrictId,
+    string WardCode,
     LableAddress Label,
     bool IsDefault
 ) : IRequest<AddressResDto>;
 
-public sealed class CreateAddressHandler(IAddressRepository repo, IMapper mapper, IUserDbContext db) : IRequestHandler<CreateAddressCommand, AddressResDto>
+public sealed class CreateAddressHandler(IAddressRepository repo, IUserDbContext db) : IRequestHandler<CreateAddressCommand, AddressResDto>
 {
     private readonly IAddressRepository _repo = repo;
-    private readonly IMapper _mapper = mapper;
     private readonly IUserDbContext _db = db;
 
     public async Task<AddressResDto> Handle(CreateAddressCommand request, CancellationToken ct)
@@ -38,7 +40,10 @@ public sealed class CreateAddressHandler(IAddressRepository repo, IMapper mapper
             District = request.District,
             Ward = request.Ward,
             Street = request.Street,
-            Detail = request.Detail
+            Detail = request.Detail,
+            ProvinceId = request.ProvinceId,
+            DistrictId = request.DistrictId,
+            WardCode = request.WardCode
         });
 
         if (validationResult != ValidationResult.Success)
@@ -58,7 +63,10 @@ public sealed class CreateAddressHandler(IAddressRepository repo, IMapper mapper
             request.Ward,
             request.Street,
             request.Detail,
-            request.IsDefault
+            request.IsDefault,
+            request.ProvinceId,
+            request.DistrictId,
+            request.WardCode
         );
 
         await _repo.CreateAsync(entity, ct);
@@ -72,6 +80,6 @@ public sealed class CreateAddressHandler(IAddressRepository repo, IMapper mapper
             throw new InvalidOperationException("Address creation failed due to database constraint.");
         }
 
-        return _mapper.Map<AddressResDto>(entity);
+        return entity.ToResDto();
     }
 }
