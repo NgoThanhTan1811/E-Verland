@@ -60,7 +60,6 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }} 
         run: |
           terraform init
-          # Xuất tất cả các luồng thông tin và lỗi vào file terraform.log
           terraform apply -auto-approve 2>&1 | tee terraform.log
 
       - name: Force Unlock if Cancelled or Failed
