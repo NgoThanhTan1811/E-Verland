@@ -110,7 +110,7 @@ public static class WebApplicationExtension
         {
             options.SwaggerEndpoint("/swagger/v1/swagger.json", "API V1");
             options.SwaggerEndpoint("/swagger/v2/swagger.json", "API V2");
-            options.RoutePrefix = string.Empty;
+            options.RoutePrefix = "api-docs";
         });
 
         return app;

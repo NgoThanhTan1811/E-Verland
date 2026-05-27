@@ -161,6 +161,24 @@ resource "aws_efs_file_system" "loki" {
   }
 }
 
+resource "aws_efs_access_point" "loki" {
+  file_system_id = aws_efs_file_system.loki.id
+
+  posix_user {
+    uid = 1000
+    gid = 1000
+  }
+
+  root_directory {
+    path = "/loki"
+    creation_info {
+      owner_uid   = 1000
+      owner_gid   = 1000
+      permissions = "755"
+    }
+  }
+}
+
 resource "aws_efs_mount_target" "loki" {
   for_each = { for idx, subnet_id in module.vpc.private_subnets : idx => subnet_id }
   file_system_id = aws_efs_file_system.loki.id
@@ -319,8 +337,12 @@ resource "aws_ecs_task_definition" "loki" {
 
     efs_volume_configuration {
       file_system_id     = aws_efs_file_system.loki.id
-      root_directory     = "/loki"
       transit_encryption = "ENABLED"
+
+    authorization_config {
+      access_point_id = "${aws_efs_access_point.loki.id}" 
+      iam             = "ENABLED"
+  }
     }
   }
 

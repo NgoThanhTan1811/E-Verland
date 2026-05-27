@@ -80,8 +80,10 @@ builder.Services.Configure<RouteOptions>(o =>
 });
 
 var app = builder.Build();
-
-app.UseCustomSwagger();
+if (app.Environment.IsDevelopment())
+{
+    app.UseCustomSwagger();
+}
 
 // Global Exception Handling
 app.UseMiddleware<ApiExceptionMiddleware>();
