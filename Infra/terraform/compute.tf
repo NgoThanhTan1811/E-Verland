@@ -93,7 +93,7 @@ resource "aws_lb_target_group" "app" {
     healthy_threshold   = 2
     unhealthy_threshold = 3
     interval            = 30
-    path                = "/swagger/v1/swagger.json"
+    path                = "/health"
     matcher             = "200-399"
     timeout             = 5
   }
