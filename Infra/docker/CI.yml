@@ -5,6 +5,7 @@ on:
   push:
     branches-ignore:
       - main
+      - v2/be
 
 jobs:
   changes:

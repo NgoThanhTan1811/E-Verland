@@ -150,12 +150,10 @@ resource "aws_ecr_repository" "app" {
 }
 
 locals {
-  app_container_name = "e-verland-app"
   app_container_definitions = [
     {
-      name      = local.app_container_name
-      image     = var.container_image
-      essential = true
+      name  = "e-verland-app"
+      image = var.container_image
       portMappings = [
         {
           containerPort = 8080
@@ -163,6 +161,9 @@ locals {
           protocol      = "tcp"
         }
       ]
+      essential = true
+
+      # Các biến môi trường công khai
       environment = [
         { name = "ASPNETCORE_ENVIRONMENT", value = "Production" },
         { name = "ASPNETCORE_URLS", value = "http://+:8080" },
@@ -170,43 +171,52 @@ locals {
         { name = "App__FrontendUrl", value = var.frontend_url },
         { name = "Domain", value = var.domain_name },
         { name = "AWS_REGION", value = var.aws_region },
-
-        # ─── ĐỒNG BỘ VỚI S3OPTIONS TRONG CODE C# ───
         { name = "Storage__Provider", value = var.storage_provider },
-        { name = "Storage__BaseUrl", value = var.storage_base_url },
         { name = "AWS__S3__BucketName", value = var.s3_bucket_name },
         { name = "AWS__S3__Region", value = var.s3_region },
-        { name = "AWS__S3__BaseUrl", value = var.storage_base_url },
-        { name = "AWS__S3__ServiceUrl", value = var.s3_service_url },
         { name = "AWS__S3__ForcePathStyle", value = tostring(var.s3_force_path_style) },
-
-        # ─── ĐỒNG BỘ CONFIG SQS (Lấy link từ các resource trong messaging.tf) ───
-        { name = "AWS__SQS__OrderEventsQueueUrl", value = aws_sqs_queue.order_events.url },
-        { name = "AWS__SQS__PaymentEventsQueueUrl", value = aws_sqs_queue.payment_events.url },
-        { name = "AWS__SQS__ProductSyncQueueUrl", value = aws_sqs_queue.product_sync.url },
-        { name = "AWS__SQS__ProductSyncDeadLetterQueueUrl", value = aws_sqs_queue.product_sync_dlq.url },
-        { name = "AWS__SQS__MaxReceiveCount", value = "3" },
-
-        # ─── ĐỒNG BỘ CONFIG SNS (Lấy ARN từ các resource trong messaging.tf) ───
-        { name = "AWS__SNS__NotificationTopicArn", value = aws_sns_topic.notification_events.arn },
-        { name = "AWS__SNS__OrderEventsTopicArn", value = aws_sns_topic.order_events.arn },
-        { name = "AWS__SNS__PaymentEventsTopicArn", value = aws_sns_topic.payment_events.arn },
-        { name = "AWS__SNS__ProductEventsTopicArn", value = aws_sns_topic.product_events.arn },
-
-        # ─── ĐỒNG BỘ CONFIG EVENTBRIDGE (Lấy tên từ messaging.tf) ───
-        { name = "AWS__EventBridge__EventBusName", value = aws_cloudwatch_event_bus.main.name },
-        { name = "AWS__EventBridge__OrderEventSource", value = "e-verland.orders" },
-        { name = "AWS__EventBridge__PaymentEventSource", value = "e-verland.payments" },
-        { name = "AWS__EventBridge__ProductEventSource", value = "e-verland.products" }
+        # Lưu ý: MaxReceiveCount không có valueFrom nên để ở environment
+        { name = "AWS__SQS__MaxReceiveCount", value = "3" }
       ]
+
+      # Các biến nhạy cảm lấy từ Secrets Manager
       secrets = [
-        { name = "ConnectionStrings__DefaultConnection", valueFrom = "${var.app_secrets_arn}:db_connection::" },
-        { name = "Jwt__Key", valueFrom = "${var.app_secrets_arn}:jwt_key::" },
-        { name = "AWS__S3__AccessKey", valueFrom = "${var.app_secrets_arn}:r2_access_key::" },
-        { name = "AWS__S3__SecretKey", valueFrom = "${var.app_secrets_arn}:r2_secret_key::" },
-        { name = "ConnectionStrings__ChatModule", valueFrom = "${var.app_secrets_arn}:mongodb_connection::" },
-        { name = "ConnectionStrings__Redis", valueFrom = "${var.app_secrets_arn}:redis_connection::" }
+        { name = "AWS__S3__ServiceUrl", valueFrom = "${var.app_secrets_arn}:AWS__S3__ServiceUrl::" },
+        # SQS URLs
+        { name = "AWS__SQS__OrderEventsQueueUrl", valueFrom = "${var.app_secrets_arn}:AWS__SQS__OrderEventsQueueUrl::" },
+        { name = "AWS__SQS__PaymentEventsQueueUrl", valueFrom = "${var.app_secrets_arn}:AWS__SQS__PaymentEventsQueueUrl::" },
+        { name = "AWS__SQS__ProductSyncQueueUrl", valueFrom = "${var.app_secrets_arn}:AWS__SQS__ProductSyncQueueUrl::" },
+        { name = "AWS__SQS__ProductSyncDeadLetterQueueUrl", valueFrom = "${var.app_secrets_arn}:AWS__SQS__ProductSyncDeadLetterQueueUrl::" },
+        { name = "AWS__SQS__NotificationEventsQueueUrl", valueFrom = "${var.app_secrets_arn}:AWS__SQS__NotificationEventsQueueUrl::" },
+        { name = "AWS__SQS__StockReserveQueueUrl", valueFrom = "${var.app_secrets_arn}:AWS__SQS__StockReserveQueueUrl::" },
+        # SNS ARNs
+        { name = "AWS__SNS__NotificationTopicArn", valueFrom = "${var.app_secrets_arn}:AWS__SNS__NotificationTopicArn::" },
+        { name = "AWS__SNS__OrderEventsTopicArn", valueFrom = "${var.app_secrets_arn}:AWS__SNS__OrderEventsTopicArn::" },
+        { name = "AWS__SNS__PaymentEventsTopicArn", valueFrom = "${var.app_secrets_arn}:AWS__SNS__PaymentEventsTopicArn::" },
+        { name = "AWS__SNS__ProductEventsTopicArn", valueFrom = "${var.app_secrets_arn}:AWS__SNS__ProductEventsTopicArn::" },
+        # EventBridge
+        { name = "AWS__EventBridge__EventBusName", valueFrom = "${var.app_secrets_arn}:AWS__EventBridge__EventBusName::" },
+        { name = "AWS__EventBridge__OrderEventSource", valueFrom = "${var.app_secrets_arn}:AWS__EventBridge__OrderEventSource::" },
+        { name = "AWS__EventBridge__PaymentEventSource", valueFrom = "${var.app_secrets_arn}:AWS__EventBridge__PaymentEventSource::" },
+        { name = "AWS__EventBridge__ProductEventSource", valueFrom = "${var.app_secrets_arn}:AWS__EventBridge__ProductEventSource::" },
+        # Credentials & DBs
+        { name = "Jwt__Key", valueFrom = "${var.app_secrets_arn}:Jwt__Key::" },
+        { name = "AWS__S3__AccessKey", valueFrom = "${var.app_secrets_arn}:AWS__S3__AccessKey::" },
+        { name = "AWS__S3__SecretKey", valueFrom = "${var.app_secrets_arn}:AWS__S3__SecretKey::" },
+        { name = "UserDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__UserDb::" },
+        { name = "AuthDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__AuthDb::" },
+        { name = "PaymentDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__PaymentDb::" },
+        { name = "ProductDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__ProductDb::" },
+        { name = "OrderDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__OrderDb::" },
+        { name = "CartDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__CartDb::" },
+        { name = "NotificationDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__NotificationDb::" },
+        { name = "MediaDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__MediaDb::" },
+        { name = "ShippingDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__ShippingDb::" },
+        { name = "ConnectionStrings__ChatModule", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__MongoChatDb::" },
+        { name = "ConnectionStrings__Redis__URL", valueFrom = "${var.app_secrets_arn}:Redis__URL::" },
+        { name = "ConnectionStrings__Redis__Password", valueFrom = "${var.app_secrets_arn}:Redis__Password::" }
       ]
+
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -245,7 +255,7 @@ resource "aws_ecs_service" "app" {
 
   load_balancer {
     target_group_arn = aws_lb_target_group.app.arn
-    container_name   = local.app_container_name
+    container_name   = local.app_container_definitions[0].name
     container_port   = 8080
   }
 

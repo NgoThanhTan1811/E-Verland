@@ -2,19 +2,46 @@ name: CI/CD E-Verland (AWS)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, v2/be ]
   workflow_dispatch:
 
 env:
   AWS_REGION: ap-southeast-1
   ECR_REPOSITORY: e-verland-backend
-  ECS_SERVICE: e-verland-service
-  ECS_CLUSTER: e-verland-production
-  ECS_TASK_DEFINITION: Infra/aws/TaskECS/task-definition.json
 
 jobs:
-  # JOB 1: Quản lý hạ tầng bằng Terraform
+  # JOB 1: Build App và Push lên ECR
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.build-image.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          IMAGE_URI=$ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
+          docker build -f Infra/docker/dockerfile -t $IMAGE_URI .
+          docker push $IMAGE_URI
+          echo "image=$IMAGE_URI" >> $GITHUB_OUTPUT
+
+  # JOB 2: Cập nhật hạ tầng bằng Terraform (bao gồm ECS Task Definition)
   terraform:
+    needs: [build-and-push]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,78 +57,12 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       - name: Terraform Init & Apply
-        id: tf_run
         working-directory: Infra/terraform
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }} 
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_app_secrets_arn: ${{ secrets.APP_SECRETS_ARN }}
+          # Truyền image mới nhất từ Job 1 sang Terraform
+          TF_VAR_container_image: ${{ needs.build-and-push.outputs.image }}
         run: |
           terraform init
-          # Gom luồng Stdout và Stderr vào log để chuẩn bị gỡ khóa nếu bị hủy giữa chừng
-          terraform apply -auto-approve 2>&1 | tee terraform.log
-      
-      - name: Force Unlock if Cancelled or Failed
-        if: always() && (steps.tf_run.outcome == 'cancelled' || steps.tf_run.outcome == 'failure')
-        working-directory: Infra/terraform
-        run: |
-          echo "Hệ thống bị hủy hoặc lỗi. Đang kiểm tra và tự động gỡ lock..."
-          if [ -f terraform.log ]; then
-            LOCK_ID=$(grep -oE "ID:\s+[0-9a-fA-F-]+" terraform.log | awk '{print $2}' | head -n 1)
-            if [ ! -z "$LOCK_ID" ]; then
-              echo "Phát hiện Lock ID bị kẹt: $LOCK_ID. Tiến hành gỡ khóa tự động..."
-              terraform force-unlock -force $LOCK_ID
-            else
-              echo "Không tìm thấy thông tin Lock ID cụ thể trong file log."
-            fi
-          else
-            echo "Không tìm thấy file log ghi nhận."
-          fi
-
-  # JOB 2: Build App và Deploy lên ECS
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    needs: [ terraform ]
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '10.x'
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build, tag, and push image to Amazon ECR
-        id: build-image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker build -f Infra/docker/dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Fill in the new image ID in the Amazon ECS task definition
-        id: task-def
-        uses: aws-actions/amazon-ecs-render-task-definition@v1
-        with:
-          task-definition: ${{ env.ECS_TASK_DEFINITION }}
-          container-name: e-verland-app
-          image: ${{ steps.build-image.outputs.image }}
-
-      - name: Deploy Amazon ECS task definition
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
-        with:
-          task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: ${{ env.ECS_SERVICE }}
-          cluster: ${{ env.ECS_CLUSTER }}
-          wait-for-service-stability: true
+          terraform apply -auto-approve

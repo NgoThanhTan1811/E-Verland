@@ -2,7 +2,7 @@ name: Deploy Staging
 
 on:
   push:
-    branches: [main]
+    branches: [main, v2/be]
     paths:
       - 'Host/**'
       - 'Modules/**'
@@ -35,23 +35,18 @@ jobs:
           docker push ${{ steps.ecr.outputs.registry }}/e-verland-backend:${{ github.sha }}
           docker push ${{ steps.ecr.outputs.registry }}/e-verland-backend:latest
 
-      - name: Download current task definition
-        run: |
-          aws ecs describe-task-definition \
-            --task-definition $ECS_TASK_FAMILY \
-            --query taskDefinition > task-definition.json
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
 
-      - name: Prepare task definition for deployment
+      - name: Terraform Apply
+        working-directory: Infra/terraform
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_app_secrets_arn: ${{ secrets.APP_SECRETS_ARN }}
+          TF_VAR_container_image: ${{ steps.ecr.outputs.registry }}/e-verland-backend:latest
         run: |
-          jq 'del(
-            .taskDefinitionArn,
-            .revision,
-            .status,
-            .requiresAttributes,
-            .compatibilities,
-            .registeredAt,
-            .registeredBy
-          )' task-definition.json > task-definition-clean.json
+          terraform init
+          terraform apply -auto-approve
 
       - uses: aws-actions/amazon-ecs-render-task-definition@v1
         id: taskdef

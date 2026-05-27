@@ -33,5 +33,4 @@ ecs_memory      = 2048
 # ─── AWS Secrets Manager ARNs ─────────────────────────────────────────────────
 # Create these secrets in AWS Secrets Manager before running terraform apply.
 app_secrets_arn = "arn:aws:secretsmanager:ap-southeast-1:ACCOUNT_ID:secret:e-verland/production-secrets"
-app_secrets_ssm_arn = "arn:aws:ssm:ap-southeast-1:ACCOUNT_ID:parameter/e-verland/production-secrets"
 
