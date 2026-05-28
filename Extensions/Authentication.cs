@@ -1,10 +1,11 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.Extensions.Logging;
 
 public static class AuthenticationExtension
 {
-    public static IServiceCollection AddCustomJwtAuthentication( this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddCustomJwtAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
         var jwtKey = configuration["Jwt:Key"]
                         ?? throw new InvalidOperationException("Missing Jwt:Key.");
@@ -43,10 +44,73 @@ public static class AuthenticationExtension
                 {
                     OnMessageReceived = context =>
                     {
-                        if (context.Request.Cookies.TryGetValue("access_token", out var token))
+                        var logger = context.HttpContext.RequestServices
+                            .GetRequiredService<ILoggerFactory>()
+                            .CreateLogger("JwtAuth");
+
+                        var hasAuthHeader = context.Request.Headers.ContainsKey("Authorization");
+                        var hasAccessCookie = context.Request.Cookies.TryGetValue("access_token", out var token);
+
+                        logger.LogDebug(
+                            "JWT OnMessageReceived path={Path} method={Method} origin={Origin} authHeader={HasAuthHeader} accessCookie={HasAccessCookie} cookieLength={CookieLength}",
+                            context.Request.Path.Value,
+                            context.Request.Method,
+                            context.Request.Headers.Origin.ToString(),
+                            hasAuthHeader,
+                            hasAccessCookie,
+                            hasAccessCookie ? token?.Length ?? 0 : 0);
+
+                        if (hasAccessCookie)
                         {
                             context.Token = token;
                         }
+
+                        return Task.CompletedTask;
+                    },
+                    OnTokenValidated = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices
+                            .GetRequiredService<ILoggerFactory>()
+                            .CreateLogger("JwtAuth");
+
+                        var subject = context.Principal?.FindFirst("sub")?.Value
+                            ?? context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                            ?? "unknown";
+                        var role = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+                            ?? context.Principal?.FindFirst("role")?.Value
+                            ?? "unknown";
+
+                        logger.LogDebug(
+                            "JWT validated path={Path} subject={Subject} role={Role}",
+                            context.Request.Path.Value,
+                            subject,
+                            role);
+
+                        return Task.CompletedTask;
+                    },
+                    OnAuthenticationFailed = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices
+                            .GetRequiredService<ILoggerFactory>()
+                            .CreateLogger("JwtAuth");
+
+                        logger.LogWarning(context.Exception, "JWT authentication failed path={Path}", context.Request.Path.Value);
+                        return Task.CompletedTask;
+                    },
+                    OnChallenge = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices
+                            .GetRequiredService<ILoggerFactory>()
+                            .CreateLogger("JwtAuth");
+
+                        logger.LogWarning(
+                            "JWT challenge path={Path} error={Error} description={Description} authHeader={HasAuthHeader} accessCookie={HasAccessCookie}",
+                            context.Request.Path.Value,
+                            context.Error,
+                            context.ErrorDescription,
+                            context.Request.Headers.ContainsKey("Authorization"),
+                            context.Request.Cookies.ContainsKey("access_token"));
+
                         return Task.CompletedTask;
                     }
                 };
