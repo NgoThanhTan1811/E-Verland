@@ -79,7 +79,7 @@ public static class SwaggerExtension
                 },
                 Array.Empty<string>()
             }
-        });
+        }); 
     }
 
 }

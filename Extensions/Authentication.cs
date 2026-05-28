@@ -19,7 +19,8 @@ public static class AuthenticationExtension
             throw new InvalidOperationException("JWT Key must be at least 32 characters.");
 
         var key = Encoding.UTF8.GetBytes(jwtKey);
-
+        Console.WriteLine($"DEBUG_LOG: Giá trị Jwt:Issuer hiện tại là: '{jwtIssuer}'");
+        Console.WriteLine($"DEBUG_LOG: Giá trị Jwt:Audience hiện tại là: '{jwtAudience}'");
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(options =>
             {

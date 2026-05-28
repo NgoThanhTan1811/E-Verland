@@ -85,24 +85,24 @@ app.UseCustomSwagger();
 
 // Global Exception Handling
 app.UseMiddleware<ApiExceptionMiddleware>();
-// TraceId Middleware for logging and correlation
-app.UseMiddleware<TraceIdMiddleware>();
-
-// app.UseHttpsRedirection();
-app.UseAuthentication();
 if (xrayOptions?.Enabled == true)
 {
     app.UseXRay("E-Verland");
 }
-app.UseRateLimiter();
-app.UseAuthorization();
-app.MapHealthChecks("/health");
+// TraceId Middleware for logging and correlation
+app.UseMiddleware<TraceIdMiddleware>();
 
 app.UseCors("AllowCredentials");
+app.UseAuthentication();
+app.UseAuthorization();
 
+app.UseRateLimiter();
+
+
+
+app.MapHealthChecks("/health");
 // Prometheus scrape endpoint
 app.MapMetrics();
-
 app.MapControllers();
 app.MapHub<ChatHub>("/hubs/chat");
 app.Run();

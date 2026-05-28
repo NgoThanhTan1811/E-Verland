@@ -29,20 +29,27 @@ namespace Modules.Auth.Application.Services
         {
             try
             {
-                var timeToTry = DateTime.UtcNow.AddSeconds(30);
+                int cooldownSeconds = 30;
 
                 if (string.IsNullOrWhiteSpace(email))
                     return (false, "Email không hợp lệ");
 
-                // Kiểm tra xem đã gửi OTP chưa (trong 1 phút)
-                var existingOtp = await _dbContext.EmailVerificationOtps
+                // Kiểm tra OTP gần nhất chưa hết hạn
+                var lastOtp = await _dbContext.EmailVerificationOtps
                     .Where(o => o.Email == email && !o.IsVerified && o.ExpiresAt > DateTime.UtcNow)
                     .OrderByDescending(o => o.CreatedAt)
                     .FirstOrDefaultAsync();
 
-                if (existingOtp != null && (DateTime.UtcNow - existingOtp.CreatedAt).TotalSeconds < timeToTry.Second)
+                if (lastOtp != null)
                 {
-                    return (false, $"Vui lòng đợi {timeToTry.Second} giây trước khi gửi lại OTP");
+                    // Tính khoảng cách thời gian giữa hiện tại và lần gửi cuối
+                    var elapsedSeconds = (DateTime.UtcNow - lastOtp.CreatedAt).TotalSeconds;
+
+                    if (elapsedSeconds < cooldownSeconds)
+                    {
+                        var waitTime = Math.Ceiling(cooldownSeconds - elapsedSeconds);
+                        return (false, $"Vui lòng đợi {waitTime} giây trước khi gửi lại OTP");
+                    }
                 }
 
                 // Tạo OTP code 6 số

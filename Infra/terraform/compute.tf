@@ -196,6 +196,8 @@ locals {
         { name = "AWS__S3__ServiceUrl", valueFrom = "${var.app_secrets_arn}:AWS__S3__ServiceUrl::" },
         { name = "AWS__S3__AccessKey", valueFrom = "${var.app_secrets_arn}:AWS__S3__AccessKey::" },
         { name = "AWS__S3__SecretKey", valueFrom = "${var.app_secrets_arn}:AWS__S3__SecretKey::" },
+        { name = "Jwt__Issuer", valueFrom = "${var.app_secrets_arn}:Jwt__Issuer::" },
+        { name = "Jwt__Audience", valueFrom = "${var.app_secrets_arn}:Jwt__Audience::" },
         # Database connection strings
         { name = "ConnectionStrings__UserDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__UserDb::" },
         { name = "ConnectionStrings__AuthDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__AuthDb::" },
