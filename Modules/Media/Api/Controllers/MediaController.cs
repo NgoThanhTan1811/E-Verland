@@ -116,7 +116,7 @@ public class MediaController : ControllerBase
 
         return Ok(new { url });
     }
-
+    [Authorize(Policy = "AdminOrSeller")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteMedia(Guid id, CancellationToken ct)
     {

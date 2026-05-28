@@ -9,7 +9,10 @@ public static class CorsExtension
         var corsOptions = configuration.GetSection("Cors").Get<CorsOptions>()
             ?? new CorsOptions
             {
-                AllowedOrigins = ["http://localhost:3000", "http://localhost:5173"],
+                AllowedOrigins = ["http://localhost:3000", "http://localhost:5173",
+                                "http://localhost:8080", "https://e-verland.site",
+                                "https://seller.e-verland.site", "https://admin.e-verland.site"
+                                 ],
                 AllowedMethods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
                 AllowedHeaders = ["Content-Type", "Authorization"]
             };

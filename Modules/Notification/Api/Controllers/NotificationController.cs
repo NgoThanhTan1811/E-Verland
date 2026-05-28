@@ -32,6 +32,7 @@ public class NotificationController(
     /// Subscribe to push notifications via Server-Sent Events (SSE)
     /// This endpoint keeps an open connection and streams notifications to the client in real-time
     /// </summary>
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpGet("subscribe")]
     [AllowAnonymous]
     public async Task Subscribe(Guid userId, CancellationToken cancellationToken)
@@ -132,6 +133,7 @@ public class NotificationController(
     /// <summary>
     /// Get all unread notifications for the current user
     /// </summary>
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpGet("unread")]
     public async Task<IActionResult> GetUnreadNotifications(
         Guid userId,
@@ -153,6 +155,7 @@ public class NotificationController(
     /// <summary>
     /// Get notifications for user with pagination
     /// </summary>
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetUserNotifications(
         Guid userId,
@@ -175,6 +178,7 @@ public class NotificationController(
     /// <summary>
     /// Mark a notification as read
     /// </summary>
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpPost("{notificationId}/mark-as-read")]
     public async Task<IActionResult> MarkAsRead(
         Guid notificationId,
@@ -205,7 +209,7 @@ public class NotificationController(
     /// Check if a user has an active SSE connection
     /// </summary>
     [HttpGet("status/{userId}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "SellerOrCustomer")]
     public IActionResult CheckConnectionStatus(Guid userId)
     {
         var isConnected = _notificationService.IsUserConnected(userId);
@@ -216,7 +220,7 @@ public class NotificationController(
     /// Get all connected users (admin only)
     /// </summary>
     [HttpGet("connected-users")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     public IActionResult GetConnectedUsers()
     {
         var connectedUsers = _notificationService.GetConnectedUsers().ToList();

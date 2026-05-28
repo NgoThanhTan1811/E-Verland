@@ -4,14 +4,14 @@ using Modules.Chat.Application.DTOs.Response;
 
 namespace Modules.Chat.Application.Queries.Conversation;
 
-public sealed record GetForSellerQuery(Guid SellerId) : IRequest<List<ConversationResponseDto>>;
+public sealed record GetForAdminQuery(Guid SellerId) : IRequest<List<ConversationResponseDto>>;
 
-public sealed class GetForSellerQueryHandler(IConversationRepository conversationRepo)
-        : IRequestHandler<GetForSellerQuery, List<ConversationResponseDto>>
+public sealed class GetForAdminQueryHandler(IConversationRepository conversationRepo)
+        : IRequestHandler<GetForAdminQuery, List<ConversationResponseDto>>
 {
     private readonly IConversationRepository _conversationRepo = conversationRepo;
 
-    public async Task<List<ConversationResponseDto>> Handle(GetForSellerQuery req, CancellationToken ct)
+    public async Task<List<ConversationResponseDto>> Handle(GetForAdminQuery req, CancellationToken ct)
     {
         if (req.SellerId == Guid.Empty)
             throw new ArgumentException("SellerId is required.");

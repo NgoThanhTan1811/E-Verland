@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Modules.Chat.Application.Commands.Message;
 using Modules.Chat.Application.DTOs.Request;
@@ -9,7 +10,7 @@ namespace Modules.Chat.Api.Controllers
     public partial class ChatController : ControllerBase
     {
 
-
+        [Authorize(Policy = "SellerOrCustomer")]
         [HttpPost("messages")]
         public async Task<IActionResult> AddMessageToConversation(
             [FromBody] AddMessageRequestDto request,
@@ -32,6 +33,7 @@ namespace Modules.Chat.Api.Controllers
             }
         }
 
+        [Authorize(Policy = "Admin")]
         [HttpGet("messages/{messageId}")]
         public async Task<IActionResult> GetMessageById(
             Guid messageId,
@@ -54,6 +56,7 @@ namespace Modules.Chat.Api.Controllers
             }
         }
 
+        [Authorize(Policy = "SellerOrCustomer")]
         [HttpGet("messages/conversation/{conversationId}")]
         public async Task<IActionResult> GetMessagesByConversationId(
             Guid conversationId,
@@ -80,7 +83,7 @@ namespace Modules.Chat.Api.Controllers
                 return BadRequest(new { message = ex.Message });
             }
         }
-
+        [Authorize(Policy = "Admin")]
         [HttpGet("messages")]
         public async Task<IActionResult> GetMessages(
             [FromQuery] Guid conversationId,

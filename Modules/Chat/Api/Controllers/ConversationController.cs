@@ -24,7 +24,7 @@ public partial class ChatController : ControllerBase
         _logger = logger;
     }
 
-
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpPost("conversations")]
     public async Task<IActionResult> CreateConversation(
         [FromBody] CreateConversationRequestDto request,
@@ -42,7 +42,7 @@ public partial class ChatController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
-
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpGet("conversations/{conversationId}")]
     public async Task<IActionResult> GetConversationById(
         Guid conversationId,
@@ -66,14 +66,14 @@ public partial class ChatController : ControllerBase
     }
 
     [HttpGet("conversations/user/{userId}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "SellerOrCustomer")]
     public async Task<IActionResult> GetConversationsForAdmin(
         Guid userId,
         CancellationToken cancellationToken)
     {
         try
         {
-            var query = new GetForSellerQuery(userId);
+            var query = new GetForAdminQuery(userId);
             var result = await _mediator.Send(query, cancellationToken);
             return Ok(result);
         }

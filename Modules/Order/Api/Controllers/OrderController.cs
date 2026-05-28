@@ -19,7 +19,7 @@ public class OrderController(IMediator mediator) : ControllerBase
 {
     private readonly IMediator _mediator = mediator;
 
-    [Authorize]
+    [Authorize(Policy = "CustomerPolicy")]
     [HttpPost]
     public async Task<ActionResult<CreateOrderResponseDto>> CreateOrder(
         [FromBody] CreateOrderRequestDto dto,
@@ -59,7 +59,7 @@ public class OrderController(IMediator mediator) : ControllerBase
         }
     }
 
-    [Authorize]
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpGet("{id}")]
     public async Task<ActionResult<OrderDetailResponseDto>> GetOrderById(Guid id, CancellationToken ct)
     {
@@ -76,7 +76,7 @@ public class OrderController(IMediator mediator) : ControllerBase
     }
 
 
-    [Authorize]
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpGet]
     public async Task<ActionResult<PageResult<OrderOverviewResponseDto>>> GetOrders(
         [FromQuery] Guid userId,
@@ -145,7 +145,7 @@ public class OrderController(IMediator mediator) : ControllerBase
     }
 
 
-    [Authorize(Policy = "AdminPolicy")]
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpPatch("{id}")]
     public async Task<ActionResult<OrderOverviewResponseDto>> UpdateOrderStatus(
         Guid id,
@@ -169,7 +169,7 @@ public class OrderController(IMediator mediator) : ControllerBase
     }
 
 
-    [Authorize]
+    [Authorize(Policy = "AdminPolicy")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> CancelOrder(Guid id, [FromQuery] Guid userId, CancellationToken ct)
     {

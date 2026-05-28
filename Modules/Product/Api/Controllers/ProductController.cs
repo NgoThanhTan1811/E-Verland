@@ -16,7 +16,7 @@ public class ProductController(IMediator mediator) : ControllerBase
     private readonly IMediator _mediator = mediator;
 
 
-    [Authorize(Policy = "AdminPolicy")]
+    [Authorize(Policy = "AdminOrSeller")]
     [HttpPost]
     public async Task<IActionResult> CreateProduct([FromBody] CreateProductRequestDto request, CancellationToken cancellationToken)
     {
@@ -33,7 +33,7 @@ public class ProductController(IMediator mediator) : ControllerBase
     }
 
 
-    [Authorize(Policy = "AdminPolicy")]
+    [Authorize(Policy = "AdminOrSeller")]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateProduct(Guid id, [FromBody] UpdateProductRequestDto request, CancellationToken cancellationToken)
     {
@@ -50,7 +50,7 @@ public class ProductController(IMediator mediator) : ControllerBase
     }
 
 
-    [Authorize(Policy = "AdminPolicy")]
+    [Authorize(Policy = "AdminOrSeller")]
     [HttpPatch("{id}/status")]
     public async Task<IActionResult> ChangeProductStatus(Guid id, [FromBody] ChangeProductStatusRequest request, CancellationToken cancellationToken)
     {
@@ -60,7 +60,7 @@ public class ProductController(IMediator mediator) : ControllerBase
     }
 
 
-    [Authorize(Policy = "AdminPolicy")]
+    [Authorize(Policy = "AdminOrSeller")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteProduct(Guid id, CancellationToken cancellationToken)
     {
@@ -80,7 +80,7 @@ public class ProductController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    [Authorize(Policy = "AdminPolicy")]
+    [Authorize(Policy = "AdminOrSeller")]
     [HttpGet("admin/search")]
     public async Task<IActionResult> SearchProductsAdmin([FromQuery] FilterProductAdminRequestDto filter, CancellationToken cancellationToken)
     {

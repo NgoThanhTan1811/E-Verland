@@ -12,12 +12,11 @@ namespace Modules.Cart.Api.Controllers;
 [ApiController]
 [EnableRateLimiting("cart")]
 [Route("api/[controller]")]
-[Authorize]
 public class CartController(IMediator mediator) : ControllerBase
 {
     private readonly IMediator _mediator = mediator;
 
-
+    [Authorize(Policy = "CustomerPolicy")]
     [HttpPost("user/{userId}/items")]
     public async Task<IActionResult> AddToCart(
         Guid userId,
@@ -28,7 +27,7 @@ public class CartController(IMediator mediator) : ControllerBase
         var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);
     }
-
+    [Authorize(Policy = "CustomerPolicy")]
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetUserCart(Guid userId, CancellationToken cancellationToken)
     {
@@ -41,6 +40,7 @@ public class CartController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Policy = "AdminPolicy")]
     [HttpGet("{cartId}")]
     public async Task<IActionResult> GetCartById(Guid cartId, CancellationToken cancellationToken)
     {
@@ -54,6 +54,7 @@ public class CartController(IMediator mediator) : ControllerBase
     }
 
 
+    [Authorize(Policy = "CustomerPolicy")]
     [HttpPut("items/{cartItemId}")]
     public async Task<IActionResult> UpdateCartItem(
         Guid cartItemId,
@@ -66,6 +67,7 @@ public class CartController(IMediator mediator) : ControllerBase
     }
 
 
+    [Authorize(Policy = "CustomerPolicy")]
     [HttpDelete("items/{cartItemId}")]
     public async Task<IActionResult> RemoveFromCart(Guid cartItemId, CancellationToken cancellationToken)
     {
@@ -74,7 +76,7 @@ public class CartController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-
+    [Authorize(Policy = "AdminPolicy")]
     [HttpDelete("{cartId}")]
     public async Task<IActionResult> ClearCart(Guid cartId, CancellationToken cancellationToken)
     {
