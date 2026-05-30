@@ -179,6 +179,35 @@ resource "aws_efs_access_point" "loki" {
   }
 }
 
+# Tạo EFS File System
+resource "aws_efs_file_system" "meili_data" {
+  encrypted = true
+  tags = {
+    Name = "${var.project_name}-meili-efs"
+  }
+}
+
+# Tạo Mount Target cho mỗi subnet private
+resource "aws_efs_mount_target" "meilisearch" {
+  for_each       = { for idx, subnet_id in module.vpc.private_subnets : idx => subnet_id }
+  file_system_id = aws_efs_file_system.meili_data.id
+  subnet_id      = each.value
+  security_groups = [aws_security_group.meilisearch_efs_sg.id]
+}
+
+# Security Group cho EFS (Cho phép traffic từ ECS Meilisearch vào port 2049)
+resource "aws_security_group" "meilisearch_efs_sg" {
+  name        = "${var.project_name}-meili-efs-sg"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    from_port       = 2049
+    to_port         = 2049
+    protocol        = "tcp"
+    security_groups = [aws_security_group.meilisearch_sg.id]
+  }
+}
+
 resource "aws_efs_mount_target" "loki" {
   for_each = { for idx, subnet_id in module.vpc.private_subnets : idx => subnet_id }
   file_system_id = aws_efs_file_system.loki.id

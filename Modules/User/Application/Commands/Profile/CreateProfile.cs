@@ -38,7 +38,7 @@ namespace Modules.User.Application.Commands
                 request.AccountId,
                 request.FirstName,
                 request.LastName,
-                request.DateOfBirth
+                DateOnly.FromDateTime(request.DateOfBirth)
             );
 
             // Ensure newly created profile has no avatar URL set

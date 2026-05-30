@@ -241,11 +241,6 @@ output "notification_events_topic_arn" {
   value       = aws_sns_topic.notification_events.arn
 }
 
-output "product_events_topic_arn" {
-  description = "SNS ARN for product events topic"
-  value       = aws_sns_topic.product_events.arn
-}
-
 output "event_bus_name" {
   description = "EventBridge custom bus name"
   value       = aws_cloudwatch_event_bus.main.name

@@ -12,7 +12,7 @@ public class Profile : BaseEntity
     public string LastName { get; set; } = "";
     public string? PhoneNumber { get; set; }
     public string? AvatarUrl { get; set; }
-    public DateTime? DateOfBirth { get; set; }
+    public DateOnly? DateOfBirth { get; set; }
     public Gender Gender { get; set; } = Gender.Other;
     public string? Bio { get; set; } = "Xin chào.";
     public List<Address> Addresses { get; set; } = [];
@@ -20,7 +20,7 @@ public class Profile : BaseEntity
 
     private Profile() { }
 
-    public Profile(Guid accountId, string firstName, string lastName, DateTime dateOfBirth)
+    public Profile(Guid accountId, string firstName, string lastName, DateOnly dateOfBirth)
     {
         if (accountId == Guid.Empty) throw new ArgumentException("AccountId is required.", nameof(accountId));
         if (string.IsNullOrWhiteSpace(firstName)) throw new ArgumentException("FirstName is required.", nameof(firstName));
@@ -32,7 +32,7 @@ public class Profile : BaseEntity
         LastName = lastName.Trim();
     }
 
-    public void Update(string? firstName,string? lastName,DateTime? dateOfBirth,string? avatarUrl,Gender? gender,string? bio)
+    public void Update(string? firstName,string? lastName,DateOnly? dateOfBirth,string? avatarUrl,Gender? gender,string? bio)
     {
         if (firstName is not null)
         {
@@ -48,8 +48,8 @@ public class Profile : BaseEntity
 
         if (dateOfBirth.HasValue)
         {
-            var dob = dateOfBirth.Value.Date;
-            if (dob > DateTime.Today) throw new ArgumentException("Date of Birth is wrong", nameof(dateOfBirth));
+            var dob = dateOfBirth.Value;
+            if (dob > DateOnly.FromDateTime(DateTime.Today)) throw new ArgumentException("Date of Birth is wrong", nameof(dateOfBirth));
             DateOfBirth = dob;
         }
 

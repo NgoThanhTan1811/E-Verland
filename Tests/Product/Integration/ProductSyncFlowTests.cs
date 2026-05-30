@@ -126,7 +126,7 @@ public class ProductSyncFlowTests
         cloudWatch.PutMetricAsync(Arg.Any<string>(), Arg.Any<double>(), Arg.Any<string>(),
             Arg.Any<Dictionary<string, string>>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
-        var handler = new UpdateProductHandler(productRepo, categoryRepo, dbContext, syncPublisher, cloudWatch);
+        var handler = new UpdateProdulearctHandler(productRepo, categoryRepo, dbContext, syncPublisher, cloudWatch);
 
         ProductSyncEvent? captured = null;
         sqsService.When(s => s.SendMessageAsync(QueueUrl, Arg.Any<ProductSyncEvent>(), Arg.Any<CancellationToken>()))

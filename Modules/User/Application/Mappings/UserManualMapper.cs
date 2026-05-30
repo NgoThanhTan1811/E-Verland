@@ -66,7 +66,7 @@ public static class UserManualMapper
             PhoneNumber = entity.PhoneNumber,
             Gender = entity.Gender,
             AvatarUrl = entity.AvatarUrl,
-            DateOfBirth = entity.DateOfBirth,
+            DateOfBirth =  DateTime.TryParse(entity.DateOfBirth?.ToString(), out var dob) ? dob : (DateTime?)null,
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt
         };
