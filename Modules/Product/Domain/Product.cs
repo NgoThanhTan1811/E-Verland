@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using SharedKernel.Entities;
 
 namespace Modules.Product.Domain
@@ -12,6 +13,7 @@ namespace Modules.Product.Domain
 
         public List<string> ImageUrls { get; set; } = [];
         public List<string>? VideoUrls { get; set; } = [];
+        [JsonIgnore]
         public List<SKU> SKUs { get; set; } = [];
         public List<Category> Categories { get; set; } = [];
         public ProductStatus Status { get; set; } = ProductStatus.Published;
