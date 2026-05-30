@@ -35,13 +35,18 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
-# Tạo bản ghi DNS trên Cloudflare trỏ về ALB
-resource "cloudflare_dns_record" "api_endpoint" {
+locals {
+  subdomains = ["api", "seller", "admin"]
+}
+
+resource "cloudflare_dns_record" "subdomains" {
+  for_each = toset(local.subdomains)
+
   zone_id = data.cloudflare_zone.main.id
-  name    = "api"                # Sẽ tạo api.yourdomain.com
-  content = aws_lb.main.dns_name # Lấy từ resource aws_lb của bạn
+  name    = each.value
+  content = aws_lb.main.dns_name
   type    = "CNAME"
-  proxied = true # Bật Proxy (Đám mây cam)
+  proxied = true
   ttl     = 1
 }
 
