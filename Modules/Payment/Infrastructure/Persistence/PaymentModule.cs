@@ -29,7 +29,7 @@ public static class PaymentModuleExtension
             {
                 var config = sp.GetRequiredService<IConfiguration>();
                 var apiKey = config[$"{SePayOptions.SectionName}:ApiKey"]
-                    ?? config["SePay:APIKey"]
+                    ?? config["SePay:ApiKey"]
                     ?? Environment.GetEnvironmentVariable("SEPAY_API_KEY")
                     ?? Environment.GetEnvironmentVariable("SEPAY_API")
                     ?? throw new InvalidOperationException("Missing Payment:SePay:ApiKey (or SEPAY_API_KEY environment variable).");
@@ -39,6 +39,7 @@ public static class PaymentModuleExtension
                     apiKey = apiKey[7..].Trim();
                 }
 
+                // SePay v2 expects Bearer token in Authorization header
                 client.DefaultRequestHeaders.Authorization =
                     new AuthenticationHeaderValue("Bearer", apiKey);
             });

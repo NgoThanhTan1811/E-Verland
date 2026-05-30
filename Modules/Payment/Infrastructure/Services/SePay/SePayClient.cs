@@ -28,11 +28,13 @@ namespace Modules.Payment.Infrastructure.Services
                 ?? Environment.GetEnvironmentVariable("SEPAY_API")
                 ?? throw new InvalidOperationException("Missing Payment:SePay:ApiKey (or SEPAY_API_KEY environment variable).");
 
+            // Normalize token if caller provided a Bearer prefix
             if (_apiKey.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             {
                 _apiKey = _apiKey[7..].Trim();
             }
 
+            // Ensure HttpClient has Bearer auth for SePay v2
             _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
 
             _baseUrl = configuration[$"{SePayOptions.SectionName}:BaseUrl"]
@@ -63,6 +65,61 @@ namespace Modules.Payment.Infrastructure.Services
                         attempt, _maxRetries, paymentCode);
 
                     var response = await SendAsync(HttpMethod.Post, "transactions/create", payload, ct);
+
+                    if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                    {
+                        // Read SePay-specific retry header first, then standard Retry-After
+                        var retryAfterHeader = response.Headers.Contains("x-sepay-userapi-retry-after")
+                            ? response.Headers.GetValues("x-sepay-userapi-retry-after").FirstOrDefault()
+                            : response.Headers.RetryAfter?.Delta?.TotalSeconds.ToString();
+
+                        if (!int.TryParse(retryAfterHeader, out var retrySeconds))
+                        {
+                            retrySeconds = (int)Math.Pow(2, attempt); // fallback exponential backoff
+                        }
+
+                        // If v2 endpoint disallows POST (405), try legacy userapi create endpoint as fallback
+                        if (response.StatusCode == System.Net.HttpStatusCode.MethodNotAllowed)
+                        {
+                            _logger.LogWarning("SePay v2 returned 405 for create; attempting legacy fallback endpoint for payment code {PaymentCode}", paymentCode);
+                            var legacyBase = "https://my.sepay.vn/userapi";
+                            var legacyUrl = $"{legacyBase.TrimEnd('/')}/transactions/create";
+                            using var legacyRequest = new HttpRequestMessage(HttpMethod.Post, legacyUrl)
+                            {
+                                Content = JsonContent.Create(payload)
+                            };
+                            legacyRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
+
+                            var legacyResponse = await _http.SendAsync(legacyRequest, ct);
+                            var legacyContent = await legacyResponse.Content.ReadAsStringAsync(ct);
+
+                            if (legacyResponse.IsSuccessStatusCode)
+                            {
+                                var legacyResult = System.Text.Json.JsonSerializer.Deserialize<SePayResponse>(legacyContent);
+                                _logger.LogInformation("SePay legacy create succeeded for payment code {PaymentCode}", paymentCode);
+                                return legacyResult?.PaymentUrl;
+                            }
+
+                            _logger.LogError("SePay legacy create also failed (HTTP {StatusCode}): {Content}", legacyResponse.StatusCode, legacyContent);
+                        }
+
+                        _logger.LogWarning(
+                            "SePay rate limited (429). Waiting {RetrySeconds}s before retry (attempt {Attempt}/{MaxRetries}) for payment code {PaymentCode}",
+                            retrySeconds, attempt, _maxRetries, paymentCode);
+
+                        if (attempt < _maxRetries)
+                        {
+                            await Task.Delay(TimeSpan.FromSeconds(retrySeconds), ct);
+                            continue;
+                        }
+
+                        var errorContent = await response.Content.ReadAsStringAsync(ct);
+                        _logger.LogError("SePay rate limit reached: {Content}", errorContent);
+                        throw new SePayApiException(
+                            "Rate limited by SePay.",
+                            paymentCode,
+                            (int)response.StatusCode);
+                    }
 
                     if (!response.IsSuccessStatusCode)
                     {
@@ -149,7 +206,24 @@ namespace Modules.Payment.Infrastructure.Services
             AppendQuery(query, "amount_in", amountIn?.ToString(CultureInfo.InvariantCulture));
             AppendQuery(query, "amount_out", amountOut?.ToString(CultureInfo.InvariantCulture));
 
-            var response = await SendAsync(HttpMethod.Get, "transactions/list", null, ct, query);
+            var response = await SendAsync(HttpMethod.Get, "transactions", null, ct, query);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            {
+                var retryAfterHeader = response.Headers.Contains("x-sepay-userapi-retry-after")
+                    ? response.Headers.GetValues("x-sepay-userapi-retry-after").FirstOrDefault()
+                    : response.Headers.RetryAfter?.Delta?.TotalSeconds.ToString();
+
+                if (!int.TryParse(retryAfterHeader, out var retrySeconds))
+                {
+                    retrySeconds = 3; // fallback
+                }
+
+                _logger.LogWarning("SePay rate limited when fetching transactions. Retry after {RetrySeconds}s.", retrySeconds);
+                await Task.Delay(TimeSpan.FromSeconds(retrySeconds), ct);
+                // After waiting once, call again (simple retry)
+                response = await SendAsync(HttpMethod.Get, "transactions", null, ct, query);
+            }
 
             if (!response.IsSuccessStatusCode)
             {
@@ -182,6 +256,14 @@ namespace Modules.Payment.Infrastructure.Services
             request.Headers.Authorization ??= _http.DefaultRequestHeaders.Authorization
                 ?? new AuthenticationHeaderValue("Bearer", _apiKey);
 
+            // Log outgoing request (mask API key)
+            try
+            {
+                var authScheme = request.Headers.Authorization?.Scheme ?? _http.DefaultRequestHeaders.Authorization?.Scheme ?? "(none)";
+                _logger.LogWarning("SePay outbound request: {Method} {Url} AuthorizationScheme:{Scheme}", method.Method, url, authScheme);
+            }
+            catch (Exception) { /* non-fatal logging error */ }
+
             if (body is not null)
             {
                 request.Content = JsonContent.Create(body);
@@ -192,20 +274,14 @@ namespace Modules.Payment.Infrastructure.Services
             // 2. Đọc nội dung phản hồi dưới dạng chuỗi để kiểm tra lỗi
             var content = await response.Content.ReadAsStringAsync(ct);
 
-            // 3. Nếu response không thành công (Status code != 2xx)
-            if (!response.IsSuccessStatusCode)
-            {
-                _logger.LogError("Lỗi gọi API SePay: {StatusCode}. Nội dung: {Content}", response.StatusCode, content);
-                throw new Exception($"API SePay lỗi {response.StatusCode}: {content}");
-            }
-
-            // 4. Kiểm tra nếu nội dung bắt đầu bằng ký tự lạ (HTML thay vì JSON)
+            // 3. Nếu response trả về HTML thay vì JSON -> coi như lỗi nghiêm trọng
             if (content.TrimStart().StartsWith("<"))
             {
                 _logger.LogError("API SePay trả về HTML thay vì JSON. Nội dung: {Content}", content);
                 throw new Exception("Lỗi: API SePay trả về trang HTML (thường do sai Token hoặc lỗi server).");
             }
 
+            // 4. Trả về response cho caller để caller xử lý giữ nguyên status code (bao gồm 429)
             return response;
         }
 
