@@ -2,6 +2,7 @@ using MediatR;
 using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.DTOs.Response;
+using Modules.Product.Application.Mappings;
 using Modules.Redis.Services;
 using SharedKernel.Pagination;
 using System.Security.Cryptography;
@@ -47,7 +48,7 @@ public sealed class SearchProductAdminHandler(
             CategoryNames = p.Categories.Select(c => c.Name).ToList(),
             CategoryId = p.Categories.FirstOrDefault()?.Id ?? Guid.Empty,
             Attributes = p.Attributes,
-            SKUs = p.SKUs,
+            SKUs = p.SKUs.Select(ProductDtoMapper.ToSkuAdminListItemDto).ToList(),
             Status = p.Status,
             CreatedAt = p.CreatedAt,
             UpdatedAt = p.UpdatedAt ?? DateTime.UtcNow

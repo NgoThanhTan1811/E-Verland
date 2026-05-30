@@ -38,7 +38,11 @@ public sealed class SearchProductCustomerHandler(
         var productList = products.ToList();
         var totalCount = productList.Count;
 
-        var dtos = (await Task.WhenAll(productList.Select(p => p.ToListItemDtoAsync(_urlResolver, cancellationToken)))).ToList();
+        var dtos = new List<ProductListItemDto>(productList.Count);
+        foreach (var product in productList)
+        {
+            dtos.Add(await product.ToListItemDtoAsync(_urlResolver, cancellationToken));
+        }
 
         var ttlMinutes = int.TryParse(_configuration["Cache:ProductListTtlMinutes"], out var value)
             ? Math.Max(1, value)

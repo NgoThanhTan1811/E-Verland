@@ -11,7 +11,7 @@ public sealed class ShippingOrder : BaseEntity
     public string? ProviderOrderCode { get; set; }
     public string? ClientOrderCode { get; set; }
 
-    public ShippingStatus Status { get; set; } = ShippingStatus.Pending;
+    public ShippingStatus Status { get; set; } = ShippingStatus.Draft;
     public string? ProviderStatus { get; set; }
 
     public int? ServiceId { get; set; }

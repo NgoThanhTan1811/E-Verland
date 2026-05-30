@@ -55,7 +55,7 @@ public sealed class CreateShippingDraftHandler(
             OrderId = payload.OrderId,
             UserId = payload.UserId,
             ClientOrderCode = payload.ClientOrderCode,
-            Status = ShippingStatus.Pending,
+            Status = ShippingStatus.Draft,
             ServiceId = payload.ServiceId,
             ServiceTypeId = payload.ServiceTypeId,
             PaymentTypeId = paymentTypeId,

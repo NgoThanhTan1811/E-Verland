@@ -8,6 +8,7 @@ using Modules.Order.Application.DTOs.Response;
 using Modules.Order.Application.Queries;
 using Modules.Order.Domain;
 using SharedKernel.Pagination;
+using System.Security.Claims;
 
 namespace Modules.Order.Api.Controllers;
 
@@ -70,7 +71,13 @@ public class OrderController : ControllerBase
     {
         try
         {
-            var query = new GetOrderByIdQuery(id, Guid.Empty);
+            var userIdRaw = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+            if (!Guid.TryParse(userIdRaw, out var userId))
+            {
+                return Unauthorized(new { message = "Invalid token." });
+            }
+
+            var query = new GetOrderByIdQuery(id, userId);
             var result = await _mediator.Send(query, ct);
             return Ok(result);
         }

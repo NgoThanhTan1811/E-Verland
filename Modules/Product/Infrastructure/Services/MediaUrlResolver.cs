@@ -14,7 +14,14 @@ public sealed class MediaUrlResolver(IMediator mediator) : IUrlResolver
         if (string.IsNullOrWhiteSpace(path))
             return null;
 
-        var normalizedSize = string.IsNullOrWhiteSpace(size) ? DefaultImageSize : size.Trim().ToLowerInvariant();
-        return await _mediator.Send(new GetMediaUrlByPathQuery(path, normalizedSize), ct);
+        try
+        {
+            var normalizedSize = string.IsNullOrWhiteSpace(size) ? DefaultImageSize : size.Trim().ToLowerInvariant();
+            return await _mediator.Send(new GetMediaUrlByPathQuery(path, normalizedSize), ct);
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
     }
 }

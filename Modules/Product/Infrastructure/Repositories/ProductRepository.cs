@@ -18,10 +18,8 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
 
     public async Task<Domain.Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _db.Products
-        .Include(p => p.Brand)
-        .Include(p => p.Categories)
-        .Include(p => p.SKUs)
+        return await BuildProductQuery()
+            .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 

@@ -48,12 +48,19 @@ public sealed class GetMediaUrlByPathHandler : IRequestHandler<GetMediaUrlByPath
             return await _storageService.GetPresignedUrlAsync(mediaFile.FilePath, expiresMinutes, ct);
 
         var variantPath = BuildVariantPath(mediaFile.FilePath, normalizedSize);
-        if (!await _storageService.ExistsAsync(variantPath, ct))
+        try
         {
-            await GenerateVariantAsync(mediaFile, variantPath, normalizedSize, ct);
-        }
+            if (!await _storageService.ExistsAsync(variantPath, ct))
+            {
+                await GenerateVariantAsync(mediaFile, variantPath, normalizedSize, ct);
+            }
 
-        return await _storageService.GetPresignedUrlAsync(variantPath, expiresMinutes, ct);
+            return await _storageService.GetPresignedUrlAsync(variantPath, expiresMinutes, ct);
+        }
+        catch
+        {
+            return await _storageService.GetPresignedUrlAsync(mediaFile.FilePath, expiresMinutes, ct);
+        }
     }
 
     private async Task GenerateVariantAsync(MediaFile mediaFile, string variantPath, string size, CancellationToken ct)
@@ -62,7 +69,8 @@ public sealed class GetMediaUrlByPathHandler : IRequestHandler<GetMediaUrlByPath
 
         using var client = _httpClientFactory.CreateClient();
         using var response = await client.GetAsync(downloadUrl, ct);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+            return;
 
         await using var input = await response.Content.ReadAsStreamAsync(ct);
         using var image = await Image.LoadAsync(input, ct);

@@ -39,7 +39,24 @@ public sealed class AddToCartHandler(
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        var existingItem = cart.Items.FirstOrDefault(x => x.SkuId == request.Request.SkuId);
+        var product = await _mediator.Send(new GetProductByIdQuery(request.Request.ProductId), cancellationToken)
+            ?? throw new InvalidOperationException("Product not found");
+
+        var hasSkus = product.Skus.Count > 0;
+
+        if (hasSkus && request.Request.SkuId is null)
+        {
+            throw new InvalidOperationException("SKU is required for the selected product");
+        }
+
+        if (!hasSkus && request.Request.SkuId is not null)
+        {
+            throw new InvalidOperationException("Product does not support SKU selection");
+        }
+
+        var existingItem = request.Request.SkuId is null
+            ? cart.Items.FirstOrDefault(x => x.ProductId == request.Request.ProductId && x.SkuId is null)
+            : cart.Items.FirstOrDefault(x => x.SkuId == request.Request.SkuId);
 
         if (existingItem != null)
         {
@@ -48,11 +65,10 @@ public sealed class AddToCartHandler(
         }
         else
         {
-            var product = await _mediator.Send(new GetProductByIdQuery(request.Request.ProductId), cancellationToken)
-                ?? throw new InvalidOperationException("Product not found");
-
-            var selectedSku = product.Skus.FirstOrDefault(x => x.Id == request.Request.SkuId)
-                ?? throw new InvalidOperationException("SKU does not belong to the selected product");
+            var selectedSku = request.Request.SkuId is null
+                ? null
+                : product.Skus.FirstOrDefault(x => x.Id == request.Request.SkuId)
+                    ?? throw new InvalidOperationException("SKU does not belong to the selected product");
 
             string? productImage = null;
             var imagePath = product.ImageUrls.FirstOrDefault();
@@ -61,9 +77,11 @@ public sealed class AddToCartHandler(
                 productImage = await _mediator.Send(new GetMediaUrlByPathQuery(imagePath), cancellationToken);
             }
 
-            var skuValue = selectedSku.OptionValues.Count > 0
-                ? string.Join(" / ", selectedSku.OptionValues.Select(option => $"{option.Key}: {option.Value}"))
-                : selectedSku.SkuCode;
+            var skuValue = selectedSku == null
+                ? null
+                : selectedSku.OptionValues.Count > 0
+                    ? string.Join(" / ", selectedSku.OptionValues.Select(option => $"{option.Key}: {option.Value}"))
+                    : selectedSku.SkuCode;
 
             var cartItem = new Domain.CartItem
             {

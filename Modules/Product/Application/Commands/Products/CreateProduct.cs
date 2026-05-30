@@ -5,6 +5,7 @@ using Modules.Media.Application.Interfaces;
 using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.DTOs.Response;
+using Modules.Product.Application.Mappings;
 using Modules.Product.Application.Services;
 using Modules.Redis.Services;
 using System.Globalization;
@@ -135,15 +136,21 @@ public sealed class CreateProductHandler(
         {
             Id = product.Id,
             Name = product.Name,
-            Slug = product.Slug,
             Description = product.Description,
-            BasePrice = product.BasePrice,
-            VirtualPrice = product.VirtualPrice,
+            Price = product.VirtualPrice > 0 ? product.VirtualPrice : product.BasePrice,
             ImageUrls = product.ImageUrls,
             Attributes = product.Attributes,
-            Brand = product.Brand,
-            Categories = categories,
-            Skus = product.SKUs
+            Brand = product.Brand == null ? null : new ProductBrandDto
+            {
+                Id = product.Brand.Id,
+                Name = product.Brand.Name
+            },
+            Categories = categories.Select(c => new ProductCategoryDto
+            {
+                Id = c.Id,
+                Name = c.Name
+            }).ToList(),
+            Skus = product.SKUs.Select(ProductDtoMapper.ToSkuDetailDto).ToList()
         };
     }
 

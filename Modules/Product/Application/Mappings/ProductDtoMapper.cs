@@ -22,28 +22,90 @@ public static class ProductDtoMapper
             CategoryNames = product.Categories.Select(c => c.Name).ToList(),
             CategoryId = product.Categories.FirstOrDefault()?.Id ?? Guid.Empty,
             Attributes = product.Attributes,
-            SKUs = product.SKUs,
+            SKUs = product.SKUs.Select(ToSkuDetailDto).ToList(),
             Status = product.Status
         };
     }
 
     public static async Task<ProductDetailDto> ToDetailDtoAsync(this ProductEntity product, IUrlResolver urlResolver, CancellationToken ct = default)
     {
-        var imageUrls = await Task.WhenAll(product.ImageUrls.Select(path => urlResolver.ResolveAsync(path, DefaultImageSize, ct)));
+        var imageUrls = new List<string?>();
+        foreach (var path in product.ImageUrls)
+        {
+            imageUrls.Add(await urlResolver.ResolveAsync(path, DefaultImageSize, ct));
+        }
 
         return new ProductDetailDto
         {
             Id = product.Id,
             Name = product.Name,
-            Slug = product.Slug,
             Description = product.Description,
-            BasePrice = product.BasePrice,
-            VirtualPrice = product.VirtualPrice,
+            Price = product.VirtualPrice > 0 ? product.VirtualPrice : product.BasePrice,
             ImageUrls = imageUrls.Where(url => !string.IsNullOrWhiteSpace(url)).Select(url => url!).ToList(),
             Attributes = product.Attributes,
-            Brand = product.Brand,
-            Categories = product.Categories,
-            Skus = product.SKUs
+            Brand = product.Brand == null ? null : new ProductBrandDto
+            {
+                Id = product.Brand.Id,
+                Name = product.Brand.Name
+            },
+            Categories = product.Categories.Select(c => new ProductCategoryDto
+            {
+                Id = c.Id,
+                Name = c.Name
+            }).ToList(),
+            Skus = product.SKUs.Select(ToSkuDetailDto).ToList()
+        };
+    }
+
+    public static BrandDetailDto ToBrandDetailDto(this Modules.Product.Domain.Brand brand)
+    {
+        return new BrandDetailDto
+        {
+            Id = brand.Id,
+            Name = brand.Name,
+            Slug = brand.Slug,
+            CreatedAt = brand.CreatedAt,
+            UpdatedAt = brand.UpdatedAt
+        };
+    }
+
+    public static CategoryListItemDto ToCategoryListItemDto(this Modules.Product.Domain.Category category)
+    {
+        return new CategoryListItemDto
+        {
+            Id = category.Id,
+            Name = category.Name,
+            ParentCategoryId = category.ParentCategoryId,
+            CreatedAt = category.CreatedAt
+        };
+    }
+
+    public static SkuAdminListItemDto ToSkuAdminListItemDto(this Modules.Product.Domain.SKU sku)
+    {
+        return new SkuAdminListItemDto
+        {
+            Id = sku.Id,
+            SkuCode = sku.SkuCode,
+            Price = sku.Price,
+            Stock = sku.Stock,
+            OptionValues = sku.OptionValues,
+            ProductName = sku.Product?.Name ?? string.Empty
+        };
+    }
+
+    public static SkuDetailDto ToSkuDetailDto(this Modules.Product.Domain.SKU sku)
+    {
+        return new SkuDetailDto
+        {
+            Id = sku.Id,
+            SkuCode = sku.SkuCode,
+            ProductId = sku.ProductId,
+            ProductName = sku.Product?.Name ?? string.Empty,
+            Price = sku.Price,
+            Stock = sku.Stock,
+            Url = sku.Url,
+            IsActive = sku.IsActive,
+            OptionValues = sku.OptionValues
         };
     }
 }

@@ -106,11 +106,10 @@ namespace EVerland.Migrations
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
-                    b.Property<Guid>("SkuId")
+                    b.Property<Guid?>("SkuId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("SkuValue")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<DateTime?>("UpdatedAt")
