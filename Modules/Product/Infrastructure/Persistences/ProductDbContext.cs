@@ -29,7 +29,10 @@ public class ProductDbContext(DbContextOptions<ProductDbContext> options) : DbCo
                 var property = Expression.Property(parameter, nameof(BaseEntity.IsDeleted));
                 var filter = Expression.Lambda(Expression.Equal(property, Expression.Constant(false)), parameter);
                 entityType.SetQueryFilter(filter);
-                modelBuilder.Entity(entityType.ClrType).Property(nameof(BaseEntity.RowVersion)).IsRowVersion();
+                modelBuilder.Entity(entityType.ClrType)
+                    .Property(nameof(BaseEntity.RowVersion))
+                    .IsConcurrencyToken()
+                    .ValueGeneratedNever();
             }
         }
 
@@ -71,6 +74,8 @@ public class ProductDbContext(DbContextOptions<ProductDbContext> options) : DbCo
                 .WithMany(x => x.SubCategories)
                 .HasForeignKey(x => x.ParentCategoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+             entity.HasIndex(x => x.Name).IsUnique();   
         });
 
         _ = modelBuilder.Entity<Domain.Product>(entity =>
@@ -80,11 +85,11 @@ public class ProductDbContext(DbContextOptions<ProductDbContext> options) : DbCo
 
             entity.Property(x => x.Name)
                 .IsRequired()
-                .HasMaxLength(200);
+                .HasMaxLength(500);
 
             entity.Property(x => x.Description)
                 .IsRequired()
-                .HasMaxLength(2000);
+                .HasMaxLength(4000);
 
             entity.Property(x => x.VirtualPrice)
                 .HasPrecision(18, 2);
@@ -148,7 +153,8 @@ public class ProductDbContext(DbContextOptions<ProductDbContext> options) : DbCo
                 .HasColumnType("jsonb");
 
             entity.Property(x => x.RowVersion)
-                .IsRowVersion();
+                .IsConcurrencyToken()
+                .ValueGeneratedNever();
 
             entity.HasIndex(x => x.OptionValues).HasMethod("GIN");
 

@@ -39,7 +39,7 @@ public class SkuRepository(ProductDbContext db) : ISkuRepository
     {
         var normalized = value.Trim().ToUpperInvariant();
         return await _db.SKUs.AsNoTracking()
-            .FirstOrDefaultAsync(s => s.SkuCode.Equals(normalized, StringComparison.CurrentCultureIgnoreCase), ct);
+            .FirstOrDefaultAsync(s => s.SkuCode.ToUpper() == normalized, ct);
     }
 
     public async Task<List<SKU>> GetAllWithProductAsync(CancellationToken ct = default)

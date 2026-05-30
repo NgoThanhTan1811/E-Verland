@@ -7,6 +7,9 @@ using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.DTOs.Response;
 using Modules.Product.Application.Services;
 using Modules.Redis.Services;
+using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Modules.Product.Application.Commands;
 
@@ -38,12 +41,18 @@ public sealed class CreateProductHandler(
         await ValidateImagePathsAsync(request.Request.ImageUrls, cancellationToken);
 
         var categories = new List<Domain.Category>();
-        if (request.Request.CategoryIds.Count != 0)
+        if (request.Request.CategoryIds?.Count != 0)
         {
-            foreach (var categoryId in request.Request.CategoryIds)
+            foreach (var categoryId in request.Request.CategoryIds!)
             {
                 var category = await _categoryRepository.GetByIdAsync(categoryId, cancellationToken)
                      ?? throw new KeyNotFoundException($"Category with ID '{categoryId}' not found.");
+
+                if (_dbContext is Microsoft.EntityFrameworkCore.DbContext efDbContext)
+                {
+                    efDbContext.Attach(category);
+                }
+
                 categories.Add(category);
             }
         }
@@ -54,11 +63,11 @@ public sealed class CreateProductHandler(
             Description = request.Request.Description,
             BasePrice = request.Request.BasePrice,
             VirtualPrice = request.Request.VirtualPrice,
-            Slug = request.Request.Slug,
+            Slug = SlugHelper.GenerateSlug(request.Request.Name),
             ImageUrls = request.Request.ImageUrls,
             Attributes = request.Request.Attributes,
             BrandId = request.Request.BrandId,
-            Status = Domain.ProductStatus.Draft,
+            Status = Domain.ProductStatus.Published,
             Categories = categories
         };
 
@@ -164,4 +173,6 @@ public sealed class CreateProductHandler(
             || path.StartsWith("shops/", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("reviews/", StringComparison.OrdinalIgnoreCase);
     }
+
+
 }

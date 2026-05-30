@@ -49,7 +49,6 @@ namespace EVerland.Migrations
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.Property<string>("Slug")
@@ -96,7 +95,6 @@ namespace EVerland.Migrations
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -140,8 +138,8 @@ namespace EVerland.Migrations
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
 
                     b.Property<string>("ImageUrls")
                         .IsRequired()
@@ -152,8 +150,8 @@ namespace EVerland.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<decimal?>("Rating")
                         .HasColumnType("numeric");
@@ -164,7 +162,6 @@ namespace EVerland.Migrations
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.Property<Guid?>("ShopId")
@@ -188,7 +185,6 @@ namespace EVerland.Migrations
                         .HasColumnType("text");
 
                     b.PrimitiveCollection<List<string>>("VideoUrls")
-                        .IsRequired()
                         .HasColumnType("text[]");
 
                     b.Property<int>("ViewCount")
@@ -252,7 +248,6 @@ namespace EVerland.Migrations
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.Property<string>("SkuCode")
@@ -328,7 +323,6 @@ namespace EVerland.Migrations
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.Property<Guid>("SkuId")

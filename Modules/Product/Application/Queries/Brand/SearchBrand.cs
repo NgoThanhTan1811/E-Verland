@@ -24,11 +24,11 @@ public sealed class SearchBrandHandler(IBrandRepository brandRepository) : IRequ
         }
 
         var totalCount = query.Count();
-        var skip = (request.Filter.Page - 1) * request.Filter.Limit;
+        var (page, limit, skip) = Pagination.Normalize(request.Filter);
         var brands = query
             .OrderByDescending(b => b.CreatedAt)
             .Skip(skip)
-            .Take(request.Filter.Limit)
+            .Take(limit)
             .ToList();
 
         var dtos = brands.Select(b => new BrandListItemDto

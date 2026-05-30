@@ -11,7 +11,7 @@ namespace Modules.User.Application.Validators
             if (string.IsNullOrWhiteSpace(phoneNumber)) return false;
 
             phoneNumber = System.Text.RegularExpressions.Regex.Replace(phoneNumber, @"[\s\-\.]", "");
-            var regex = new System.Text.RegularExpressions.Regex(@"^\+?[1-9]\d{1,14}$");
+            var regex = new System.Text.RegularExpressions.Regex(@"^\+?\d{1,15}$");
             return regex.IsMatch(phoneNumber);
         }
 

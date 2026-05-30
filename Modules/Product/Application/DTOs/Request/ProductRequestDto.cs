@@ -15,11 +15,10 @@ namespace Modules.Product.Application.DTOs.Request
         public string Description { get; set; } = default!;
         public decimal BasePrice { get; set; }
         public decimal VirtualPrice { get; set; }
-        public string Slug { get; set; } = default!;
         public List<string> ImageUrls { get; set; } = [];
         public Dictionary<string, string> Attributes { get; set; } = [];
         public Guid? BrandId { get; set; }
-        public List<Guid> CategoryIds { get; set; } = [];
+        public List<Guid>? CategoryIds { get; set; } = [];
         public ProductStatus Status { get; set; } = ProductStatus.Draft;
 
         // For SKU auto-generation

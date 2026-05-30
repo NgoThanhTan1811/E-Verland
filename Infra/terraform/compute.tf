@@ -152,13 +152,26 @@ locals {
     {
       name  = "e-verland-app"
       image = var.container_image
-      portMappings = [
-        {
-          containerPort = 8080
-          hostPort      = 8080
-          protocol      = "tcp"
-        }
+      portMappings = [{ containerPort = 8080, hostPort = 8080, protocol = "tcp" }]
+      environment = [
+        { name = "ASPNETCORE_ENVIRONMENT", value = "Production" },
+        { name = "MeiliSearch__Host", value = "http://localhost:7700" }
       ]
+      essential = true
+    },
+    {
+      name  = "meilisearch"
+      image = "getmeili/meilisearch:v1.7"
+      portMappings = [{ containerPort = 7700, hostPort = 7700, protocol = "tcp" }]
+      essential = true
+      mountPoints = [
+        { sourceVolume = "meili_data", containerPath = "/meili_data" }
+      ]
+    }
+  ]
+
+  
+      
       essential = true
 
       # Các biến môi trường công khai
@@ -242,8 +255,7 @@ locals {
         }
       }
     }
-  ]
-}
+  
 
 resource "aws_ecs_task_definition" "app" {
   family                   = "${var.project_name}-task"
@@ -254,6 +266,12 @@ resource "aws_ecs_task_definition" "app" {
   execution_role_arn       = aws_iam_role.app_role.arn
   task_role_arn            = aws_iam_role.app_role.arn
   container_definitions    = jsonencode(local.app_container_definitions)
+  volume {
+    name = "meili_data"
+    efs_volume_configuration {
+      file_system_id = aws_efs_file_system.meili_data.id
+    }
+  }
 }
 
 resource "aws_ecs_service" "app" {

@@ -26,14 +26,10 @@ public class AddressController(IMediator mediator) : ControllerBase
             var command = new CreateAddressCommand(
                 profileId,
                 dto.Street,
-                dto.City,
-                dto.Ward,
                 dto.Detail,
-                dto.District,
-                dto.Province,
                 dto.ProvinceId,
                 dto.DistrictId,
-                dto.WardCode,
+                dto.WardId,
                 dto.Label,
                 false
             );
@@ -104,16 +100,12 @@ public class AddressController(IMediator mediator) : ControllerBase
                 profileId,
                 id,
                 dto.Label,
-                dto.City,
-                dto.Province,
-                dto.District,
-                dto.Ward,
                 dto.Street,
                 dto.Detail,
                 dto.IsDefault,
                 dto.ProvinceId,
                 dto.DistrictId,
-                dto.WardCode
+                dto.WardId
             );
             var result = await _mediator.Send(command, ct);
             return Ok(result);

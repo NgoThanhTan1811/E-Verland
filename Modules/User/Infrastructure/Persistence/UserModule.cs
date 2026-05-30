@@ -1,8 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Modules.User.Application;
 using Modules.User.Application.Interfaces.Repositories;
+using Modules.User.Application.Interfaces.Services;
 using Modules.User.Infrastructure.Persistence;
 using Modules.User.Infrastructure.Repositories;
+using Modules.User.Infrastructure.Services;
 using SharedKernel.Persistence;
 
 namespace Modules.User;
@@ -25,6 +27,7 @@ public static class UserModule
         services.AddScoped<IProfileRepository, ProfileRepository>();
         services.AddScoped<IAddressRepository, AddressRepository>();
         services.AddScoped<IBankAccountRepository, BankAccountRepository>();
+        services.AddSingleton<ILocationLookupService, LocationLookupService>();
 
         services.AddMediatR(cfg =>
             cfg.RegisterServicesFromAssembly(typeof(UserApplicationMarker).Assembly));

@@ -7,7 +7,7 @@ namespace Modules.Notification.Application.Contracts
 {
     public interface INotificationService
     {
-        void RegisterUserConnection(Guid userId, StreamWriter writer);
+        void RegisterUserConnection(Guid userId, Stream stream);
 
         void UnregisterUserConnection(Guid userId);
 

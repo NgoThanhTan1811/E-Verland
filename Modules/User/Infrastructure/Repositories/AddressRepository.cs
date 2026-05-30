@@ -94,7 +94,7 @@ namespace Modules.User.Infrastructure.Repositories
                 AND "IsDefault" = TRUE
                 AND "DeletedAt" IS NULL
                 """,
-                profileId, ct);
+                [profileId, ct]);
         }
 
         public Task UpdateAsync(Address entity, CancellationToken cancellationToken = default)

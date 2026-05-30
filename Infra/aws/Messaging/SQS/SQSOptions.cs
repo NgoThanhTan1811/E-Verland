@@ -7,7 +7,7 @@ public sealed class SQSOptions
 {
     public const string SectionName = "AWS:SQS";
 
-    public string Region { get; set; } = "us-east-1";
+    public string Region { get; set; } = "ap-southeast-1";
 
     // Queue URLs
     public string OrderEventsQueueUrl { get; set; } = string.Empty;

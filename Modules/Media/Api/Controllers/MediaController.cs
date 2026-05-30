@@ -29,50 +29,99 @@ public class MediaController : ControllerBase
          [FromForm] UploadMediaRequest request, // Gom lại thành 1 object
          CancellationToken ct)
     {
-        // 1. Thay 'file' bằng 'request.File'
-        if (request.File == null || request.File.Length == 0)
+        if (request.Files == null || request.Files.Count == 0)
             return BadRequest(new { message = "No file uploaded" });
 
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        // 2. Thay 'mediaType' bằng 'request.MediaType'
-        if (!Enum.TryParse<MediaType>(request.MediaType, out var parsedMediaType))
-            return BadRequest(new { message = "Invalid media type" });
-
-        // 3. Thay 'resourceType' bằng 'request.ResourceType'
         if (!TryParseResourceType(request.ResourceType, out var parsedResourceType))
             return BadRequest(new { message = "Invalid resource type. Allowed: products, avatars, shops, reviews" });
 
-        // 4. Mở stream từ request.File
-        using var stream = request.File.OpenReadStream();
+        var results = new List<object>();
 
-        UploadMediaResult result;
-        try
+        foreach (var file in request.Files)
         {
-            var command = new UploadMediaCommand(
-                stream,
-                request.File.FileName,     // Thay file -> request.File
-                request.File.ContentType,  // Thay file -> request.File
-                parsedMediaType,
-                parsedResourceType,
-                userId);
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "One or more files are empty" });
 
-            result = await _mediator.Send(command, ct);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return UnprocessableEntity(new { message = ex.Message });
-        }
+            if (!TryParseMediaType(request.MediaType, file.ContentType, out var parsedMediaType))
+                return BadRequest(new { message = "Invalid media type" });
 
-        return CreatedAtAction(
-            nameof(GetMediaUrl),
-            new { id = result.MediaId },
-            new
+            using var stream = file.OpenReadStream();
+
+            try
             {
-                id = result.MediaId,
-                path = result.FilePath,
-                size = result.FileSize
-            });
+                var command = new UploadMediaCommand(
+                    stream,
+                    file.FileName,
+                    file.ContentType,
+                    parsedMediaType,
+                    parsedResourceType,
+                    userId);
+
+                var result = await _mediator.Send(command, ct);
+                results.Add(new
+                {
+                    id = result.MediaId,
+                    path = result.FilePath,
+                    size = result.FileSize,
+                    fileName = file.FileName
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return UnprocessableEntity(new { message = ex.Message });
+            }
+        }
+
+        return CreatedAtAction(nameof(GetMediaUrl), new { id = results.Count == 1 ? ((dynamic)results[0]).id : Guid.Empty }, results);
+    }
+
+    private static bool TryParseMediaType(string? value, string fileContentType, out MediaType mediaType)
+    {
+        mediaType = MediaType.Image;
+
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            // Try enum name first
+            if (Enum.TryParse<MediaType>(value, true, out var parsed))
+            {
+                mediaType = parsed;
+                return true;
+            }
+
+            // Accept full content-type strings like "image/jpeg" or "video/mp4"
+            if (value.Contains('/'))
+            {
+                if (value.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+                {
+                    mediaType = MediaType.Image;
+                    return true;
+                }
+                if (value.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+                {
+                    mediaType = MediaType.Video;
+                    return true;
+                }
+            }
+        }
+
+        // Fall back to uploaded file's ContentType
+        if (!string.IsNullOrWhiteSpace(fileContentType))
+        {
+            if (fileContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+            {
+                mediaType = MediaType.Image;
+                return true;
+            }
+            if (fileContentType.StartsWith("video/", StringComparison.OrdinalIgnoreCase))
+            {
+                mediaType = MediaType.Video;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     [HttpPost("presigned-upload")]
@@ -105,6 +154,7 @@ public class MediaController : ControllerBase
         }
     }
 
+    [AllowAnonymous]
     [HttpGet("{id}/url")]
     public async Task<IActionResult> GetMediaUrl(Guid id, [FromQuery] string? size, CancellationToken ct)
     {
@@ -116,6 +166,23 @@ public class MediaController : ControllerBase
 
         return Ok(new { url });
     }
+
+    [AllowAnonymous]
+    [HttpGet("url")]
+    public async Task<IActionResult> GetMediaUrlByPath([FromQuery] string path, [FromQuery] string? size, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return BadRequest(new { message = "Path is required" });
+
+        var query = new GetMediaUrlByPathQuery(path, size);
+        var url = await _mediator.Send(query, ct);
+
+        if (url == null)
+            return NotFound(new { message = "Media not found" });
+
+        return Ok(new { url });
+    }
+
     [Authorize(Policy = "AdminOrSeller")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteMedia(Guid id, CancellationToken ct)

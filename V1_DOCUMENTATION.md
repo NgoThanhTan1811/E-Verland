@@ -34,12 +34,10 @@ E-Verland/
 |   +-- Product/
 |   +-- Cart/
 |   +-- Order/
-|   +-- Payment/
+|   +-- Payment/                #COD
 |   +-- Chat/
 |   +-- Notification/
 |   +-- Redis/
-|   +-- Meida/
-|   +-- Dashboard/
 +-- SharedKernel/                # BaseEntity, IRepository, Pagination, Validators
 ```
 

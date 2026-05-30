@@ -39,10 +39,24 @@ namespace Modules.Cart.Infrastructure.Repositorise
                 .FirstOrDefaultAsync(c => c.UserId == userId, ct);
         }
 
-        public Task UpdateAsync(Domain.Cart entity, CancellationToken cancellationToken = default)
+        public async Task UpdateAsync(Domain.Cart entity, CancellationToken cancellationToken = default)
         {
-            _db.Carts.Update(entity);
-            return Task.CompletedTask;
+            var trackedEntity = _db.Carts.Local.FirstOrDefault(e => e.Id == entity.Id);
+
+            if (trackedEntity != null)
+            {
+                _db.Entry(trackedEntity).CurrentValues.SetValues(entity);
+            }
+            else
+            {
+                trackedEntity = await _db.Carts.FirstOrDefaultAsync(c => c.Id == entity.Id, cancellationToken);
+
+                if (trackedEntity != null)
+                {
+                    _db.Entry(trackedEntity).CurrentValues.SetValues(entity);
+                }
+            }
+
         }
     }
 }

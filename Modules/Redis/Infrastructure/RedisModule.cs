@@ -60,7 +60,8 @@ public static class RedisModuleExtension
                 ConnectTimeout = 10000,
                 SyncTimeout = 10000,
                 KeepAlive = 30,
-                SslProtocols = SslProtocols.Tls12
+                SslProtocols = SslProtocols.Tls12,
+                AllowAdmin = true
             };
 
             options.EndPoints.Add(host, port);

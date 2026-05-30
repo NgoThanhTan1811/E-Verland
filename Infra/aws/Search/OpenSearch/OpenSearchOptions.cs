@@ -8,7 +8,7 @@ public sealed class OpenSearchOptions
     public const string SectionName = "AWS:OpenSearch";
 
     public string Endpoint { get; set; } = string.Empty;
-    public string Region { get; set; } = "us-east-1";
+    public string Region { get; set; } = "ap-southeast-1";
 
     // Credentials
     public string Username { get; set; } = string.Empty;

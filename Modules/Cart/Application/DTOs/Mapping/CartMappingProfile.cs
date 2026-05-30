@@ -9,5 +9,6 @@ public class CartMappingProfile : Profile
     public CartMappingProfile()
     {
         CreateMap<Domain.Cart, CartResponseDto>();
+        CreateMap<CartItem, CartItemResponseDto>();
     }
 }

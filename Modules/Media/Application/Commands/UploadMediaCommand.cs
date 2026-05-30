@@ -36,6 +36,8 @@ public sealed class UploadMediaHandler : IRequestHandler<UploadMediaCommand, Upl
         if (inferredType != request.MediaType)
             throw new InvalidOperationException("Declared mediaType does not match uploaded file ContentType.");
 
+        var fileSize = request.FileStream.CanSeek ? request.FileStream.Length : 0;
+
         var filePath = await _storageService.UploadAsync(
             request.FileStream,
             request.FileName,
@@ -48,7 +50,7 @@ public sealed class UploadMediaHandler : IRequestHandler<UploadMediaCommand, Upl
         {
             FileName = request.FileName,
             FilePath = filePath,
-            FileSize = request.FileStream.Length,
+            FileSize = fileSize,
             ContentType = request.ContentType,
             MediaType = inferredType,
             UploadedBy = request.UploadedBy,

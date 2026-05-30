@@ -11,7 +11,7 @@ public class Address : BaseEntity
     public LableAddress Label { get; set; } = LableAddress.Other;
     public string City { get; set; } = default!;
     public string Ward { get; set; } = default!;
-    public string Detail { get; set; } = default!;
+    public string? Detail { get; set; } = default!;
     public string Street { get; set; } = default!;
     public string District { get; set; } = default!;
     public string Province { get; set; } = default!;
@@ -30,7 +30,7 @@ public class Address : BaseEntity
         string district,
         string ward,
         string street,
-        string detail,
+        string? detail,
         bool isDefault,
         int? provinceId,
         int? districtId,

@@ -27,9 +27,9 @@ namespace Modules.Auth.Application.Services
             _configuration = configuration;
         }
 
-        public TimeSpan AccessTokenLifetime => TimeSpan.FromMinutes(GetIntSetting("Jwt:AccessTokenMinutes", 10));
+        public TimeSpan AccessTokenLifetime => TimeSpan.FromMinutes(GetIntSetting("Jwt:AccessTokenMinutes", 30));
 
-        public TimeSpan RefreshTokenLifetime => TimeSpan.FromHours(GetIntSetting("Jwt:RefreshTokenHours", 12));
+        public TimeSpan RefreshTokenLifetime => TimeSpan.FromDays(GetIntSetting("Jwt:RefreshTokenDays", 7));
 
         public string GenerateAccessToken(Account account)
         {

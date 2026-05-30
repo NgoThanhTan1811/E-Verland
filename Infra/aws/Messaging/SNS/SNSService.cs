@@ -39,6 +39,9 @@ public sealed class SNSService : ISNSService
                 Subject = subject
             };
 
+            _logger.LogDebug("Publishing to SNS topic {TopicArn}. SNSOptions: Order={OrderTopic},Payment={PaymentTopic},User={UserTopic}",
+                topicArn, _options.OrderNotificationsTopicArn, _options.PaymentNotificationsTopicArn, _options.UserNotificationsTopicArn);
+
             var response = await AwsRetryPolicy.ExecuteAsync(() => _snsClient.PublishAsync(request, ct), 3, ct);
 
             _logger.LogInformation(
@@ -46,6 +49,16 @@ public sealed class SNSService : ISNSService
                 topicArn, response.MessageId);
 
             return response.MessageId;
+        }
+        catch (NotFoundException nfEx)
+        {
+            // SNS returns NotFound when the topic ARN does not exist in the account/region
+            _logger.LogError(nfEx, "SNS topic not found: {TopicArn}. Verify the topic ARN exists in the configured AWS account and region. Configured SNSOptions Order={Order}, Payment={Payment}, User={User}",
+                topicArn,
+                _options.OrderNotificationsTopicArn,
+                _options.PaymentNotificationsTopicArn,
+                _options.UserNotificationsTopicArn);
+            throw;
         }
         catch (Exception ex)
         {

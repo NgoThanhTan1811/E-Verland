@@ -51,15 +51,6 @@ public static class AuthenticationExtension
                         var hasAuthHeader = context.Request.Headers.ContainsKey("Authorization");
                         var hasAccessCookie = context.Request.Cookies.TryGetValue("access_token", out var token);
 
-                        logger.LogDebug(
-                            "JWT OnMessageReceived path={Path} method={Method} origin={Origin} authHeader={HasAuthHeader} accessCookie={HasAccessCookie} cookieLength={CookieLength}",
-                            context.Request.Path.Value,
-                            context.Request.Method,
-                            context.Request.Headers.Origin.ToString(),
-                            hasAuthHeader,
-                            hasAccessCookie,
-                            hasAccessCookie ? token?.Length ?? 0 : 0);
-
                         if (hasAccessCookie)
                         {
                             context.Token = token;
@@ -80,11 +71,6 @@ public static class AuthenticationExtension
                             ?? context.Principal?.FindFirst("role")?.Value
                             ?? "unknown";
 
-                        logger.LogDebug(
-                            "JWT validated path={Path} subject={Subject} role={Role}",
-                            context.Request.Path.Value,
-                            subject,
-                            role);
 
                         return Task.CompletedTask;
                     },
@@ -94,7 +80,6 @@ public static class AuthenticationExtension
                             .GetRequiredService<ILoggerFactory>()
                             .CreateLogger("JwtAuth");
 
-                        logger.LogWarning(context.Exception, "JWT authentication failed path={Path}", context.Request.Path.Value);
                         return Task.CompletedTask;
                     },
                     OnChallenge = context =>
@@ -102,14 +87,6 @@ public static class AuthenticationExtension
                         var logger = context.HttpContext.RequestServices
                             .GetRequiredService<ILoggerFactory>()
                             .CreateLogger("JwtAuth");
-
-                        logger.LogWarning(
-                            "JWT challenge path={Path} error={Error} description={Description} authHeader={HasAuthHeader} accessCookie={HasAccessCookie}",
-                            context.Request.Path.Value,
-                            context.Error,
-                            context.ErrorDescription,
-                            context.Request.Headers.ContainsKey("Authorization"),
-                            context.Request.Cookies.ContainsKey("access_token"));
 
                         return Task.CompletedTask;
                     }

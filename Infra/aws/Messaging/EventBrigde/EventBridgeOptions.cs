@@ -7,7 +7,7 @@ public sealed class EventBridgeOptions
 {
     public const string SectionName = "AWS:EventBridge";
 
-    public string Region { get; set; } = "us-east-1";
+    public string Region { get; set; } = "ap-southeast-1";
 
     // Event Bus
     public string EventBusName { get; set; } = "e-verland-events";

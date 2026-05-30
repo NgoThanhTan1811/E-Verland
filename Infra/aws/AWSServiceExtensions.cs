@@ -59,13 +59,13 @@ public static class AWSServiceExtensions
             var config = new AmazonSQSConfig
             {
                 RegionEndpoint = awsOptions.Region,
-                Timeout = TimeSpan.FromSeconds(60),       
+                Timeout = TimeSpan.FromSeconds(60),
             };
 
             return awsOptions.Credentials != null
                 ? new AmazonSQSClient(awsOptions.Credentials, config)
                 : new AmazonSQSClient(config);
-        }); 
+        });
         services.AddAWSService<IAmazonSimpleNotificationService>();
         services.AddAWSService<IAmazonEventBridge>();
         services.AddSingleton<IAmazonS3>(sp => CreateS3Client(sp, awsOptions));
@@ -184,16 +184,16 @@ public static class AWSServiceExtensions
         services.PostConfigure<MeilisearchOptions>(options =>
         {
             options.Endpoint = string.IsNullOrWhiteSpace(options.Endpoint)
-                ? configuration["Aws:Meilisearch:Endpoint"] ?? "http://localhost:7700"
+                ? configuration["Meilisearch:Endpoint"] ?? "http://meilisearch:7700"
                 : options.Endpoint;
             options.MasterKey = string.IsNullOrWhiteSpace(options.MasterKey)
-                ? configuration["Aws:Meilisearch:MasterKey"] ?? string.Empty
+                ? configuration["Meilisearch:MasterKey"] ?? string.Empty
                 : options.MasterKey;
             options.IndexName = string.IsNullOrWhiteSpace(options.IndexName)
-                ? configuration["Aws:Meilisearch:IndexName"] ?? "products"
+                ? configuration["Meilisearch:IndexName"] ?? "products"
                 : options.IndexName;
 
-            var timeoutStr = configuration["Aws:Meilisearch:RequestTimeoutSeconds"];
+            var timeoutStr = configuration["Meilisearch:RequestTimeoutSeconds"];
             if (!string.IsNullOrWhiteSpace(timeoutStr) && int.TryParse(timeoutStr, out var timeout))
             {
                 options.RequestTimeoutSeconds = timeout;

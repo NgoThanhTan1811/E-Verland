@@ -15,7 +15,7 @@ public class CategoryController(IMediator mediator) : ControllerBase
 {
     private readonly IMediator _mediator = mediator;
 
-    [Authorize(Policy = "AdminPolicy")]
+    [Authorize(Policy = "AdminOrSeller")]
     [HttpPost]
     public async Task<IActionResult> CreateCategory([FromBody] CreateCategoryRequestDto request, CancellationToken cancellationToken)
     {
@@ -24,7 +24,7 @@ public class CategoryController(IMediator mediator) : ControllerBase
         return CreatedAtAction(nameof(GetCategoryById), new { id = result.Id }, result);
     }
 
-    [Authorize(Policy = "AdminPolicy")]
+    [Authorize(Policy = "AdminOrSeller")]
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateCategory(Guid id, [FromBody] UpdateCategoryRequestDto request, CancellationToken cancellationToken)
     {

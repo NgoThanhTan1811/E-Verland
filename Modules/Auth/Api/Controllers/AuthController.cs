@@ -276,7 +276,7 @@ namespace Modules.Auth.Api.Controllers
             return new CookieOptions
             {
                 Expires = DateTime.UtcNow.AddMinutes(
-                    int.TryParse(_configuration["Jwt:AccessTokenMinutes"], out var minutes) ? minutes : 10),
+                    int.TryParse(_configuration["Jwt:AccessTokenMinutes"], out var minutes) ? minutes : 30),
                 HttpOnly = true,  // Required for security
                 Secure = cookieSecure,
                 SameSite = SameSiteMode.Lax,

@@ -8,9 +8,9 @@ public sealed class MeilisearchOptions
     public const string SectionName = "AWS:Meilisearch";
 
     /// <summary>
-    /// Meilisearch API endpoint (e.g., http://localhost:7700 or https://your-instance.meilisearch.com)
+    /// Meilisearch API endpoint (e.g., http://meilisearch:7700 or https://your-instance.meilisearch.com)
     /// </summary>
-    public string Endpoint { get; set; } = "http://localhost:7700";
+    public string Endpoint { get; set; } = "http://meilisearch:7700";
 
     /// <summary>
     /// Meilisearch master key for API authentication

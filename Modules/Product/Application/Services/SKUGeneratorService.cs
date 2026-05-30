@@ -15,6 +15,7 @@ public class SKUGeneratorService
     /// </summary>
     public List<GeneratedSKU> GenerateSKUs(List<SKUOption> variants)
     {
+        
         if (variants.Count == 0)
             return [];
 
@@ -32,6 +33,10 @@ public class SKUGeneratorService
             }
 
             var skuCode = string.Join("-", combination);
+            if (skuCode.Length > 90) // Trừ hao cho các ký tự thêm vào nếu có
+            {
+                skuCode = string.Concat(skuCode.AsSpan(0, 90), "-", Guid.NewGuid().ToString().AsSpan(0, 5));
+            }
             skus.Add(new GeneratedSKU(skuCode, optionValues));
         }
 

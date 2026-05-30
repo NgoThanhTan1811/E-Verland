@@ -7,7 +7,7 @@ public sealed class SNSOptions
 {
     public const string SectionName = "AWS:SNS";
 
-    public string Region { get; set; } = "us-east-1";
+    public string Region { get; set; } = "ap-southeast-1";
 
     // Topic ARNs
     public string OrderNotificationsTopicArn { get; set; } = string.Empty;

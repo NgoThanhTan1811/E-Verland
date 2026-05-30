@@ -7,7 +7,7 @@ public sealed class CloudWatchOptions
 {
     public const string SectionName = "AWS:CloudWatch";
 
-    public string Region { get; set; } = "us-east-1";
+    public string Region { get; set; } = "ap-southeast-1";
 
     // Centralized logging via Serilog sink
     public bool Enabled { get; set; } = false;

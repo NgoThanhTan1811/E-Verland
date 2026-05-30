@@ -27,6 +27,11 @@ namespace Modules.Product.Application.DTOs.Request
         public Dictionary<string, string> OptionValues { get; set; } = new();
     }
 
+    public record AddSkusToProductRequestDto
+    {
+        public List<ProductVariantDto> Variants { get; set; } = [];
+    }
+
     public record SearchSkuAdminRequestDto : IPagingFilter
     {
         public string? Keyword { get; set; }    // SkuCode

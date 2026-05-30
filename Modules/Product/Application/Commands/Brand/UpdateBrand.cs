@@ -2,6 +2,7 @@ using MediatR;
 using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.DTOs.Response;
+using Modules.Product.Application.Services;
 
 namespace Modules.Product.Application.Commands;
 
@@ -25,7 +26,7 @@ public sealed class UpdateBrandHandler(IBrandRepository brandRepository, IProduc
         }
 
         brand.Name = request.Request.Name;
-        brand.Slug = request.Request.Slug;
+        brand.Slug = SlugHelper.GenerateSlug(request.Request.Name);
 
         await _brandRepository.UpdateAsync(brand, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);

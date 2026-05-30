@@ -3,6 +3,8 @@ using MediatR;
 using Modules.Cart.Application.Contracts;
 using Modules.Cart.Application.DTOs.Request;
 using Modules.Cart.Application.DTOs.Response;
+using Modules.Media.Application.Queries;
+using Modules.Product.Application.Queries;
 
 namespace Modules.Cart.Application.Commands;
 
@@ -11,11 +13,13 @@ public sealed record AddToCartCommand(Guid UserId, AddToCartRequestDto Request) 
 public sealed class AddToCartHandler(
     ICartRepository cartRepository,
     ICartItemRepository cartItemRepository,
+    IMediator mediator,
     ICartDbContext dbContext,
     IMapper mapper) : IRequestHandler<AddToCartCommand, CartResponseDto>
 {
     private readonly ICartRepository _cartRepository = cartRepository;
     private readonly ICartItemRepository _cartItemRepository = cartItemRepository;
+    private readonly IMediator _mediator = mediator;
     private readonly ICartDbContext _dbContext = dbContext;
     private readonly IMapper _mapper = mapper;
 
@@ -35,8 +39,7 @@ public sealed class AddToCartHandler(
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        var existingItem = await _cartItemRepository.GetByCartIdAndSkuIdAsync(
-            cart.Id, request.Request.SkuId, cancellationToken);
+        var existingItem = cart.Items.FirstOrDefault(x => x.SkuId == request.Request.SkuId);
 
         if (existingItem != null)
         {
@@ -45,18 +48,35 @@ public sealed class AddToCartHandler(
         }
         else
         {
+            var product = await _mediator.Send(new GetProductByIdQuery(request.Request.ProductId), cancellationToken)
+                ?? throw new InvalidOperationException("Product not found");
+
+            var selectedSku = product.Skus.FirstOrDefault(x => x.Id == request.Request.SkuId)
+                ?? throw new InvalidOperationException("SKU does not belong to the selected product");
+
+            string? productImage = null;
+            var imagePath = product.ImageUrls.FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(imagePath))
+            {
+                productImage = await _mediator.Send(new GetMediaUrlByPathQuery(imagePath), cancellationToken);
+            }
+
+            var skuValue = selectedSku.OptionValues.Count > 0
+                ? string.Join(" / ", selectedSku.OptionValues.Select(option => $"{option.Key}: {option.Value}"))
+                : selectedSku.SkuCode;
+
             var cartItem = new Domain.CartItem
             {
                 CartId = cart.Id,
                 ProductId = request.Request.ProductId,
                 SkuId = request.Request.SkuId,
                 Quantity = request.Request.Quantity,
-                ProductName = request.Request.ProductName,
-                ProductImage = request.Request.ProductImage,
-                SkuValue = request.Request.SkuValue
+                ProductName = product.Name,
+                ProductImage = productImage,
+                SkuValue = skuValue
             };
-            await _cartItemRepository.CreateAsync(cartItem, cancellationToken);
             cart.Items.Add(cartItem);
+            await _cartItemRepository.CreateAsync(cartItem, cancellationToken);
         }
 
         cart.TotalItems = cart.Items.Sum(x => x.Quantity);

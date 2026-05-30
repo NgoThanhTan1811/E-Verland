@@ -43,38 +43,32 @@ public class NotificationController(
         Response.Headers.Append("Connection", "keep-alive");
         Response.Headers.Append("X-Accel-Buffering", "no");
 
-        var writer = new StreamWriter(Response.Body)
-        {
-            AutoFlush = true
-        };
-
         // Register user connection
-        _notificationService.RegisterUserConnection(userId, writer);
+        _notificationService.RegisterUserConnection(userId, Response.Body);
         await _cloudWatch.PutMetricAsync("notification.sse.connected", 1, "Count");
 
         try
         {
-            // Keep connection alive
             while (!cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(30000, cancellationToken); // Keep-alive ping every 30 seconds
-                await writer.WriteLineAsync($": keep-alive ping at {DateTime.UtcNow:O}");
-                await writer.FlushAsync();
+                await Task.Delay(30000, cancellationToken);
+                if (cancellationToken.IsCancellationRequested) break;
+                // Ghi dữ liệu trực tiếp vào body một cách bất đồng bộ
+                var message = $"data: : keep-alive ping at {DateTime.UtcNow:O}\n\n";
+                var buffer = System.Text.Encoding.UTF8.GetBytes(message);
+
+                await Response.Body.WriteAsync(buffer, cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
             }
         }
         catch (OperationCanceledException)
         {
             _logger.LogInformation("SSE connection cancelled for user {UserId}", userId);
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error in SSE subscription for user {UserId}", userId);
-        }
         finally
         {
             _notificationService.UnregisterUserConnection(userId);
-            await writer.FlushAsync();
-            writer.Dispose();
+            // Không cần Dispose writer vì Response.Body được quản lý bởi Kestrel
         }
     }
 

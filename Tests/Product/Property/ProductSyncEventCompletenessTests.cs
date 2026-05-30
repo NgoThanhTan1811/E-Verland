@@ -44,7 +44,7 @@ public class ProductSyncEventCompletenessTests
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["SQS:ProductSyncQueueUrl"] = "https://sqs.us-east-1.amazonaws.com/123456789/test-queue"
+                ["SQS:ProductSyncQueueUrl"] = "https://sqs.ap-southeast-1.amazonaws.com/123456789/test-queue"
             })
             .Build();
 

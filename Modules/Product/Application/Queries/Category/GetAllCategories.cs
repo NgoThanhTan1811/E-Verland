@@ -12,32 +12,30 @@ public sealed class GetAllCategoriesHandler(ICategoryRepository categoryReposito
 
     public async Task<List<CategoryDetailDto>> Handle(GetAllCategoriesQuery request, CancellationToken cancellationToken)
     {
-        var categories = await _categoryRepository.GetAllWithProductsAsync(cancellationToken);
+        // Lấy tất cả danh mục từ Database nhưng chỉ lấy các trường cần thiết thông qua DTO
+        var allCategories = await _categoryRepository.GetAllWithProductsAsync(cancellationToken);
 
-        var dtos = new List<CategoryDetailDto>();
-        foreach (var category in categories.Where(c => c.ParentCategoryId == null))
-        {
-            var subCategoryDtos = categories
-                .Where(c => c.ParentCategoryId == category.Id)
-                .Select(c => new CategoryListItemDto
-                {
-                    Id = c.Id,
-                    Name = c.Name,
-                    ParentCategoryId = c.ParentCategoryId,
-                    CreatedAt = c.CreatedAt
-                }).ToList();
-
-            dtos.Add(new CategoryDetailDto
+        // Tách riêng danh mục cha và map danh mục con từ danh sách đã lấy
+        var rootCategories = allCategories
+            .Where(c => c.ParentCategoryId == null)
+            .Select(category => new CategoryDetailDto
             {
                 Id = category.Id,
                 Name = category.Name,
                 ParentCategoryId = category.ParentCategoryId,
-                SubCategories = subCategoryDtos,
                 CreatedAt = category.CreatedAt,
-                UpdatedAt = category.UpdatedAt
-            });
-        }
+                SubCategories = allCategories
+                    .Where(c => c.ParentCategoryId == category.Id)
+                    .Select(c => new CategoryListItemDto
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        ParentCategoryId = c.ParentCategoryId,
+                        CreatedAt = c.CreatedAt
+                    }).ToList()
+            }).ToList();
 
-        return dtos;
+        return rootCategories;
+
     }
 }

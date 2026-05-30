@@ -47,7 +47,18 @@ namespace Modules.Cart.Infrastructure.Repositorise
 
         public Task UpdateAsync(CartItem entity, CancellationToken cancellationToken = default)
         {
-            _db.CartItems.Update(entity);
+            var trackedEntity = _db.CartItems.Local.FirstOrDefault(e => e.Id == entity.Id);
+
+            if (trackedEntity != null)
+            {
+                _db.Entry(trackedEntity).CurrentValues.SetValues(entity);
+            }
+            else
+            {
+                // Nếu chưa, thực hiện Update bình thường
+                _db.CartItems.Update(entity);
+            }
+
             return Task.CompletedTask;
         }
     }

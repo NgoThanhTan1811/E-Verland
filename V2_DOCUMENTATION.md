@@ -14,7 +14,7 @@ E-Verland v2 keeps the modular monolith direction of v1, but makes the boundarie
 - Each module owns its database and persistence layer.
 - CQRS with MediatR is used to separate reads and writes.
 - Redis is used for caching hot data and temporary state.
-- OpenSearch is used for search instead of relying only on PostgreSQL.
+- MeiliSearch is used for search instead of relying only on PostgreSQL.
 
 This design keeps deployment simple while still improving scalability and maintainability.
 
@@ -26,7 +26,7 @@ v1 worked well as a clean modular monolith, but analysis showed several limits.
 
 ### Tight synchronous flow
 
-v1 handled many flows through direct service calls and MediatR chains, for example Order -> Product -> Payment.
+v1 handled many flows through direct service calls and MediatR chains, for example Order -> Product -> Payment (COD/ OnlineBanking).
 
 - Impact: higher latency when one module depends on another.
 - Impact: a slow module can block the whole request chain.
@@ -85,7 +85,7 @@ Used for hot reads such as product catalog, token cache, and cart data.
 - Benefit: lower latency and reduced database load.
 - Trade-off: cache consistency must be handled explicitly.
 
-### OpenSearch for Search
+### MeiliSearch for Search
 
 Used for product search and filtering at scale.
 

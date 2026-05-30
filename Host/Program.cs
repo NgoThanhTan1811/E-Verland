@@ -32,6 +32,15 @@ var xrayOptions = builder.Configuration.GetSection(XRayOptions.SectionName).Get<
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddMemoryCache();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Thêm dòng này để công cụ tuần tự hóa JSON tự cắt đứt khi phát hiện vòng lặp vô hạn
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+
+        // Giữ nguyên các cấu hình đặt tên camelCase nếu có của bạn
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 
 // Health Checks
 builder.Services.AddHealthChecks();

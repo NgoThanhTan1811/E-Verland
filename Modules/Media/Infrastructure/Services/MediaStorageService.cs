@@ -31,10 +31,9 @@ public class MediaStorageService : IMediaStorageService
     public async Task<string> UploadAsync(Stream fileStream, string fileName, string contentType, CancellationToken ct = default)
     {
         var extension = Path.GetExtension(fileName);
-        var objectId = Guid.NewGuid().ToString("N");
         var uniqueFileName = $"{DateTime.UtcNow:yyyyMMddTHHmmssZ}-{Guid.NewGuid():N}{extension}";
         var pathPrefix = GetPathPrefix(contentType);
-        var key = $"{pathPrefix}/{objectId}/{uniqueFileName}";
+        var key = $"{pathPrefix}/{uniqueFileName}";
 
         try
         {
@@ -57,11 +56,17 @@ public class MediaStorageService : IMediaStorageService
     public async Task<string> UploadAsync(Stream fileStream, string fileName, string contentType, MediaResourceType resourceType, CancellationToken ct = default)
     {
         var extension = Path.GetExtension(fileName);
-        var objectId = Guid.NewGuid().ToString("N");
         var uniqueFileName = $"{DateTime.UtcNow:yyyyMMddTHHmmssZ}-{Guid.NewGuid():N}{extension}";
-        var pathPrefix = GetPathPrefix(resourceType);
-        var key = $"{pathPrefix}/{objectId}/{uniqueFileName}";
 
+        var parentFolder = resourceType.ToString().ToLower();
+        var subFolder = "misc"; 
+        
+        if (!string.IsNullOrWhiteSpace(contentType) && contentType.Contains('/'))
+        {
+            subFolder = contentType.Split('/')[0].ToLower(); 
+        }
+
+        var key = $"{parentFolder}/{subFolder}/{uniqueFileName}";
         try
         {
             var result = await _storageService.UploadAsync(fileStream, key, contentType, ct);

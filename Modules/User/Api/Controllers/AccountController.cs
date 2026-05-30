@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -39,13 +40,77 @@ public class AccountController(IMediator mediator) : ControllerBase
         }
     }
 
+    // [HttpPut("me")]
+    // [Authorize]
+    // public async Task<ActionResult<AccountResDto>> UpdateMe([FromBody] UpdateMyAccountReqDto dto, CancellationToken ct)
+    // {
+    //     try
+    //     {
+    //         var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    //         if (!Guid.TryParse(currentUserId, out var accountId))
+    //         {
+    //             return Unauthorized(new { message = "Invalid token." });
+    //         }
+
+    //         var command = new UpdateAccountCommand(accountId, dto.Username, dto.Password, null, null);
+    //         var result = await _mediator.Send(command, ct);
+    //         return Ok(result);
+    //     }
+    //     catch (KeyNotFoundException ex)
+    //     {
+    //         return NotFound(new { message = ex.Message });
+    //     }
+    //     catch (System.ComponentModel.DataAnnotations.ValidationException ex)
+    //     {
+    //         return BadRequest(new { message = ex.Message });
+    //     }
+    //     catch (InvalidOperationException ex)
+    //     {
+    //         return Conflict(new { message = ex.Message });
+    //     }
+    //     catch (ArgumentException ex)
+    //     {
+    //         return BadRequest(new { message = ex.Message });
+    //     }
+    // }
+
     [HttpGet("{id}")]
-    [Authorize(Policy = "AdminPolicy")]
+    [Authorize]
     public async Task<ActionResult<AccountResDto>> GetAccountById(Guid id, CancellationToken ct)
     {
         try
         {
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var currentUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            if (currentUserRole != "Admin" && currentUserId != id.ToString())
+            {
+                return Forbid();
+            }
+
             var query = new GetAccountQuery(id);
+            var result = await _mediator.Send(query, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<ActionResult<AccountMeResDto>> GetMe(CancellationToken ct)
+    {
+        try
+        {
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(currentUserId, out var accountId))
+            {
+                return Unauthorized(new { message = "Invalid token." });
+            }
+
+            var query = new GetMeQuery(accountId);
             var result = await _mediator.Send(query, ct);
             return Ok(result);
         }

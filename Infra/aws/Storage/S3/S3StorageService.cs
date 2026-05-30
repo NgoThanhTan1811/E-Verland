@@ -32,16 +32,24 @@ public sealed class S3StorageService : IS3StorageService, IStorageService
         {
             _logger.LogInformation("Uploading file to S3: {Key}", key);
 
-            var putRequest = new PutObjectRequest
-            {
-                BucketName = _options.BucketName,
-                Key = key,
-                InputStream = fileStream,
-                ContentType = contentType,
-                CannedACL = S3CannedACL.Private // Files are private by default
-            };
+            var payload = await ToBufferedBytesAsync(fileStream, ct);
 
-            var response = await AwsRetryPolicy.ExecuteAsync(() => _s3Client.PutObjectAsync(putRequest, ct), 3, ct);
+            var response = await AwsRetryPolicy.ExecuteAsync(async () =>
+            {
+                using var attemptStream = new MemoryStream(payload, writable: false);
+
+                var putRequest = new PutObjectRequest
+                {
+                    BucketName = _options.BucketName,
+                    Key = key,
+                    InputStream = attemptStream,
+                    ContentType = contentType,
+                    CannedACL = S3CannedACL.Private, // Files are private by default
+                    UseChunkEncoding = false
+                };
+
+                return await _s3Client.PutObjectAsync(putRequest, ct);
+            }, 3, ct);
 
             if (response.HttpStatusCode != System.Net.HttpStatusCode.OK)
             {
@@ -168,5 +176,15 @@ public sealed class S3StorageService : IS3StorageService, IStorageService
             _logger.LogError(ex, "Error getting metadata for file in S3: {Key}", key);
             throw;
         }
+    }
+
+    private static async Task<byte[]> ToBufferedBytesAsync(Stream input, CancellationToken ct)
+    {
+        if (input is MemoryStream memoryStream)
+            return memoryStream.ToArray();
+
+        using var buffered = new MemoryStream();
+        await input.CopyToAsync(buffered, ct);
+        return buffered.ToArray();
     }
 }

@@ -9,7 +9,7 @@ public sealed class XRayOptions
 
     public bool Enabled { get; set; } = true;
     public string ServiceName { get; set; } = "E-Verland";
-    public string Region { get; set; } = "us-east-1";
+    public string Region { get; set; } = "ap-southeast-1";
 
     // Sampling
     public double SamplingRate { get; set; } = 0.1; // 10% of requests

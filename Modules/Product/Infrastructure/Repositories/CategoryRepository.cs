@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Modules.Product.Application.Contracts;
+using Modules.Product.Application.DTOs.Response;
 using Modules.Product.Domain;
 using Modules.Product.Infrastructure.Persistence;
 
@@ -16,7 +17,8 @@ public class CategoryRepository(ProductDbContext db) : ICategoryRepository
 
     public async Task<Category?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _db.Categories.AsNoTracking()
+        return await _db.Categories
+            .AsTracking()
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
     }
 
@@ -38,29 +40,33 @@ public class CategoryRepository(ProductDbContext db) : ICategoryRepository
     public async Task<Category?> GetByNameAsync(string name, CancellationToken ct = default)
     {
         var normalized = name.Trim().ToUpperInvariant();
-        return await _db.Categories.AsNoTracking()
-            .FirstOrDefaultAsync(c => c.Name.Equals(normalized, StringComparison.CurrentCultureIgnoreCase), ct);
+        return await _db.Categories
+            .FirstOrDefaultAsync(c => c.Name.ToUpper() == normalized, ct);
     }
 
-    public async Task<List<Category>> GetAllWithProductsAsync(CancellationToken ct = default)
+    public async Task<List<CategoryListItemDto>> GetAllWithProductsAsync(CancellationToken ct = default)
     {
         return await _db.Categories
-            .Include(c => c.Products)
-            .AsNoTracking()
-            .ToListAsync(ct);
+                .Select(c => new CategoryListItemDto
+                {
+                    Id = c.Id,
+                    Name = c.Name,
+                    ParentCategoryId = c.ParentCategoryId,
+                    CreatedAt = c.CreatedAt
+                })
+                .ToListAsync(ct);
     }
 
     public async Task<Category?> GetByIdWithProductsAsync(Guid id, CancellationToken ct = default)
     {
         return await _db.Categories
             .Include(c => c.Products)
-            .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == id, ct);
     }
 
     public async Task<List<Category>> GetSubCategoriesAsync(Guid parentCategoryId, CancellationToken ct = default)
     {
-        return await _db.Categories.AsNoTracking()
+        return await _db.Categories
             .Where(c => c.ParentCategoryId == parentCategoryId)
             .ToListAsync(ct);
     }
@@ -69,7 +75,6 @@ public class CategoryRepository(ProductDbContext db) : ICategoryRepository
     {
         return await _db.Categories
             .Include(c => c.SubCategories)
-            .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == id, ct);
     }
 }

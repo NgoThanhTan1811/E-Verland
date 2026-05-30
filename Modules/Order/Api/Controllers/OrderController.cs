@@ -8,16 +8,20 @@ using Modules.Order.Application.DTOs.Response;
 using Modules.Order.Application.Queries;
 using Modules.Order.Domain;
 using SharedKernel.Pagination;
-using System.Security.Claims;
 
 namespace Modules.Order.Api.Controllers;
 
 [ApiController]
 [EnableRateLimiting("order")]
 [Route("api/[controller]")]
-public class OrderController(IMediator mediator) : ControllerBase
+public class OrderController : ControllerBase
 {
-    private readonly IMediator _mediator = mediator;
+    private readonly IMediator _mediator;
+
+    public OrderController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
 
     [Authorize(Policy = "CustomerPolicy")]
     [HttpPost]
@@ -30,6 +34,7 @@ public class OrderController(IMediator mediator) : ControllerBase
         {
             var command = new CreateOrderCommand(
                 userId,
+                dto.ShippingAddressId,
                 dto.ShippingAddress,
                 dto.Receiver,
                 dto.Weight,
@@ -75,7 +80,6 @@ public class OrderController(IMediator mediator) : ControllerBase
         }
     }
 
-
     [Authorize(Policy = "SellerOrCustomer")]
     [HttpGet]
     public async Task<ActionResult<PageResult<OrderOverviewResponseDto>>> GetOrders(
@@ -107,7 +111,6 @@ public class OrderController(IMediator mediator) : ControllerBase
             return NotFound(new { message = ex.Message });
         }
     }
-
 
     [Authorize(Policy = "AdminPolicy")]
     [HttpGet("admin/order")]
@@ -144,7 +147,6 @@ public class OrderController(IMediator mediator) : ControllerBase
         }
     }
 
-
     [Authorize(Policy = "SellerOrCustomer")]
     [HttpPatch("{id}")]
     public async Task<ActionResult<OrderOverviewResponseDto>> UpdateOrderStatus(
@@ -167,7 +169,6 @@ public class OrderController(IMediator mediator) : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
-
 
     [Authorize(Policy = "AdminPolicy")]
     [HttpDelete("{id}")]

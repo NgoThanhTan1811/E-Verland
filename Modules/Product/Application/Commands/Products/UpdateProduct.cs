@@ -49,7 +49,7 @@ public sealed class UpdateProductHandler(
         product.Description = request.Request.Description;
         product.BasePrice = request.Request.BasePrice;
         product.VirtualPrice = request.Request.VirtualPrice;
-        product.Slug = request.Request.Slug;
+        product.Slug = Modules.Product.Application.Services.SlugHelper.GenerateSlug(request.Request.Name);
         product.ImageUrls = request.Request.ImageUrls;
         product.Attributes = request.Request.Attributes;
         product.BrandId = request.Request.BrandId;
