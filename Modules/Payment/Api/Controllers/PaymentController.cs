@@ -190,11 +190,11 @@ public class PaymentController(
             return BadRequest(new { message = "SePay signature key is not configured" });
         }
 
-        var computedSignature = Convert.ToHexString(
-            HMACSHA256.HashData(Encoding.UTF8.GetBytes(sepayKey), Encoding.UTF8.GetBytes(rawBody))
-        ).ToLowerInvariant();
+        var computedSignatureBytes = HMACSHA256.HashData(
+            Encoding.UTF8.GetBytes(sepayKey),
+            Encoding.UTF8.GetBytes(rawBody));
 
-        var receivedSignature = Request.Headers["X-SePay-Signature"].ToString().ToLowerInvariant();
+        var receivedSignature = NormalizeSePaySignatureHeader(Request.Headers["X-SePay-Signature"].ToString());
         if (string.IsNullOrWhiteSpace(receivedSignature))
         {
             await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
@@ -202,9 +202,21 @@ public class PaymentController(
             return BadRequest(new { message = "Missing X-SePay-Signature" });
         }
 
+        byte[] receivedSignatureBytes;
+        try
+        {
+            receivedSignatureBytes = Convert.FromHexString(receivedSignature);
+        }
+        catch (FormatException)
+        {
+            await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
+            _logger.LogWarning("Rejected SePay webhook: invalid X-SePay-Signature format");
+            return BadRequest(new { message = "Invalid signature format" });
+        }
+
         var signatureValid = CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(computedSignature),
-            Encoding.UTF8.GetBytes(receivedSignature));
+            computedSignatureBytes,
+            receivedSignatureBytes);
 
         if (!signatureValid)
         {
@@ -341,6 +353,22 @@ public class PaymentController(
 
         var extractedCode = Regex.Match(content, "PAY\\d{8,9}", RegexOptions.IgnoreCase);
         return extractedCode.Success ? extractedCode.Value : content;
+    }
+
+    private static string NormalizeSePaySignatureHeader(string signature)
+    {
+        if (string.IsNullOrWhiteSpace(signature))
+        {
+            return string.Empty;
+        }
+
+        var normalized = signature.Trim();
+        if (normalized.StartsWith("sha256=", StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = normalized[7..].Trim();
+        }
+
+        return normalized.Replace(" ", string.Empty);
     }
 
     private static string? ResolveTransactionStatus(JsonElement payload)
