@@ -171,11 +171,13 @@ public class PaymentController(
     {
         await _cloudWatch.PutMetricAsync("payment.webhook.received", 1, "Count", ct: ct);
 
-        // ── Read raw body for HMAC verification ──────────────────────────────
+        // ── Read raw body bytes once and reuse them for HMAC + JSON parsing ──
         Request.EnableBuffering();
-        using var reader = new StreamReader(Request.Body, Encoding.UTF8, leaveOpen: true);
-        var rawBody = await reader.ReadToEndAsync(ct);
+        using var bodyStream = new MemoryStream();
+        await Request.Body.CopyToAsync(bodyStream, ct);
         Request.Body.Position = 0;
+        var rawBodyBytes = bodyStream.ToArray();
+        var rawBody = Encoding.UTF8.GetString(rawBodyBytes);
 
         // ── Verify HMAC-SHA256 signature ──────────────────────────────────────
         var sepayKey = _configuration["SePay:SecretKey"]
@@ -192,7 +194,7 @@ public class PaymentController(
 
         var computedSignatureBytes = HMACSHA256.HashData(
             Encoding.UTF8.GetBytes(sepayKey),
-            Encoding.UTF8.GetBytes(rawBody));
+            rawBodyBytes);
 
         var receivedSignature = NormalizeSePaySignatureHeader(Request.Headers["X-SePay-Signature"].ToString());
         if (string.IsNullOrWhiteSpace(receivedSignature))
