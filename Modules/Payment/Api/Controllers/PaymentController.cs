@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -192,9 +193,33 @@ public class PaymentController(
             return BadRequest(new { message = "SePay signature key is not configured" });
         }
 
+        var timestampHeader = Request.Headers["X-SePay-Timestamp"].ToString();
+        if (string.IsNullOrWhiteSpace(timestampHeader))
+        {
+            await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
+            _logger.LogWarning("Rejected SePay webhook: missing X-SePay-Timestamp header");
+            return BadRequest(new { message = "Missing X-SePay-Timestamp" });
+        }
+
+        if (!long.TryParse(timestampHeader, NumberStyles.Integer, CultureInfo.InvariantCulture, out var timestampSeconds))
+        {
+            await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
+            _logger.LogWarning("Rejected SePay webhook: invalid X-SePay-Timestamp format");
+            return BadRequest(new { message = "Invalid X-SePay-Timestamp" });
+        }
+
+        var currentTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        if (Math.Abs(currentTimestamp - timestampSeconds) > 300)
+        {
+            await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
+            _logger.LogWarning("Rejected SePay webhook: timestamp outside allowed skew");
+            return BadRequest(new { message = "Timestamp too old" });
+        }
+
+        var signedPayloadBytes = BuildSePaySignedPayloadBytes(timestampSeconds, rawBodyBytes);
         var computedSignatureBytes = HMACSHA256.HashData(
             Encoding.UTF8.GetBytes(sepayKey),
-            rawBodyBytes);
+            signedPayloadBytes);
 
         var receivedSignature = NormalizeSePaySignatureHeader(Request.Headers["X-SePay-Signature"].ToString());
         if (string.IsNullOrWhiteSpace(receivedSignature))
@@ -371,6 +396,18 @@ public class PaymentController(
         }
 
         return normalized.Replace(" ", string.Empty);
+    }
+
+    private static byte[] BuildSePaySignedPayloadBytes(long timestampSeconds, byte[] rawBodyBytes)
+    {
+        var timestampBytes = Encoding.UTF8.GetBytes(timestampSeconds.ToString(CultureInfo.InvariantCulture));
+        var signedPayloadBytes = new byte[timestampBytes.Length + 1 + rawBodyBytes.Length];
+
+        Buffer.BlockCopy(timestampBytes, 0, signedPayloadBytes, 0, timestampBytes.Length);
+        signedPayloadBytes[timestampBytes.Length] = (byte)'.';
+        Buffer.BlockCopy(rawBodyBytes, 0, signedPayloadBytes, timestampBytes.Length + 1, rawBodyBytes.Length);
+
+        return signedPayloadBytes;
     }
 
     private static string? ResolveTransactionStatus(JsonElement payload)
