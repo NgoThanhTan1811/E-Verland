@@ -44,6 +44,8 @@ public interface IS3StorageService
     /// <param name="key">S3 object key (path)</param>
     /// <param name="ct">Cancellation token</param>
     Task<S3FileMetadata?> GetMetadataAsync(string key, CancellationToken ct = default);
+
+    string GetPublicUrl(string key);
 }
 
 /// <summary>

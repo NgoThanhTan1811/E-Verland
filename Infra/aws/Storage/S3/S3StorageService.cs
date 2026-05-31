@@ -25,6 +25,13 @@ public sealed class S3StorageService : IS3StorageService, IStorageService
         _options = options.Value;
         _logger = logger;
     }
+    
+    public string GetPublicUrl(string key)
+    {
+        // Đảm bảo không bị lỗi dư thừa dấu /
+        var baseUrl = "https://media.e-verland.site";
+        return $"{baseUrl.TrimEnd('/')}/{key.TrimStart('/')}";
+    }
 
     public async Task<string> UploadAsync(Stream fileStream, string key, string contentType, CancellationToken ct = default)
     {

@@ -6,7 +6,7 @@ using Modules.Product.Application.Services;
 
 namespace Modules.Product.Application.Commands;
 
-public sealed record AddSkusToProductCommand(Guid ProductId, List<ProductVariantDto> Variants) : IRequest<List<SkuDetailDto>>;
+public sealed record AddSkusToProductCommand(Guid ProductId, List<ProductVariantDto> Variants, int Stock) : IRequest<List<SkuDetailDto>>;
 
 public sealed class AddSkusToProductHandler(
     IProductRepository productRepository,
@@ -23,6 +23,9 @@ public sealed class AddSkusToProductHandler(
     {
         if (request.Variants == null || request.Variants.Count == 0)
             throw new InvalidOperationException("At least one variant is required.");
+
+        if (request.Stock <= 0)
+            throw new InvalidOperationException("Stock must be greater than 0.");
 
         var product = await _productRepository.GetByIdAsync(request.ProductId, cancellationToken)
             ?? throw new KeyNotFoundException($"Product with ID '{request.ProductId}' not found.");
@@ -61,7 +64,7 @@ public sealed class AddSkusToProductHandler(
                 SkuCode = generatedSku.Code,
                 ProductId = product.Id,
                 Price = 0,
-                Stock = 100,
+                Stock = request.Stock,
                 Url = string.Empty,
                 IsActive = true,
                 OptionValues = generatedSku.OptionValues

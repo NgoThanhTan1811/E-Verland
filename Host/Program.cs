@@ -102,6 +102,7 @@ if (xrayOptions?.Enabled == true)
 app.UseMiddleware<TraceIdMiddleware>();
 
 app.UseCors("AllowCredentials");
+app.UseMiddleware<AutoRefreshTokenMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 

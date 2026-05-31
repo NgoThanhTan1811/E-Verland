@@ -122,7 +122,7 @@ public sealed class InitiatePaymentHandler(
                         var paymentUrl = await sePayClient.CreatePaymentLinkAsync(
                             payment.Code,
                             payment.Amount,
-                            $"Thanh toan don hang {payment.OrderId}",
+                            payment.Code,
                             ct);
                         payment.PaymentUrl = paymentUrl;
                     }

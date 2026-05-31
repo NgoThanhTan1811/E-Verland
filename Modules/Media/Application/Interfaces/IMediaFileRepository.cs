@@ -17,4 +17,5 @@ public interface IMediaFileRepository
     Task UpdateAsync(MediaFile mediaFile, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
     Task<int> CountByUserIdAsync(Guid userId, CancellationToken ct = default);
+    Task<bool> ExistsByPathAsync(string path, CancellationToken ct = default);
 }

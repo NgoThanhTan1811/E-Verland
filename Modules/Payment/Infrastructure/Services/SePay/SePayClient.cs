@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,7 @@ namespace Modules.Payment.Infrastructure.Services
         private readonly string _baseUrl;
         private readonly int _maxRetries;
         private readonly string _apiKey;
+        private readonly string _qrImageTemplate;
 
         public SePayClient(HttpClient http, ILogger<SePayClient> logger, IConfiguration configuration)
         {
@@ -42,6 +44,11 @@ namespace Modules.Payment.Infrastructure.Services
                 ?? Environment.GetEnvironmentVariable("SEPAY_BASE_URL")
                 ?? "https://my.sepay.vn/userapi";
 
+            _qrImageTemplate = configuration[$"{SePayOptions.SectionName}:QrImageUrl"]
+                ?? configuration["SePay:QrImageUrl"]
+                ?? Environment.GetEnvironmentVariable("SEPAY_QR_IMAGE_URL")
+                ?? "https://qr.sepay.vn/img?bank=VPBank&acc=239688233&template=&amount=&des=";
+
             _maxRetries = int.TryParse(
                 configuration[$"{SePayOptions.SectionName}:MaxRetries"]
                     ?? configuration["SePay:MaxRetries"]
@@ -54,134 +61,16 @@ namespace Modules.Payment.Infrastructure.Services
         public async Task<string?> CreatePaymentLinkAsync(
             string paymentCode, decimal amount, string description, CancellationToken ct = default)
         {
-            var payload = new { payment_code = paymentCode, amount, description };
+            await Task.CompletedTask;
 
-            for (int attempt = 1; attempt <= _maxRetries; attempt++)
-            {
-                try
-                {
-                    _logger.LogInformation(
-                        "SePay CreatePaymentLink attempt {Attempt}/{MaxRetries} for payment code {PaymentCode}",
-                        attempt, _maxRetries, paymentCode);
+            var transferDescription = string.IsNullOrWhiteSpace(description) ? paymentCode : description.Trim();
+            var qrUrl = BuildQrImageUrl(amount, transferDescription);
 
-                    var response = await SendAsync(HttpMethod.Post, "transactions/create", payload, ct);
+            _logger.LogInformation(
+                "SePay QR image URL prepared for payment code {PaymentCode}: {PaymentUrl}",
+                paymentCode, qrUrl);
 
-                    if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
-                    {
-                        // Read SePay-specific retry header first, then standard Retry-After
-                        var retryAfterHeader = response.Headers.Contains("x-sepay-userapi-retry-after")
-                            ? response.Headers.GetValues("x-sepay-userapi-retry-after").FirstOrDefault()
-                            : response.Headers.RetryAfter?.Delta?.TotalSeconds.ToString();
-
-                        if (!int.TryParse(retryAfterHeader, out var retrySeconds))
-                        {
-                            retrySeconds = (int)Math.Pow(2, attempt); // fallback exponential backoff
-                        }
-
-                        // If v2 endpoint disallows POST (405), try legacy userapi create endpoint as fallback
-                        if (response.StatusCode == System.Net.HttpStatusCode.MethodNotAllowed)
-                        {
-                            _logger.LogWarning("SePay v2 returned 405 for create; attempting legacy fallback endpoint for payment code {PaymentCode}", paymentCode);
-                            var legacyBase = "https://my.sepay.vn/userapi";
-                            var legacyUrl = $"{legacyBase.TrimEnd('/')}/transactions/create";
-                            using var legacyRequest = new HttpRequestMessage(HttpMethod.Post, legacyUrl)
-                            {
-                                Content = JsonContent.Create(payload)
-                            };
-                            legacyRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
-
-                            var legacyResponse = await _http.SendAsync(legacyRequest, ct);
-                            var legacyContent = await legacyResponse.Content.ReadAsStringAsync(ct);
-
-                            if (legacyResponse.IsSuccessStatusCode)
-                            {
-                                var legacyResult = System.Text.Json.JsonSerializer.Deserialize<SePayResponse>(legacyContent);
-                                _logger.LogInformation("SePay legacy create succeeded for payment code {PaymentCode}", paymentCode);
-                                return legacyResult?.PaymentUrl;
-                            }
-
-                            _logger.LogError("SePay legacy create also failed (HTTP {StatusCode}): {Content}", legacyResponse.StatusCode, legacyContent);
-                        }
-
-                        _logger.LogWarning(
-                            "SePay rate limited (429). Waiting {RetrySeconds}s before retry (attempt {Attempt}/{MaxRetries}) for payment code {PaymentCode}",
-                            retrySeconds, attempt, _maxRetries, paymentCode);
-
-                        if (attempt < _maxRetries)
-                        {
-                            await Task.Delay(TimeSpan.FromSeconds(retrySeconds), ct);
-                            continue;
-                        }
-
-                        var errorContent = await response.Content.ReadAsStringAsync(ct);
-                        _logger.LogError("SePay rate limit reached: {Content}", errorContent);
-                        throw new SePayApiException(
-                            "Rate limited by SePay.",
-                            paymentCode,
-                            (int)response.StatusCode);
-                    }
-
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        var errorContent = await response.Content.ReadAsStringAsync(ct);
-                        _logger.LogError(
-                            "SePay API error (HTTP {StatusCode}): {ErrorContent} for payment code {PaymentCode}",
-                            response.StatusCode, errorContent, paymentCode);
-
-                        if (attempt < _maxRetries)
-                        {
-                            var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt)); // Exponential backoff
-                            _logger.LogWarning("Retrying in {Delay} seconds...", delay.TotalSeconds);
-                            await Task.Delay(delay, ct);
-                            continue;
-                        }
-
-                        throw new SePayApiException(
-                            "Failed to create payment link after retries.",
-                            paymentCode,
-                            (int)response.StatusCode);
-                    }
-
-                    var result = await response.Content.ReadFromJsonAsync<SePayResponse>(ct);
-
-                    _logger.LogInformation(
-                        "SePay payment link created successfully for payment code {PaymentCode}: {PaymentUrl}",
-                        paymentCode, result?.PaymentUrl);
-
-                    return result?.PaymentUrl;
-                }
-                catch (HttpRequestException ex)
-                {
-                    _logger.LogError(ex,
-                        "Network error during SePay API call (attempt {Attempt}/{MaxRetries}) for payment code {PaymentCode}",
-                        attempt, _maxRetries, paymentCode);
-
-                    if (attempt < _maxRetries)
-                    {
-                        var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt));
-                        await Task.Delay(delay, ct);
-                        continue;
-                    }
-
-                    throw new SePayApiException(
-                        "Network error while calling SePay.",
-                        paymentCode);
-                }
-                catch (Exception ex) when (ex is not SePayApiException)
-                {
-                    _logger.LogError(ex,
-                        "Unexpected error during SePay API call for payment code {PaymentCode}",
-                        paymentCode);
-                    throw new SePayApiException(
-                        "Unexpected error while calling SePay.",
-                        paymentCode,
-                        null);
-                }
-            }
-
-            throw new SePayApiException(
-                "Failed to create payment link after retries.",
-                paymentCode);
+            return qrUrl;
         }
 
         public async Task<SePayTransactionsResponseDto> GetTransactionsAsync(
@@ -293,6 +182,32 @@ namespace Modules.Payment.Infrastructure.Services
             }
 
             return $"{_baseUrl.TrimEnd('/')}/{relativePath.TrimStart('/')}?{string.Join("&", query)}";
+        }
+
+        private string BuildQrImageUrl(decimal amount, string description)
+        {
+            var url = ReplaceQueryParameter(_qrImageTemplate, "amount", amount.ToString(CultureInfo.InvariantCulture));
+            url = ReplaceQueryParameter(url, "des", description);
+            return url;
+        }
+
+        private static string ReplaceQueryParameter(string url, string name, string value)
+        {
+            var escapedValue = Uri.EscapeDataString(value);
+            var pattern = $"([?&]){Regex.Escape(name)}=[^&]*";
+
+            if (Regex.IsMatch(url, pattern, RegexOptions.IgnoreCase))
+            {
+                return Regex.Replace(
+                    url,
+                    pattern,
+                    match => $"{match.Groups[1].Value}{name}={escapedValue}",
+                    RegexOptions.IgnoreCase);
+            }
+
+            return url.Contains('?')
+                ? $"{url}&{name}={escapedValue}"
+                : $"{url}?{name}={escapedValue}";
         }
 
         private static void AppendQuery(List<string> query, string name, string? value)

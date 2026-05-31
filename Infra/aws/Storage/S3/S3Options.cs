@@ -17,7 +17,7 @@ public sealed class S3Options
 
     // Path prefixes for different media types
     public string AvatarPathPrefix { get; set; } = "avatars";
-    public string ProductImagePathPrefix { get; set; } = "products/images";
+    public string ProductImagePathPrefix { get; set; } = "products/image";
     public string ProductVideoPathPrefix { get; set; } = "products/videos";
     public string ShopLogoPathPrefix { get; set; } = "shops/logos";
     public string ShopBannerPathPrefix { get; set; } = "shops/banners";

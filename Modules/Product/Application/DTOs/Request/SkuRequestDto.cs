@@ -30,6 +30,7 @@ namespace Modules.Product.Application.DTOs.Request
     public record AddSkusToProductRequestDto
     {
         public List<ProductVariantDto> Variants { get; set; } = [];
+        public int Stock { get; set; }
     }
 
     public record SearchSkuAdminRequestDto : IPagingFilter

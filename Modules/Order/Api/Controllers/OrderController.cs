@@ -177,7 +177,7 @@ public class OrderController : ControllerBase
         }
     }
 
-    [Authorize(Policy = "AdminPolicy")]
+    [Authorize]
     [HttpDelete("{id}")]
     public async Task<IActionResult> CancelOrder(Guid id, [FromQuery] Guid userId, CancellationToken ct)
     {

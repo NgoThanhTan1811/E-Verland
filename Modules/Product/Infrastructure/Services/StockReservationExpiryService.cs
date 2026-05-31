@@ -11,18 +11,27 @@ public class StockReservationExpiryService(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(5));
 
-            try
+        try
+        {
+            while (await timer.WaitForNextTickAsync(stoppingToken))
             {
-                await ProcessExpiredReservationsAsync(stoppingToken);
+                try
+                {
+                    await ProcessExpiredReservationsAsync(stoppingToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    logger.LogError(ex, "Error occurred while processing expired stock reservations.");
+                }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                logger.LogError(ex, "Error occurred while processing expired stock reservations.");
-            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+        }
+        catch (ObjectDisposedException) when (stoppingToken.IsCancellationRequested)
+        {
         }
     }
 

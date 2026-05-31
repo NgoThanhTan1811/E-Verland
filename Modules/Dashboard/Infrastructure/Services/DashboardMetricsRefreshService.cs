@@ -23,25 +23,29 @@ public sealed class DashboardMetricsRefreshService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var refreshInterval = TimeSpan.FromMinutes(Math.Max(1, _options.RefreshIntervalMinutes));
+        using var timer = new PeriodicTimer(refreshInterval);
 
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            try
+            while (await timer.WaitForNextTickAsync(stoppingToken))
             {
-                using var scope = _scopeFactory.CreateScope();
-                var cache = scope.ServiceProvider.GetRequiredService<IDashboardMetricsCache>();
-                await cache.RefreshSnapshotsAsync(stoppingToken);
+                try
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    var cache = scope.ServiceProvider.GetRequiredService<IDashboardMetricsCache>();
+                    await cache.RefreshSnapshotsAsync(stoppingToken);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogError(ex, "Failed to refresh dashboard snapshots.");
+                }
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to refresh dashboard snapshots.");
-            }
-
-            await Task.Delay(refreshInterval, stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+        }
+        catch (ObjectDisposedException) when (stoppingToken.IsCancellationRequested)
+        {
         }
     }
 }

@@ -37,7 +37,7 @@ namespace Modules.Product.Application.DTOs.Response
         public string Name { get; set; } = default!;
         public string Description { get; set; } = default!;
         public decimal Price { get; set; }
-        public string? ImageUrl { get; set; }
+        public List<string> ImageUrls { get; set; } = [];
 
         public string? BrandName { get; set; }
         public Guid? BrandId { get; set; }

@@ -10,13 +10,21 @@ public static class ProductDtoMapper
 
     public static async Task<ProductListItemDto> ToListItemDtoAsync(this ProductEntity product, IUrlResolver urlResolver, CancellationToken ct = default)
     {
+        var imageUrls = new List<string>();
+        foreach (var path in product.ImageUrls)
+        {
+            var url = await urlResolver.ResolveAsync(path, null, ct);
+            if (!string.IsNullOrWhiteSpace(url))
+                imageUrls.Add(url);
+        }
+
         return new ProductListItemDto
         {
             Id = product.Id,
             Name = product.Name,
             Description = product.Description,
             Price = product.VirtualPrice > 0 ? product.VirtualPrice : product.BasePrice,
-            ImageUrl = await urlResolver.ResolveAsync(product.ImageUrls.FirstOrDefault(), DefaultImageSize, ct),
+            ImageUrls = imageUrls,
             BrandName = product.Brand?.Name,
             BrandId = product.BrandId,
             CategoryNames = product.Categories.Select(c => c.Name).ToList(),

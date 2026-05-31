@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Extensions.Logging;
+using EVerland.Extentions;
 
 public static class AuthenticationExtension
 {
@@ -44,11 +45,22 @@ public static class AuthenticationExtension
                 {
                     OnMessageReceived = context =>
                     {
-                        var logger = context.HttpContext.RequestServices
-                            .GetRequiredService<ILoggerFactory>()
-                            .CreateLogger("JwtAuth");
+                        if (context.HttpContext.Items.TryGetValue(AutoRefreshTokenMiddleware.RefreshedAccessTokenItemKey, out var refreshedToken)
+                            && refreshedToken is string refreshedAccessToken
+                            && !string.IsNullOrWhiteSpace(refreshedAccessToken))
+                        {
+                            context.Token = refreshedAccessToken;
+                            return Task.CompletedTask;
+                        }
 
-                        var hasAuthHeader = context.Request.Headers.ContainsKey("Authorization");
+                        var authorizationHeader = context.Request.Headers.Authorization.ToString();
+                        if (!string.IsNullOrWhiteSpace(authorizationHeader)
+                            && authorizationHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                        {
+                            context.Token = authorizationHeader[7..].Trim();
+                            return Task.CompletedTask;
+                        }
+
                         var hasAccessCookie = context.Request.Cookies.TryGetValue("access_token", out var token);
 
                         if (hasAccessCookie)

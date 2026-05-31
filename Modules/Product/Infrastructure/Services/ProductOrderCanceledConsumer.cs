@@ -19,7 +19,7 @@ public sealed class ProductOrderCanceledConsumer : BackgroundService
     private readonly IMediator _mediator;
     private readonly IConfiguration _configuration;
     private readonly ILogger<ProductOrderCanceledConsumer> _logger;
-    private readonly int _pollIntervalMs = 5000; // Poll every 5 seconds
+    private readonly TimeSpan _pollInterval = TimeSpan.FromSeconds(5);
     private readonly int _maxMessages = 10;
 
     public ProductOrderCanceledConsumer(
@@ -48,23 +48,28 @@ public sealed class ProductOrderCanceledConsumer : BackgroundService
 
         _logger.LogInformation("ProductOrderCanceledConsumer started, listening to queue {QueueUrl}", queueUrl);
 
-        while (!stoppingToken.IsCancellationRequested)
+        using var timer = new PeriodicTimer(_pollInterval);
+
+        try
         {
-            try
+            while (await timer.WaitForNextTickAsync(stoppingToken))
             {
-                await PollAndProcessMessagesAsync(queueUrl, stoppingToken);
-                await Task.Delay(_pollIntervalMs, stoppingToken);
+                try
+                {
+                    await PollAndProcessMessagesAsync(queueUrl, stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error in ProductOrderCanceledConsumer");
+                }
             }
-            catch (OperationCanceledException)
-            {
-                // Normal shutdown
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in ProductOrderCanceledConsumer");
-                await Task.Delay(_pollIntervalMs, stoppingToken);
-            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
         }
 
         _logger.LogInformation("ProductOrderCanceledConsumer stopped");
@@ -96,6 +101,14 @@ public sealed class ProductOrderCanceledConsumer : BackgroundService
                     // Message will be re-queued after visibility timeout
                 }
             }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (TaskCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(stoppingToken);
         }
         catch (Exception ex)
         {

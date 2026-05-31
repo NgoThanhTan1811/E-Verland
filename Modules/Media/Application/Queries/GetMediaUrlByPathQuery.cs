@@ -1,13 +1,6 @@
 using MediatR;
+using Infra.AWS.S3;
 using Microsoft.Extensions.Options;
-using Modules.Media.Application.Interfaces;
-using Modules.Media.Domain;
-using Modules.Media.Infrastructure.Options;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.Formats.Webp;
-using SixLabors.ImageSharp.Processing;
 
 namespace Modules.Media.Application.Queries;
 
@@ -15,112 +8,78 @@ public sealed record GetMediaUrlByPathQuery(string Path, string? Size = null) : 
 
 public sealed class GetMediaUrlByPathHandler : IRequestHandler<GetMediaUrlByPathQuery, string?>
 {
-    private readonly IMediaFileRepository _repository;
-    private readonly IMediaStorageService _storageService;
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly MediaOptions _mediaOptions;
+    private readonly string _publicBaseUrl;
+    private readonly string _productImagePrefix;
 
     public GetMediaUrlByPathHandler(
-        IMediaFileRepository repository,
-        IMediaStorageService storageService,
-        IHttpClientFactory httpClientFactory,
-        IOptions<MediaOptions> mediaOptions)
+        IOptions<S3Options> s3Options)
     {
-        _repository = repository;
-        _storageService = storageService;
-        _httpClientFactory = httpClientFactory;
-        _mediaOptions = mediaOptions.Value;
+        var s3 = s3Options.Value;
+        _publicBaseUrl = string.IsNullOrWhiteSpace(s3.BaseUrl)
+            ? "https://media.e-verland.site"
+            : s3.BaseUrl;
+        _productImagePrefix = string.IsNullOrWhiteSpace(s3.ProductImagePathPrefix)
+            ? "products/image"
+            : s3.ProductImagePathPrefix.Trim('/');
     }
 
-    public async Task<string?> Handle(GetMediaUrlByPathQuery request, CancellationToken ct)
+    // public async Task<string?> Handle(GetMediaUrlByPathQuery request, CancellationToken ct)
+    // {
+    //     if (string.IsNullOrWhiteSpace(request.Path))
+    //         return null;
+
+    //     var mediaFile = await _repository.GetByPathAsync(request.Path, ct);
+    //     if (mediaFile == null)
+    //         return null;
+
+    //     var normalizedSize = NormalizeSize(request.Size);
+    //     var expiresMinutes = Math.Clamp(_mediaOptions.PresignedUrlExpirationMinutes, 5, 10);
+
+    //     if (mediaFile.MediaType != MediaType.Image || normalizedSize == "lg")
+    //         return await _storageService.GetPresignedUrlAsync(mediaFile.FilePath, expiresMinutes, ct);
+
+    //     var variantPath = BuildVariantPath(mediaFile.FilePath, normalizedSize);
+    //     try
+    //     {
+    //         if (!await _storageService.ExistsAsync(variantPath, ct))
+    //         {
+    //             await GenerateVariantAsync(mediaFile, variantPath, normalizedSize, ct);
+    //         }
+
+    //         return await _storageService.GetPresignedUrlAsync(variantPath, expiresMinutes, ct);
+    //     }
+    //     catch
+    //     {
+    //         return await _storageService.GetPresignedUrlAsync(mediaFile.FilePath, expiresMinutes, ct);
+    //     }
+    // }
+
+    public Task<string?> Handle(GetMediaUrlByPathQuery request, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Path))
-            return null;
+            return Task.FromResult<string?>(null);
 
-        var mediaFile = await _repository.GetByPathAsync(request.Path, ct);
-        if (mediaFile == null)
-            return null;
-
-        var normalizedSize = NormalizeSize(request.Size);
-        var expiresMinutes = Math.Clamp(_mediaOptions.PresignedUrlExpirationMinutes, 5, 10);
-
-        if (mediaFile.MediaType != MediaType.Image || normalizedSize == "lg")
-            return await _storageService.GetPresignedUrlAsync(mediaFile.FilePath, expiresMinutes, ct);
-
-        var variantPath = BuildVariantPath(mediaFile.FilePath, normalizedSize);
-        try
-        {
-            if (!await _storageService.ExistsAsync(variantPath, ct))
-            {
-                await GenerateVariantAsync(mediaFile, variantPath, normalizedSize, ct);
-            }
-
-            return await _storageService.GetPresignedUrlAsync(variantPath, expiresMinutes, ct);
-        }
-        catch
-        {
-            return await _storageService.GetPresignedUrlAsync(mediaFile.FilePath, expiresMinutes, ct);
-        }
+        return Task.FromResult<string?>(BuildPublicUrl(NormalizePublicPath(request.Path)));
     }
 
-    private async Task GenerateVariantAsync(MediaFile mediaFile, string variantPath, string size, CancellationToken ct)
+    private string NormalizePublicPath(string path)
     {
-        var downloadUrl = await _storageService.GetPresignedUrlAsync(mediaFile.FilePath, 5, ct);
+        var normalizedPath = path.Trim().Replace('\\', '/').TrimStart('/');
 
-        using var client = _httpClientFactory.CreateClient();
-        using var response = await client.GetAsync(downloadUrl, ct);
-        if (!response.IsSuccessStatusCode)
-            return;
-
-        await using var input = await response.Content.ReadAsStreamAsync(ct);
-        using var image = await Image.LoadAsync(input, ct);
-
-        var targetWidth = size switch
+        if (Uri.TryCreate(normalizedPath, UriKind.Absolute, out var absoluteUri))
         {
-            "sm" => _mediaOptions.SmWidth,
-            "md" => _mediaOptions.MdWidth,
-            _ => _mediaOptions.LgWidth
-        };
-
-        image.Mutate(x => x.Resize(new ResizeOptions
-        {
-            Size = new Size(targetWidth, 0),
-            Mode = ResizeMode.Max
-        }));
-
-        await using var output = new MemoryStream();
-        var contentType = mediaFile.ContentType.ToLowerInvariant();
-        if (contentType == "image/png")
-        {
-            await image.SaveAsync(output, new PngEncoder(), ct);
-        }
-        else if (contentType == "image/webp")
-        {
-            await image.SaveAsync(output, new WebpEncoder(), ct);
-        }
-        else
-        {
-            await image.SaveAsync(output, new JpegEncoder { Quality = _mediaOptions.ImageCompressionQuality }, ct);
+            normalizedPath = absoluteUri.AbsolutePath.TrimStart('/');
         }
 
-        output.Position = 0;
-        await _storageService.UploadAtPathAsync(output, variantPath, mediaFile.ContentType, ct);
+        if (normalizedPath.StartsWith($"{_productImagePrefix}/", StringComparison.OrdinalIgnoreCase))
+            return normalizedPath;
+
+        return $"{_productImagePrefix}/{normalizedPath}";
     }
 
-    private static string BuildVariantPath(string originalPath, string size)
+    private string BuildPublicUrl(string path)
     {
-        var directory = Path.GetDirectoryName(originalPath)?.Replace('\\', '/');
-        var fileName = Path.GetFileName(originalPath);
-
-        if (string.IsNullOrWhiteSpace(directory))
-            return $"variants/{size}/{fileName}";
-
-        return $"{directory}/variants/{size}/{fileName}";
+        return $"{_publicBaseUrl.TrimEnd('/')}/{path.TrimStart('/')}";
     }
 
-    private static string NormalizeSize(string? size)
-    {
-        var normalized = (size ?? "lg").Trim().ToLowerInvariant();
-        return normalized is "sm" or "md" or "lg" ? normalized : "lg";
-    }
 }

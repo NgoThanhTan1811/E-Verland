@@ -15,6 +15,7 @@ namespace Modules.Product.Application.DTOs.Request
         public string Description { get; set; } = default!;
         public decimal BasePrice { get; set; }
         public decimal VirtualPrice { get; set; }
+        public int Stock { get; set; }
         public List<string> ImageUrls { get; set; } = [];
         public Dictionary<string, string> Attributes { get; set; } = [];
         public Guid? BrandId { get; set; }

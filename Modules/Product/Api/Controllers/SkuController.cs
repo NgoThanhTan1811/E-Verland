@@ -37,7 +37,7 @@ public class SkuController(IMediator mediator) : ControllerBase
     [Authorize(Policy = "AdminOrSeller")]
     public async Task<IActionResult> AddSkusToProduct(Guid productId, [FromBody] AddSkusToProductRequestDto request, CancellationToken cancellationToken)
     {
-        var command = new AddSkusToProductCommand(productId, request.Variants);
+        var command = new AddSkusToProductCommand(productId, request.Variants, request.Stock);
         var result = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetSkuById), new { id = result.FirstOrDefault()?.Id ?? Guid.Empty }, result);
     }

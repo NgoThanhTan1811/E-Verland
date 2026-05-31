@@ -16,7 +16,7 @@ namespace Modules.Payment.Application.Commands;
 /// Contains all business logic for processing a SePay webhook event.
 /// </summary>
 public sealed record ProcessSePayWebhookCommand(
-    string IdempotencyKey,
+    string TransactionId,
     string PaymentCode,
     string TransactionStatus,
     decimal Amount,
@@ -44,12 +44,18 @@ public sealed class ProcessSePayWebhookHandler(
         CancellationToken ct)
     {
         // ── Idempotency guard ────────────────────────────────────────────────
-        if (await webhookIdempotency.IsProcessedAsync(request.IdempotencyKey, ct))
+        if (await webhookIdempotency.IsProcessedAsync(request.TransactionId, ct))
             return new ProcessSePayWebhookResult(Success: true);
 
         // ── Resolve payment ──────────────────────────────────────────────────
         var payment = await mediator.Send(new GetPaymentByCodeQuery(request.PaymentCode), ct)
             ?? throw new KeyNotFoundException($"Payment not found for code '{request.PaymentCode}'");
+
+        if (payment.Amount != request.Amount)
+        {
+            throw new InvalidOperationException(
+                $"Webhook amount mismatch for payment '{request.PaymentCode}'. Expected {payment.Amount}, received {request.Amount}.");
+        }
 
         // ── Skip if already in the target status ─────────────────────────────
         var alreadyInTargetStatus =
@@ -60,7 +66,7 @@ public sealed class ProcessSePayWebhookHandler(
         if (alreadyInTargetStatus)
         {
             await webhookIdempotency.TryMarkAsProcessedAsync(
-                request.IdempotencyKey, request.PaymentCode, request.TransactionStatus, ct);
+                request.TransactionId, request.PaymentCode, request.TransactionStatus, ct);
             return new ProcessSePayWebhookResult(Success: true);
         }
 
@@ -88,11 +94,11 @@ public sealed class ProcessSePayWebhookHandler(
         {
             await ledgerService.RecordIncomingPaymentAsync(
                 payment.OrderId, payment.Amount, "VND",
-                $"incoming:{request.IdempotencyKey}", "sepay-webhook", ct);
+                $"incoming:{request.TransactionId}", "sepay-webhook", ct);
 
             await ledgerService.RecordIncomingPaymentReversalAsync(
                 payment.OrderId, payment.Amount, "VND",
-                $"incoming-reversal:{request.IdempotencyKey}", "sepay-webhook-compensation", ct);
+                $"incoming-reversal:{request.TransactionId}", "sepay-webhook-compensation", ct);
 
             await sellerBalanceService.ReversePendingBalanceAsync(
                 payment.OrderId, "canceled-order-webhook", ct);
@@ -100,7 +106,7 @@ public sealed class ProcessSePayWebhookHandler(
             await cloudWatch.PutMetricAsync("payment.webhook.compensated", 1, "Count", ct: ct);
 
             await webhookIdempotency.TryMarkAsProcessedAsync(
-                request.IdempotencyKey, request.PaymentCode, "compensated", ct);
+                request.TransactionId, request.PaymentCode, "compensated", ct);
 
             return new ProcessSePayWebhookResult(Success: true, Compensated: true);
         }
@@ -114,7 +120,7 @@ public sealed class ProcessSePayWebhookHandler(
 
             incomingPosted = await ledgerService.RecordIncomingPaymentAsync(
                 payment.OrderId, payment.Amount, "VND",
-                $"incoming:{request.IdempotencyKey}", "sepay-webhook", ct);
+                $"incoming:{request.TransactionId}", "sepay-webhook", ct);
 
             var releaseDelayDays = int.TryParse(
                 configuration["Payment:Payout:ReleaseDelayDays"], out var d) ? Math.Max(1, d) : 3;
@@ -130,7 +136,7 @@ public sealed class ProcessSePayWebhookHandler(
             await mediator.Send(new UpdatePaymentStatusCommand(payment.Id, PaymentStatus.Success), ct);
 
             await webhookIdempotency.TryMarkAsProcessedAsync(
-                request.IdempotencyKey, request.PaymentCode, "success", ct);
+                request.TransactionId, request.PaymentCode, "success", ct);
 
             return new ProcessSePayWebhookResult(Success: true);
         }
@@ -140,14 +146,14 @@ public sealed class ProcessSePayWebhookHandler(
             logger.LogError(ex, "Success webhook processing failed for payment {PaymentCode}", request.PaymentCode);
 
             // Compensate
-            await CompensateSuccessAsync(payment, request.IdempotencyKey, incomingPosted, ct);
+            await CompensateSuccessAsync(payment, request.TransactionId, incomingPosted, ct);
             throw;
         }
     }
 
     private async Task CompensateSuccessAsync(
         PaymentResponseDto payment,
-        string idempotencyKey,
+        string transactionId,
         bool incomingPosted,
         CancellationToken ct)
     {
@@ -159,7 +165,7 @@ public sealed class ProcessSePayWebhookHandler(
             {
                 await ledgerService.RecordIncomingPaymentReversalAsync(
                     payment.OrderId, payment.Amount, "VND",
-                    $"incoming-reversal:{idempotencyKey}", "sepay-webhook-compensation", ct);
+                    $"incoming-reversal:{transactionId}", "sepay-webhook-compensation", ct);
             }
 
             await sellerBalanceService.ReversePendingBalanceAsync(
@@ -187,7 +193,7 @@ public sealed class ProcessSePayWebhookHandler(
         await sellerBalanceService.ReversePendingBalanceAsync(payment.OrderId, "payment-failed", ct);
 
         await webhookIdempotency.TryMarkAsProcessedAsync(
-            request.IdempotencyKey, request.PaymentCode, "failed", ct);
+            request.TransactionId, request.PaymentCode, "failed", ct);
 
         return new ProcessSePayWebhookResult(Success: true);
     }
@@ -203,14 +209,14 @@ public sealed class ProcessSePayWebhookHandler(
 
         await ledgerService.RecordIncomingPaymentReversalAsync(
             payment.OrderId, payment.Amount, "VND",
-            $"refund:{request.IdempotencyKey}", "sepay-refund", ct);
+            $"refund:{request.TransactionId}", "sepay-refund", ct);
 
         await sellerBalanceService.ReversePendingBalanceAsync(payment.OrderId, "payment-refunded", ct);
 
         await mediator.Send(new UpdatePaymentStatusCommand(payment.Id, PaymentStatus.Refunded), ct);
 
         await webhookIdempotency.TryMarkAsProcessedAsync(
-            request.IdempotencyKey, request.PaymentCode, "refunded", ct);
+            request.TransactionId, request.PaymentCode, "refunded", ct);
 
         return new ProcessSePayWebhookResult(Success: true);
     }

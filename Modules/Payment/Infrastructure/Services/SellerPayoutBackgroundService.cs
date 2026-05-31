@@ -6,33 +6,42 @@ using Modules.Payment.Application.Contracts;
 namespace Modules.Payment.Infrastructure.Services;
 
 public class SellerPayoutBackgroundService(
-    IServiceProvider serviceProvider,
+    IServiceScopeFactory scopeFactory,
     ILogger<SellerPayoutBackgroundService> logger) : BackgroundService
 {
-    private readonly IServiceProvider _serviceProvider = serviceProvider;
+    private readonly IServiceScopeFactory _scopeFactory = scopeFactory;
     private readonly ILogger<SellerPayoutBackgroundService> _logger = logger;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                using var scope = _serviceProvider.CreateScope();
-                var sellerBalanceService = scope.ServiceProvider.GetRequiredService<ISellerBalanceService>();
-                var released = await sellerBalanceService.ProcessDuePayoutsAsync(stoppingToken);
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(1));
 
-                if (released > 0)
+        try
+        {
+            while (await timer.WaitForNextTickAsync(stoppingToken))
+            {
+                try
                 {
-                    _logger.LogInformation("Released {ReleasedCount} pending seller balances to available.", released);
+                    using var scope = _scopeFactory.CreateScope();
+                    var sellerBalanceService = scope.ServiceProvider.GetRequiredService<ISellerBalanceService>();
+                    var released = await sellerBalanceService.ProcessDuePayoutsAsync(stoppingToken);
+
+                    if (released > 0)
+                    {
+                        _logger.LogInformation("Released {ReleasedCount} pending seller balances to available.", released);
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    _logger.LogError(ex, "Failed to process due seller payouts.");
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to process due seller payouts.");
-            }
-
-            await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+        }
+        catch (ObjectDisposedException) when (stoppingToken.IsCancellationRequested)
+        {
         }
     }
 }

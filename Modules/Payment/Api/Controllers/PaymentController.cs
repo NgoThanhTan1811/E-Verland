@@ -258,12 +258,12 @@ public class PaymentController(
             }
 
             // ── Dispatch to handler ───────────────────────────────────────────
-            var idempotencyKey = ResolveIdempotencyKey(payloadRoot, paymentCode);
+            var transactionId = ResolveTransactionId(payloadRoot, paymentCode);
 
             try
             {
                 var command = new ProcessSePayWebhookCommand(
-                    IdempotencyKey: idempotencyKey,
+                    TransactionId: transactionId,
                     PaymentCode: paymentCode,
                     TransactionStatus: normalizedStatus,
                     Amount: amount.Value,
@@ -276,6 +276,16 @@ public class PaymentController(
             {
                 await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
                 return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
+                _logger.LogWarning(ex, "Rejected SePay webhook for {PaymentCode} due to validation mismatch", paymentCode);
+                return BadRequest(new
+                {
+                    code = "PAYMENT_WEBHOOK_MISMATCH",
+                    message = ex.Message
+                });
             }
             catch (AggregateException ex)
             {
@@ -317,7 +327,7 @@ public class PaymentController(
 
     private static string? ResolvePaymentCode(JsonElement payload)
     {
-        var paymentCode = ReadString(payload, "payment_code", "paymentCode", "code", "PaymentCode");
+        var paymentCode = ReadString(payload, "payment_code", "paymentCode", "code", "PaymentCode", "des", "description", "Description");
         if (!string.IsNullOrWhiteSpace(paymentCode))
         {
             return paymentCode;
@@ -329,7 +339,7 @@ public class PaymentController(
             return null;
         }
 
-        var extractedCode = Regex.Match(content, "[A-Z]+\\d{6}[A-Z0-9]{6}");
+        var extractedCode = Regex.Match(content, "PAY\\d{8,9}", RegexOptions.IgnoreCase);
         return extractedCode.Success ? extractedCode.Value : content;
     }
 
@@ -366,10 +376,11 @@ public class PaymentController(
         return ReadDecimal(payload, "transferAmount", "transfer_amount", "TransferAmount");
     }
 
-    private static string ResolveIdempotencyKey(JsonElement payload, string paymentCode)
+    private static string ResolveTransactionId(JsonElement payload, string paymentCode)
     {
-        return ReadString(payload, "webhook_id", "webhookId", "WebhookId", "transaction_id", "transactionId", "TransactionId")
+        return ReadString(payload, "id", "transaction_id", "transactionId", "TransactionId")
             ?? ReadString(payload, "referenceCode", "reference_code", "ReferenceCode")
+            ?? ReadString(payload, "code", "payment_code", "paymentCode", "PaymentCode")
             ?? paymentCode;
     }
 

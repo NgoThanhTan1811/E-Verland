@@ -91,6 +91,9 @@ public sealed class CreateProductHandler(
         // Auto-generate SKUs if variants are provided
         if (request.Request.Variants != null && request.Request.Variants.Count != 0)
         {
+            if (request.Request.Stock <= 0)
+                throw new InvalidOperationException("Stock must be greater than 0 when creating variant SKUs.");
+
             var skuOptions = request.Request.Variants.Select(v =>
                 new SKUGeneratorService.SKUOption(v.Key, v.Values)).ToList();
 
@@ -103,7 +106,7 @@ public sealed class CreateProductHandler(
                     SkuCode = generatedSku.Code,
                     ProductId = product.Id,
                     Price = 0,
-                    Stock = 100,
+                    Stock = request.Request.Stock,
                     Url = string.Empty,
                     IsActive = true,
                     OptionValues = generatedSku.OptionValues

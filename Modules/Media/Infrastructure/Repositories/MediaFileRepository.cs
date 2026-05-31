@@ -99,4 +99,10 @@ public class MediaFileRepository : IMediaFileRepository
         return await _context.MediaFiles
             .CountAsync(m => m.UploadedBy == userId && !m.IsDeleted, ct);
     }
+
+    public async Task<bool> ExistsByPathAsync(string path, CancellationToken ct = default)
+    {
+        // Giả sử bạn dùng Entity Framework Core
+        return await _context.MediaFiles.AnyAsync(m => m.FilePath == path, ct);
+    }
 }
