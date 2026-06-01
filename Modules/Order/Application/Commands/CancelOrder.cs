@@ -14,7 +14,8 @@ namespace Modules.Order.Application.Commands;
 
 public sealed record CancelOrderCommand(
     Guid OrderId,
-    Guid UserId
+    Guid? UserId,
+    bool BypassOwnershipCheck = false
 ) : IRequest<Unit>;
 
 public sealed class CancelOrderHandler(
@@ -40,8 +41,14 @@ public sealed class CancelOrderHandler(
         var order = await _repo.GetByIdAsync(request.OrderId, ct)
             ?? throw new KeyNotFoundException("Order not found");
 
-        if (order.UserId != request.UserId)
-            throw new UnauthorizedAccessException("You can only cancel your own orders");
+        if (!request.BypassOwnershipCheck)
+        {
+            if (!request.UserId.HasValue)
+                throw new ArgumentException("UserId is required");
+
+            if (order.UserId != request.UserId.Value)
+                throw new UnauthorizedAccessException("You can only cancel your own orders");
+        }
 
         if (order.Status == OrderStatus.Canceled)
             throw new InvalidOperationException("Order is already canceled");

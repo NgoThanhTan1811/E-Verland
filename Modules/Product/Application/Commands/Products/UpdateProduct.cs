@@ -105,6 +105,8 @@ public sealed class UpdateProductHandler(
                 Name = c.Name
             }).ToList(),
             Skus = product.SKUs.Select(ProductDtoMapper.ToSkuDetailDto).ToList()
+            ,
+            ShopName = product.ShopName
         };
     }
 

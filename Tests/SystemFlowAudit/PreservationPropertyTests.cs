@@ -105,4 +105,27 @@ public class PreservationPropertyTests
         Assert.NotNull(ok.Value);
         await cloudWatch.DidNotReceive().PutMetricAsync("payment.webhook.failed", 1, "Count", Arg.Any<System.Collections.Generic.Dictionary<string, string>>(), Arg.Any<System.Threading.CancellationToken>());
     }
+
+    [Fact]
+    public async System.Threading.Tasks.Task InitiatePayment_InvalidAmount_ReturnsBadRequest()
+    {
+        var (controller, mediator, _) = BuildController();
+        mediator
+            .Send(Arg.Any<Modules.Payment.Application.Commands.InitiatePaymentCommand>(), Arg.Any<System.Threading.CancellationToken>())
+            .Returns(System.Threading.Tasks.Task.FromResult(new Modules.Payment.Application.Commands.InitiatePaymentResponseDto(Guid.NewGuid(), "PAY-001", Modules.Payment.Domain.PaymentStatus.Pending, null)));
+
+        var dto = new Modules.Payment.Application.DTOs.Request.InitiatePaymentRequestDto(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            0,
+            Modules.Payment.Domain.PaymentMethod.COD,
+            new System.Collections.Generic.List<Modules.Payment.Application.DTOs.Request.OrderItemRequestDto>());
+
+        controller.ControllerContext = new ControllerContext();
+
+        var result = await controller.InitiatePayment(dto, System.Threading.CancellationToken.None);
+
+        var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
+        Assert.Contains("greater than 0", badRequest.Value?.ToString() ?? string.Empty);
+    }
 }

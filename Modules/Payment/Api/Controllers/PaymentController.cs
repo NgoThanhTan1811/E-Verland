@@ -64,6 +64,10 @@ public class PaymentController(
         {
             return BadRequest(new { message = ex.Message });
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [Authorize(Policy = "AdminPolicy")]
@@ -182,8 +186,6 @@ public class PaymentController(
 
         // ── Verify HMAC-SHA256 signature ──────────────────────────────────────
         var sepayKey = _configuration["SePay:SecretKey"]
-            ?? Environment.GetEnvironmentVariable("SEPAY_SECRET_KEY")
-            ?? Environment.GetEnvironmentVariable("SEPAY_KEY")
             ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(sepayKey))

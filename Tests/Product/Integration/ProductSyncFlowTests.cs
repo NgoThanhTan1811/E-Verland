@@ -51,7 +51,6 @@ public class ProductSyncFlowTests
         Description = "A test product",
         BasePrice = 99.99m,
         VirtualPrice = 119.99m,
-        Slug = "test-product",
         ImageUrls = [],
         Attributes = [],
         CategoryIds = [],
@@ -79,8 +78,9 @@ public class ProductSyncFlowTests
         cloudWatch.PutMetricAsync(Arg.Any<string>(), Arg.Any<double>(), Arg.Any<string>(),
             Arg.Any<Dictionary<string, string>>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
+        var cacheService = Substitute.For<IProductCacheService>();
         var handler = new CreateProductHandler(productRepo, categoryRepo, skuRepo, dbContext,
-            skuGenerator, syncPublisher, cloudWatch, mediaRepo);
+            skuGenerator, syncPublisher, cloudWatch, cacheService, mediaRepo);
 
         ProductSyncEvent? captured = null;
         sqsService.When(s => s.SendMessageAsync(QueueUrl, Arg.Any<ProductSyncEvent>(), Arg.Any<CancellationToken>()))
