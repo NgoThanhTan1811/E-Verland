@@ -291,9 +291,9 @@ resource "aws_ecs_service" "app" {
     container_port   = 8080
   }
 
-  service_registries {
-    registry_arn = aws_service_discovery_service.app.arn
-  }
+  # service_registries {
+  #   registry_arn = aws_service_discovery_service.app.arn
+  # }
 
   depends_on = [aws_lb_listener.https]
 }
