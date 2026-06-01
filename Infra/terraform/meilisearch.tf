@@ -1,56 +1,56 @@
-locals {
-  meilisearch_container_name = "meilisearch"
-}
+# locals {
+#   meilisearch_container_name = "meilisearch"
+# }
 
-resource "aws_service_discovery_service" "meilisearch" {
-  name = "meilisearch"
+# resource "aws_service_discovery_service" "meilisearch" {
+#   name = "meilisearch"
 
-  dns_config {
-    namespace_id   = aws_service_discovery_private_dns_namespace.internal.id
-    routing_policy = "MULTIVALUE"
+#   dns_config {
+#     namespace_id   = aws_service_discovery_private_dns_namespace.internal.id
+#     routing_policy = "MULTIVALUE"
 
-    dns_records {
-      ttl  = 10
-      type = "A"
-    }
-  }
+#     dns_records {
+#       ttl  = 10
+#       type = "A"
+#     }
+#   }
 
-  health_check_custom_config {
-    failure_threshold = 1
-  }
-}
+#   health_check_custom_config {
+#     failure_threshold = 1
+#   }
+# }
 
-resource "aws_cloudwatch_log_group" "meilisearch" {
-  name              = "/ecs/${var.project_name}-meilisearch"
-  retention_in_days = 14
-}
+# resource "aws_cloudwatch_log_group" "meilisearch" {
+#   name              = "/ecs/${var.project_name}-meilisearch"
+#   retention_in_days = 14
+# }
 
-resource "aws_security_group" "meilisearch_sg" {
-  name        = "${var.project_name}-meilisearch-sg"
-  description = "Allow internal access to Meilisearch"
-  vpc_id      = module.vpc.vpc_id
+# resource "aws_security_group" "meilisearch_sg" {
+#   name        = "${var.project_name}-meilisearch-sg"
+#   description = "Allow internal access to Meilisearch"
+#   vpc_id      = module.vpc.vpc_id
 
-  ingress {
-    from_port       = 7700
-    to_port         = 7700
-    protocol        = "tcp"
-    security_groups = [aws_security_group.ecs_sg.id]
-  }
+#   ingress {
+#     from_port       = 7700
+#     to_port         = 7700
+#     protocol        = "tcp"
+#     security_groups = [aws_security_group.ecs_sg.id]
+#   }
 
-  ingress {
-    from_port       = 7700
-    to_port         = 7700
-    protocol        = "tcp"
-    security_groups = [aws_security_group.observability_sg.id]
-  }
+#   ingress {
+#     from_port       = 7700
+#     to_port         = 7700
+#     protocol        = "tcp"
+#     security_groups = [aws_security_group.observability_sg.id]
+#   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
+#   egress {
+#     from_port   = 0
+#     to_port     = 0
+#     protocol    = "-1"
+#     cidr_blocks = ["0.0.0.0/0"]
+#   }
+# }
 
 # resource "aws_ecs_task_definition" "meilisearch" {
 #   family                   = "${var.project_name}-meilisearch"
@@ -115,20 +115,20 @@ resource "aws_security_group" "meilisearch_sg" {
 # }
 
 
-resource "aws_ecs_service" "meilisearch" {
-  name            = "${var.project_name}-meilisearch"
-  cluster         = aws_ecs_cluster.prod.id
-  task_definition = aws_ecs_task_definition.meilisearch.arn
-  desired_count   = 0
-  launch_type     = "FARGATE"
+# resource "aws_ecs_service" "meilisearch" {
+#   name            = "${var.project_name}-meilisearch"
+#   cluster         = aws_ecs_cluster.prod.id
+#   task_definition = aws_ecs_task_definition.meilisearch.arn
+#   desired_count   = 0
+#   launch_type     = "FARGATE"
 
-  network_configuration {
-    subnets          = module.vpc.private_subnets
-    security_groups  = [aws_security_group.meilisearch_sg.id]
-    assign_public_ip = false
-  }
+#   network_configuration {
+#     subnets          = module.vpc.private_subnets
+#     security_groups  = [aws_security_group.meilisearch_sg.id]
+#     assign_public_ip = false
+#   }
 
-  service_registries {
-    registry_arn = aws_service_discovery_service.meilisearch.arn
-  }
-}
+#   service_registries {
+#     registry_arn = aws_service_discovery_service.meilisearch.arn
+#   }
+# }

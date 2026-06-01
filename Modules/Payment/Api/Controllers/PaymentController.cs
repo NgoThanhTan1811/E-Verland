@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Net;
 using Infra.AWS.CloudWatch;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -175,6 +176,13 @@ public class PaymentController(
     public async Task<IActionResult> SePayWebhook(CancellationToken ct)
     {
         await _cloudWatch.PutMetricAsync("payment.webhook.received", 1, "Count", ct: ct);
+
+        if (!IsAllowedSePaySourceIp())
+        {
+            await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
+            _logger.LogWarning("Rejected SePay webhook: source IP {SourceIp} is not in allowlist", Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = "Source IP is not allowed" });
+        }
 
         // ── Read raw body bytes once and reuse them for HMAC + JSON parsing ──
         Request.EnableBuffering();
@@ -410,6 +418,44 @@ public class PaymentController(
         Buffer.BlockCopy(rawBodyBytes, 0, signedPayloadBytes, timestampBytes.Length + 1, rawBodyBytes.Length);
 
         return signedPayloadBytes;
+    }
+
+    private bool IsAllowedSePaySourceIp()
+    {
+        var allowedIpStrings = _configuration.GetSection("SePay:AllowedIps").Get<string[]>()
+            ?? _configuration.GetSection("Payment:SePay:AllowedIps").Get<string[]>();
+
+        if (allowedIpStrings is null || allowedIpStrings.Length == 0)
+        {
+            return true;
+        }
+
+        var sourceIp = Request.HttpContext.Connection.RemoteIpAddress;
+        if (sourceIp is null)
+        {
+            return false;
+        }
+
+        var normalizedSourceIp = NormalizeIpAddress(sourceIp);
+        foreach (var allowedIpString in allowedIpStrings)
+        {
+            if (!IPAddress.TryParse(allowedIpString, out var allowedIp))
+            {
+                continue;
+            }
+
+            if (NormalizeIpAddress(allowedIp).Equals(normalizedSourceIp))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static IPAddress NormalizeIpAddress(IPAddress ipAddress)
+    {
+        return ipAddress.MapToIPv6();
     }
 
     private static string? ResolveTransactionStatus(JsonElement payload)

@@ -164,15 +164,13 @@ locals {
       ]
       essential = true
     },
-    {
-      name  = "meilisearch"
-      image = "getmeili/meilisearch:v1.7"
-      portMappings = [{ containerPort = 7700, hostPort = 7700, protocol = "tcp" }]
-      essential = true
-      mountPoints = [
-        { sourceVolume = "meili_data", containerPath = "/meili_data" }
-      ]
-    }
+    # {
+    #   name  = "meilisearch"
+    #   image = "getmeili/meilisearch:v1.7"
+    #   portMappings = [{ containerPort = 7700, hostPort = 7700, protocol = "tcp" }]
+    #   essential = true
+     
+    # }
   ]
 
   
@@ -271,12 +269,7 @@ resource "aws_ecs_task_definition" "app" {
   execution_role_arn       = aws_iam_role.app_role.arn
   task_role_arn            = aws_iam_role.app_role.arn
   container_definitions    = jsonencode(local.app_container_definitions)
-  volume {
-    name = "meili_data"
-    efs_volume_configuration {
-      file_system_id = aws_efs_file_system.meili_data.id
-    }
-  }
+  
 }
 
 resource "aws_ecs_service" "app" {

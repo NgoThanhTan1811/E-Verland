@@ -6,6 +6,7 @@ public sealed class SePayOptions
 
     public string? ApiKey { get; set; }
     public string? SecretKey { get; set; }
+    public string[] AllowedIps { get; set; } = [];
     public string BaseUrl { get; set; } = "";
     public int MaxRetries { get; set; } = 3;
 }
