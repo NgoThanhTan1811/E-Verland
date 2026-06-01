@@ -100,59 +100,59 @@
 #   retention_in_days = 14
 # }
 
-# resource "aws_security_group" "observability_sg" {
-#   name        = "${var.project_name}-observability-sg"
-#   description = "Internal access to observability services"
-#   vpc_id      = module.vpc.vpc_id
+resource "aws_security_group" "observability_sg" {
+  name        = "${var.project_name}-observability-sg"
+  description = "Internal access to observability services"
+  vpc_id      = module.vpc.vpc_id
 
-#   ingress {
-#     from_port   = 3000
-#     to_port     = 3000
-#     protocol    = "tcp"
-#     cidr_blocks = [module.vpc.vpc_cidr_block]
-#   }
+  ingress {
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = [module.vpc.vpc_cidr_block]
+  }
 
-#   ingress {
-#     from_port   = 9090
-#     to_port     = 9090
-#     protocol    = "tcp"
-#     cidr_blocks = [module.vpc.vpc_cidr_block]
-#   }
+  ingress {
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = [module.vpc.vpc_cidr_block]
+  }
 
-#   ingress {
-#     from_port   = 3100
-#     to_port     = 3100
-#     protocol    = "tcp"
-#     cidr_blocks = [module.vpc.vpc_cidr_block]
-#   }
+  ingress {
+    from_port   = 3100
+    to_port     = 3100
+    protocol    = "tcp"
+    cidr_blocks = [module.vpc.vpc_cidr_block]
+  }
 
-#   egress {
-#     from_port   = 0
-#     to_port     = 0
-#     protocol    = "-1"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
-# }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
 
-# resource "aws_security_group" "loki_efs_sg" {
-#   name        = "${var.project_name}-loki-efs-sg"
-#   description = "Allow Loki to reach EFS"
-#   vpc_id      = module.vpc.vpc_id
+resource "aws_security_group" "loki_efs_sg" {
+  name        = "${var.project_name}-loki-efs-sg"
+  description = "Allow Loki to reach EFS"
+  vpc_id      = module.vpc.vpc_id
 
-#   ingress {
-#     from_port       = 2049
-#     to_port         = 2049
-#     protocol        = "tcp"
-#     security_groups = [aws_security_group.observability_sg.id]
-#   }
+  ingress {
+    from_port       = 2049
+    to_port         = 2049
+    protocol        = "tcp"
+    security_groups = [aws_security_group.observability_sg.id]
+  }
 
-#   egress {
-#     from_port   = 0
-#     to_port     = 0
-#     protocol    = "-1"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
-# }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
 
 # resource "aws_efs_file_system" "loki" {
 #   encrypted = true
@@ -195,18 +195,18 @@
 #   security_groups = [aws_security_group.meilisearch_efs_sg.id]
 # }
 
-# # Security Group cho EFS (Cho phép traffic từ ECS Meilisearch vào port 2049)
-# resource "aws_security_group" "meilisearch_efs_sg" {
-#   name        = "${var.project_name}-meili-efs-sg"
-#   vpc_id      = module.vpc.vpc_id
+# Security Group cho EFS (Cho phép traffic từ ECS Meilisearch vào port 2049)
+resource "aws_security_group" "meilisearch_efs_sg" {
+  name        = "${var.project_name}-meili-efs-sg"
+  vpc_id      = module.vpc.vpc_id
 
-#   ingress {
-#     from_port       = 2049
-#     to_port         = 2049
-#     protocol        = "tcp"
-#     security_groups = [aws_security_group.meilisearch_sg.id]
-#   }
-# }
+  ingress {
+    from_port       = 2049
+    to_port         = 2049
+    protocol        = "tcp"
+    security_groups = [aws_security_group.meilisearch_sg.id]
+  }
+}
 
 # resource "aws_efs_mount_target" "loki" {
 #   for_each = { for idx, subnet_id in module.vpc.private_subnets : idx => subnet_id }

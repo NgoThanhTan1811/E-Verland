@@ -25,32 +25,32 @@
 #   retention_in_days = 14
 # }
 
-# resource "aws_security_group" "meilisearch_sg" {
-#   name        = "${var.project_name}-meilisearch-sg"
-#   description = "Allow internal access to Meilisearch"
-#   vpc_id      = module.vpc.vpc_id
+resource "aws_security_group" "meilisearch_sg" {
+  name        = "${var.project_name}-meilisearch-sg"
+  description = "Allow internal access to Meilisearch"
+  vpc_id      = module.vpc.vpc_id
 
-#   ingress {
-#     from_port       = 7700
-#     to_port         = 7700
-#     protocol        = "tcp"
-#     security_groups = [aws_security_group.ecs_sg.id]
-#   }
+  ingress {
+    from_port       = 7700
+    to_port         = 7700
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ecs_sg.id]
+  }
 
-#   ingress {
-#     from_port       = 7700
-#     to_port         = 7700
-#     protocol        = "tcp"
-#     security_groups = [aws_security_group.observability_sg.id]
-#   }
+  ingress {
+    from_port       = 7700
+    to_port         = 7700
+    protocol        = "tcp"
+    security_groups = [aws_security_group.observability_sg.id]
+  }
 
-#   egress {
-#     from_port   = 0
-#     to_port     = 0
-#     protocol    = "-1"
-#     cidr_blocks = ["0.0.0.0/0"]
-#   }
-# }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
 
 # resource "aws_ecs_task_definition" "meilisearch" {
 #   family                   = "${var.project_name}-meilisearch"
