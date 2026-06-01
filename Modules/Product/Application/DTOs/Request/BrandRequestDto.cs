@@ -9,13 +9,11 @@ namespace Modules.Product.Application.DTOs.Request
     public record CreateBrandRequestDto
     {
         public string Name { get; set; } = default!;
-        public string Slug { get; set; } = default!;
     }
 
     public record UpdateBrandRequestDto
     {
         public string Name { get; set; } = default!;
-        public string Slug { get; set; } = default!;
     }
 
     public record SearchBrandRequestDto : IPagingFilter

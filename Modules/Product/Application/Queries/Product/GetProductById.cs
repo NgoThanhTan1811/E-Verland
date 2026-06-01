@@ -1,6 +1,7 @@
 using MediatR;
 using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Response;
+using Modules.Product.Application.Mappings;
 using Modules.Redis.Services;
 
 namespace Modules.Product.Application.Queries;
@@ -10,11 +11,13 @@ public sealed record GetProductByIdQuery(Guid Id) : IRequest<ProductDetailDto?>;
 public sealed class GetProductByIdHandler(
     IProductRepository productRepository,
     IProductCacheService productCacheService,
-    IConfiguration configuration) : IRequestHandler<GetProductByIdQuery, ProductDetailDto?>
+    IConfiguration configuration,
+    IUrlResolver urlResolver) : IRequestHandler<GetProductByIdQuery, ProductDetailDto?>
 {
     private readonly IProductRepository _productRepository = productRepository;
     private readonly IProductCacheService _productCacheService = productCacheService;
     private readonly IConfiguration _configuration = configuration;
+    private readonly IUrlResolver _urlResolver = urlResolver;
 
     public async Task<ProductDetailDto?> Handle(GetProductByIdQuery request, CancellationToken cancellationToken)
     {
@@ -29,30 +32,12 @@ public sealed class GetProductByIdHandler(
         if (product == null)
             return null;
 
-        var dto = MapToDetailDto(product);
+        var dto = await product.ToDetailDtoAsync(_urlResolver, cancellationToken);
         var ttlMinutes = int.TryParse(_configuration["Cache:ProductDetailTtlMinutes"], out var value)
             ? Math.Max(1, value)
             : 15;
 
         await _productCacheService.CacheProductAsync(cacheKey, dto, TimeSpan.FromMinutes(ttlMinutes));
         return dto;
-    }
-
-    private static ProductDetailDto MapToDetailDto(Domain.Product product)
-    {
-        return new ProductDetailDto
-        {
-            Id = product.Id,
-            Name = product.Name,
-            Slug = product.Slug,
-            Description = product.Description,
-            BasePrice = product.BasePrice,
-            VirtualPrice = product.VirtualPrice,
-            ImageUrls = product.ImageUrls,
-            Attributes = product.Attributes,
-            Brand = product.Brand,
-            Categories = product.Categories,
-            Skus = product.SKUs
-        };
     }
 }

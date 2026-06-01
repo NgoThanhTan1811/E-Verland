@@ -28,13 +28,9 @@ public static class UserManualMapper
             Id = entity.Id,
             ProfileId = entity.ProfileId,
             Label = entity.Label,
-            City = entity.City,
-            Province = entity.Province,
-            District = entity.District,
-            Ward = entity.Ward,
             ProvinceId = entity.ProvinceId,
             DistrictId = entity.DistrictId,
-            WardCode = entity.WardCode,
+            WardId = int.TryParse(entity.WardCode, out var wardId) ? wardId : null,
             Street = entity.Street,
             Detail = entity.Detail,
             IsDefault = entity.IsDefault,
@@ -70,7 +66,7 @@ public static class UserManualMapper
             PhoneNumber = entity.PhoneNumber,
             Gender = entity.Gender,
             AvatarUrl = entity.AvatarUrl,
-            DateOfBirth = entity.DateOfBirth,
+            DateOfBirth =  DateTime.TryParse(entity.DateOfBirth?.ToString(), out var dob) ? dob : (DateTime?)null,
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt
         };

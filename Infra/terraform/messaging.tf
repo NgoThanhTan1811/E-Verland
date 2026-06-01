@@ -166,15 +166,6 @@ resource "aws_sns_topic" "notification_events" {
   name = "e-verland-notification-events"
 }
 
-resource "aws_sns_topic" "product_events" {
-  name = "e-verland-product-events"
-}
-
-# Preserve existing user-updates topic (used by existing code)
-resource "aws_sns_topic" "user_updates" {
-  name = "e-verland-user-updates"
-}
-
 # ─── SNS → SQS Subscriptions ──────────────────────────────────────────────────
 
 resource "aws_sns_topic_subscription" "payment_events_to_sqs" {
@@ -248,11 +239,6 @@ output "order_events_topic_arn" {
 output "notification_events_topic_arn" {
   description = "SNS ARN for notification events topic"
   value       = aws_sns_topic.notification_events.arn
-}
-
-output "product_events_topic_arn" {
-  description = "SNS ARN for product events topic"
-  value       = aws_sns_topic.product_events.arn
 }
 
 output "event_bus_name" {

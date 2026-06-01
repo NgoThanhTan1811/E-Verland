@@ -14,11 +14,10 @@ namespace Modules.User.Api.Controllers;
 [ApiController]
 [EnableRateLimiting("user")]
 [Route("api/[controller]")]
-[Authorize]
 public class ProfileController(IMediator mediator) : ControllerBase
 {
     private readonly IMediator _mediator = mediator;
-
+    [Authorize]
     [HttpPost]
     public async Task<ActionResult<ProfileResDto>> CreateProfile([FromBody] CreateProfileReqDto dto, [FromQuery] Guid accountId, CancellationToken ct)
     {
@@ -45,6 +44,7 @@ public class ProfileController(IMediator mediator) : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [Authorize]
     public async Task<ActionResult<ProfileResDto>> GetProfileById(Guid id, CancellationToken ct)
     {
         try
@@ -59,20 +59,21 @@ public class ProfileController(IMediator mediator) : ControllerBase
         }
     }
 
-    [HttpGet("account/{accountId}")]
-    public async Task<ActionResult<ProfileResDto>> GetProfileByAccount(Guid accountId, CancellationToken ct)
-    {
-        try
-        {
-            var query = new GetProfileByAccountQuery(accountId);
-            var result = await _mediator.Send(query, ct);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-    }
+    // [HttpGet("account/{accountId}")]
+    // [Authorize(Policy = "AdminPolicy")]
+    // public async Task<ActionResult<ProfileResDto>> GetProfileByAccount(Guid accountId, CancellationToken ct)
+    // {
+    //     try
+    //     {
+    //         var query = new GetProfileByAccountQuery(accountId);
+    //         var result = await _mediator.Send(query, ct);
+    //         return Ok(result);
+    //     }
+    //     catch (KeyNotFoundException ex)
+    //     {
+    //         return NotFound(new { message = ex.Message });
+    //     }
+    // }
 
     [HttpGet]
     [Authorize(Policy = "AdminPolicy")]
@@ -89,7 +90,7 @@ public class ProfileController(IMediator mediator) : ControllerBase
             return NotFound(new { message = ex.Message });
         }
     }
-
+    [Authorize]
     [HttpPatch("{accountId}")]
     public async Task<ActionResult<ProfileResDto>> UpdateProfile(Guid accountId, [FromBody] UpdateProfileReqDto dto, CancellationToken ct)
     {

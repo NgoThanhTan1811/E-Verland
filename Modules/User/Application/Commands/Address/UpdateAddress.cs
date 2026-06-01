@@ -1,5 +1,6 @@
 using Modules.User.Application.Interfaces.Repositories;
 using Modules.User.Application.DTOs.Response;
+using Modules.User.Application.Interfaces.Services;
 using Modules.User.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -14,23 +15,20 @@ namespace Modules.User.Application.Commands
         Guid ProfileId,
         Guid AddressId,
         LableAddress? LableAddress,
-        string? City,
-        string? Province,
-        string? District,
-        string? Ward,
         string? Street,
         string? Detail,
         bool? IsDefault,
         int? ProvinceId,
         int? DistrictId,
-        string? WardCode
+        int? WardId
     ) : IRequest<AddressResDto>;
 
-    public sealed class UpdateAddressHandler(IAddressRepository repo, IUserDbContext db)
+    public sealed class UpdateAddressHandler(IAddressRepository repo, IUserDbContext db, ILocationLookupService locations)
                 : IRequestHandler<UpdateAddressCommand, AddressResDto>
     {
         private readonly IAddressRepository _repo = repo;
         private readonly IUserDbContext _db = db;
+        private readonly ILocationLookupService _locations = locations;
 
         public async Task<AddressResDto> Handle(UpdateAddressCommand request, CancellationToken ct)
         {
@@ -40,20 +38,38 @@ namespace Modules.User.Application.Commands
             var validationResult = AddressValidator.UpdateAddress.Validate(new DTOs.Request.UpdateAddressReqDto
             {
                 Label = request.LableAddress,
-                City = request.City,
-                Province = request.Province,
-                District = request.District,
-                Ward = request.Ward,
                 Street = request.Street,
                 Detail = request.Detail,
                 IsDefault = request.IsDefault,
                 ProvinceId = request.ProvinceId,
                 DistrictId = request.DistrictId,
-                WardCode = request.WardCode
+                WardId = request.WardId
             });
 
             if (validationResult != ValidationResult.Success)
                 throw new ValidationException(validationResult?.ErrorMessage);
+
+            var provinceId = request.ProvinceId ?? entity.ProvinceId ?? 0;
+            var districtId = request.DistrictId ?? entity.DistrictId ?? 0;
+            var wardId = request.WardId ?? (int.TryParse(entity.WardCode, out var parsedWardId) ? parsedWardId : 0);
+
+            if (provinceId <= 0)
+                throw new KeyNotFoundException("ProvinceId not found.");
+
+            if (districtId <= 0)
+                throw new KeyNotFoundException("DistrictId not found.");
+
+            if (wardId <= 0)
+                throw new KeyNotFoundException("WardId not found.");
+
+            var provinceName = await _locations.GetProvinceNameAsync(provinceId, ct)
+                ?? throw new KeyNotFoundException("ProvinceId not found.");
+
+            var districtName = await _locations.GetDistrictNameAsync(provinceId, districtId, ct)
+                ?? throw new KeyNotFoundException("DistrictId not found.");
+
+            var wardName = await _locations.GetWardNameAsync(provinceId, districtId, wardId, ct)
+                ?? throw new KeyNotFoundException("WardId not found.");
 
 
             if (request.IsDefault == true && !entity.IsDefault)
@@ -63,16 +79,16 @@ namespace Modules.User.Application.Commands
 
             entity.Update(
                 request.LableAddress,
-                request.City,
-                request.Province,
-                request.District,
-                request.Ward,
+                provinceName,
+                provinceName,
+                districtName,
+                wardName,
                 request.Street,
                 request.Detail,
                 request.IsDefault,
-                request.ProvinceId,
-                request.DistrictId,
-                request.WardCode
+                provinceId,
+                districtId,
+                wardId.ToString()
             );
 
             try

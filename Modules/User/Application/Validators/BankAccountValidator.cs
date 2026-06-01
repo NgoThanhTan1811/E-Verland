@@ -9,8 +9,8 @@ namespace Modules.User.Application.Validators
         {
             public static ValidationResult Validate(CreateBankAccountReqDto dto)
             {
-                if (string.IsNullOrWhiteSpace(dto.AccountNumber) || dto.AccountNumber.Length < 10)
-                    return new ValidationResult("Account number must be at least 10 characters long.", [nameof(dto.AccountNumber)]);
+                if (string.IsNullOrWhiteSpace(dto.AccountNumber) )
+                    return new ValidationResult("Account number is required.", [nameof(dto.AccountNumber)]);
 
                 if (string.IsNullOrWhiteSpace(dto.BankName))
                     return new ValidationResult("Bank name is required.", [nameof(dto.BankName)]);
@@ -29,8 +29,8 @@ namespace Modules.User.Application.Validators
         {
             public static ValidationResult Validate(UpdateBankAccountReqDto dto)
             {
-                if (dto.AccountNumber != null && (string.IsNullOrWhiteSpace(dto.AccountNumber) || dto.AccountNumber.Length < 10))
-                    return new ValidationResult("Account number must be at least 10 characters long.", [nameof(dto.AccountNumber)]);
+                if (dto.AccountNumber != null && (string.IsNullOrWhiteSpace(dto.AccountNumber) ))
+                    return new ValidationResult("Account number is required.", [nameof(dto.AccountNumber)]);
 
                 if (dto.BankName != null && string.IsNullOrWhiteSpace(dto.BankName))
                     return new ValidationResult("Bank name is required.", [nameof(dto.BankName)]);

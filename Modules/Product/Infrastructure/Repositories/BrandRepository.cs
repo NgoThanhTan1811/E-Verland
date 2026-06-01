@@ -16,7 +16,7 @@ public class BrandRepository(ProductDbContext db) : IBrandRepository
 
     public async Task<Brand?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _db.Brands.AsNoTracking()
+        return await _db.Brands
             .FirstOrDefaultAsync(b => b.Id == id, cancellationToken);
     }
 
@@ -38,15 +38,14 @@ public class BrandRepository(ProductDbContext db) : IBrandRepository
     public async Task<Brand?> GetByNameAsync(string name, CancellationToken ct = default)
     {
         var normalized = name.Trim().ToUpperInvariant();
-        return await _db.Brands.AsNoTracking()
-            .FirstOrDefaultAsync(b => b.Name.Equals(normalized, StringComparison.CurrentCultureIgnoreCase), ct);
+        return await _db.Brands
+            .FirstOrDefaultAsync(b => b.Name.ToUpper() == normalized, ct);
     }
 
     public async Task<List<Brand>> GetAllWithProductsAsync(CancellationToken ct = default)
     {
         return await _db.Brands
             .Include(b => b.Products)
-            .AsNoTracking()
             .ToListAsync(ct);
     }
 
@@ -54,7 +53,6 @@ public class BrandRepository(ProductDbContext db) : IBrandRepository
     {
         return await _db.Brands
             .Include(b => b.Products)
-            .AsNoTracking()
             .FirstOrDefaultAsync(b => b.Id == id, ct);
     }
 

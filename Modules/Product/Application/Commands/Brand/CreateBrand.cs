@@ -2,6 +2,7 @@ using MediatR;
 using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.DTOs.Response;
+using Modules.Product.Application.Services;
 
 namespace Modules.Product.Application.Commands;
 
@@ -21,7 +22,7 @@ public sealed class CreateBrandHandler(IBrandRepository brandRepository, IProduc
         var brand = new Domain.Brand
         {
             Name = request.Request.Name,
-            Slug = request.Request.Slug
+            Slug = SlugHelper.GenerateSlug(request.Request.Name)
         };
 
         await _brandRepository.CreateAsync(brand, cancellationToken);

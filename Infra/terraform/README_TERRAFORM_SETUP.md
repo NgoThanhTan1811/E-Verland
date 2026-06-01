@@ -122,7 +122,7 @@ terraform apply tfplan
 2. **Use AWS Secrets Manager** for sensitive values (DB password, JWT key, S3 credentials)
 3. **Cloudflare API token** – Use environment variable in CI/CD:
    ```bash
-   export TF_VAR_cloudflare_api_token="your_token"
+   export CLOUDFLARE_API_TOKEN="your_token"
    ```
 4. **ALB Security Group** – Restricted to Cloudflare IPs only (computed from data source)
 5. **ECS Task Role** – Minimal IAM permissions for S3, Secrets Manager, CloudWatch

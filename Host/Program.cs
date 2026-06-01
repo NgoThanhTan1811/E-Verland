@@ -25,13 +25,25 @@ var builder = WebApplication.CreateBuilder(args);
 // var envPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", ".env"));
 // Env.Load(envPath);
 builder.AddLocalFileLogging();
+builder.Configuration.AddEnvironmentVariables();
 
 var xrayOptions = builder.Configuration.GetSection(XRayOptions.SectionName).Get<XRayOptions>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddMemoryCache();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Thêm dòng này để công cụ tuần tự hóa JSON tự cắt đứt khi phát hiện vòng lặp vô hạn
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
 
+        // Giữ nguyên các cấu hình đặt tên camelCase nếu có của bạn
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
+
+// Health Checks
+builder.Services.AddHealthChecks();
 // TraceId / Request context
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<SharedKernel.Context.IRequestContext, SharedKernel.Context.HttpRequestContext>();
@@ -82,24 +94,25 @@ app.UseCustomSwagger();
 
 // Global Exception Handling
 app.UseMiddleware<ApiExceptionMiddleware>();
-// TraceId Middleware for logging and correlation
-app.UseMiddleware<TraceIdMiddleware>();
-
-// app.UseHttpsRedirection();
-app.UseAuthentication();
 if (xrayOptions?.Enabled == true)
 {
     app.UseXRay("E-Verland");
 }
-app.UseRateLimiter();
-app.UseAuthorization();
-
+// TraceId Middleware for logging and correlation
+app.UseMiddleware<TraceIdMiddleware>();
 
 app.UseCors("AllowCredentials");
+app.UseMiddleware<AutoRefreshTokenMiddleware>();
+app.UseAuthentication();
+app.UseAuthorization();
 
+app.UseRateLimiter();
+
+
+
+app.MapHealthChecks("/health");
 // Prometheus scrape endpoint
 app.MapMetrics();
-
 app.MapControllers();
 app.MapHub<ChatHub>("/hubs/chat");
 app.Run();

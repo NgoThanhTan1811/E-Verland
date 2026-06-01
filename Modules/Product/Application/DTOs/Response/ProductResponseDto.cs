@@ -23,7 +23,7 @@ namespace Modules.Product.Application.DTOs.Response
 
         public Dictionary<string, string> Attributes { get; set; } = [];
 
-        public List<SKU> SKUs { get; set; } = default!;
+        public List<SkuAdminListItemDto> SKUs { get; set; } = [];
 
         public ProductStatus Status { get; set; }
 
@@ -37,7 +37,7 @@ namespace Modules.Product.Application.DTOs.Response
         public string Name { get; set; } = default!;
         public string Description { get; set; } = default!;
         public decimal Price { get; set; }
-        public string? ImageUrl { get; set; }
+        public List<string> ImageUrls { get; set; } = [];
 
         public string? BrandName { get; set; }
         public Guid? BrandId { get; set; }
@@ -47,7 +47,7 @@ namespace Modules.Product.Application.DTOs.Response
 
         public Dictionary<string, string> Attributes { get; set; } = [];
 
-        public List<SKU> SKUs { get; set; } = default!;
+        public List<SkuDetailDto> SKUs { get; set; } = [];
 
         public ProductStatus Status { get; set; }
 
@@ -57,17 +57,27 @@ namespace Modules.Product.Application.DTOs.Response
     {
         public Guid Id { get; set; }
         public string Name { get; set; } = default!;
-        public string Slug { get; set; } = default!;
         public string Description { get; set; } = default!;
 
-        public decimal BasePrice { get; set; }
-        public decimal VirtualPrice { get; set; }
+        public decimal Price { get; set; }
 
         public List<string> ImageUrls { get; set; } = [];
         public Dictionary<string, string> Attributes { get; set; } = [];
 
-        public Brand? Brand { get; set; }
-        public List<Category> Categories { get; set; } = [];
-        public List<SKU> Skus { get; set; } = default!;
+        public ProductBrandDto? Brand { get; set; }
+        public List<ProductCategoryDto> Categories { get; set; } = [];
+        public List<SkuDetailDto> Skus { get; set; } = [];
+    }
+
+    public record ProductBrandDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = default!;
+    }
+
+    public record ProductCategoryDto
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = default!;
     }
 }

@@ -24,6 +24,7 @@ public static class ProductModuleExtension
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<ISkuRepository, SkuRepository>();
+        services.AddScoped<IUrlResolver, MediaUrlResolver>();
 
         // Add Application Services
         services.AddScoped<IProductDbContext>(provider => provider.GetRequiredService<ProductDbContext>());

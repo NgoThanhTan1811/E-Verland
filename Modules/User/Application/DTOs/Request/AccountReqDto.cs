@@ -19,6 +19,12 @@ public record UpdateAccountReqDto
     public RoleUser? Role;
     public StatusUser? Status;
 }
+
+public record UpdateMyAccountReqDto
+{
+    public string? Username;
+    public string? Password;
+}
 public record AccountFilter : IPagingFilter
 {
     public string? Keyword;

@@ -12,8 +12,8 @@ namespace Modules.Shipping.Infrastructure.Consumers;
 
 public sealed class ShippingRequestConsumer : BackgroundService
 {
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ISQSService _sqsService;
-    private readonly IMediator _mediator;
     private readonly IConfiguration _configuration;
     private readonly ILogger<ShippingRequestConsumer> _logger;
     private readonly int _pollIntervalMs = 5000;
@@ -21,14 +21,14 @@ public sealed class ShippingRequestConsumer : BackgroundService
 
     public ShippingRequestConsumer(
         ISQSService sqsService,
-        IMediator mediator,
         IConfiguration configuration,
-        ILogger<ShippingRequestConsumer> logger)
+        ILogger<ShippingRequestConsumer> logger,
+        IServiceScopeFactory scopeFactory)
     {
         _sqsService = sqsService;
-        _mediator = mediator;
         _configuration = configuration;
         _logger = logger;
+        _scopeFactory = scopeFactory;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -50,6 +50,7 @@ public sealed class ShippingRequestConsumer : BackgroundService
             try
             {
                 var messages = await _sqsService.ReceiveMessagesAsync<JsonDocument>(queueUrl, _maxMessages, stoppingToken);
+
                 if (messages == null || messages.Count == 0)
                 {
                     await Task.Delay(_pollIntervalMs, stoppingToken);
@@ -64,38 +65,38 @@ public sealed class ShippingRequestConsumer : BackgroundService
                         continue;
                     }
 
+                    // 1. Tạo scope cho MỖI message để đảm bảo các scoped service (Repo, DbContext) hoạt động đúng
+                    using var scope = _scopeFactory.CreateScope();
+
+                    // 2. Resolve Mediator từ scope này
+                    var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
                     using var document = msg.Body;
                     try
                     {
                         var root = document.RootElement;
-
                         var eventType = TryGetString(root, "eventType", "EventType", "type", "Type");
-                        await HandleEventAsync(eventType, root, stoppingToken);
+
+                        await HandleEventAsync(mediator, eventType, root, stoppingToken);
 
                         await _sqsService.DeleteMessageAsync(queueUrl, msg.ReceiptHandle, stoppingToken);
                     }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "Error processing order event message {MessageId}", msg.MessageId);
-                        // Leave message for retry
                     }
                 }
             }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
+            catch (OperationCanceledException) { break; }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error polling ShippingDraft queue");
                 await Task.Delay(_pollIntervalMs, stoppingToken);
             }
         }
-
-        _logger.LogInformation("ShippingRequestConsumer stopped");
     }
 
-    private async Task HandleEventAsync(string? eventType, JsonElement root, CancellationToken ct)
+    private async Task HandleEventAsync(IMediator mediator, string? eventType, JsonElement root, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(eventType))
         {
@@ -155,7 +156,7 @@ public sealed class ShippingRequestConsumer : BackgroundService
                         evt.RequiredNote
                     );
 
-                    await _mediator.Send(new CreateShippingDraftCommand(request), ct);
+                    await mediator.Send(new CreateShippingDraftCommand(request), ct);
                     break;
                 }
             case "ShippingActivationRequested":
@@ -167,7 +168,7 @@ public sealed class ShippingRequestConsumer : BackgroundService
                         return;
                     }
 
-                    await _mediator.Send(new ActivateShippingOrderCommand(evt.OrderId), ct);
+                    await mediator.Send(new ActivateShippingOrderCommand(evt.OrderId), ct);
                     break;
                 }
             case "ShippingCancelRequested":
@@ -179,7 +180,7 @@ public sealed class ShippingRequestConsumer : BackgroundService
                         return;
                     }
 
-                    await _mediator.Send(new CancelShippingOrderCommand(evt.OrderId), ct);
+                    await mediator.Send(new CancelShippingOrderCommand(evt.OrderId), ct);
                     break;
                 }
             default:

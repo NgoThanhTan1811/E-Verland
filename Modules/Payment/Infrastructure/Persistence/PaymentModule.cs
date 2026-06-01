@@ -5,6 +5,7 @@ using Modules.Payment.Infrastructure.Services;
 using Microsoft.EntityFrameworkCore;
 using Modules.Payment.Infrastructure.Persistence;
 using SharedKernel.Persistence;
+using System.Net.Http.Headers;
 
 namespace Modules.Payment;
 
@@ -23,7 +24,25 @@ public static class PaymentModuleExtension
         services.AddScoped<IPaymentRepository, PaymentRepository>();
 
         // Add HTTP Clients
-        services.AddHttpClient<ISePayClient, SePayClient>();
+        services.AddHttpClient<ISePayClient, SePayClient>()
+            .ConfigureHttpClient((sp, client) =>
+            {
+                var config = sp.GetRequiredService<IConfiguration>();
+                var apiKey = config[$"{SePayOptions.SectionName}:ApiKey"]
+                    ?? config["SePay:ApiKey"]
+                    ?? Environment.GetEnvironmentVariable("SEPAY_API_KEY")
+                    ?? Environment.GetEnvironmentVariable("SEPAY_API")
+                    ?? throw new InvalidOperationException("Missing Payment:SePay:ApiKey (or SEPAY_API_KEY environment variable).");
+
+                if (apiKey.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    apiKey = apiKey[7..].Trim();
+                }
+
+                // SePay v2 expects Bearer token in Authorization header
+                client.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", apiKey);
+            });
 
         // Add Application Services
         services.AddScoped<IPaymentDbContext>(provider => provider.GetRequiredService<PaymentDbContext>());
@@ -35,6 +54,9 @@ public static class PaymentModuleExtension
         // Add MediatR
         services.AddMediatR(config =>
             config.RegisterServicesFromAssembly(typeof(PaymentApplicationMarker).Assembly));
+
+        // Add AutoMapper
+        services.AddAutoMapper(typeof(PaymentApplicationMarker).Assembly);
 
         return services;
     }

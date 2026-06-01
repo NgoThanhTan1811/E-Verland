@@ -1,7 +1,7 @@
 namespace Modules.Media.Application.DTOs;
 
 public sealed record UploadMediaRequest(
-    IFormFile File,
+    List<IFormFile> Files,
     string MediaType,
     string? ResourceType
 );

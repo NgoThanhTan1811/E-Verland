@@ -61,6 +61,15 @@ resource "aws_ecs_task_definition" "meilisearch" {
   execution_role_arn       = aws_iam_role.app_role.arn
   task_role_arn            = aws_iam_role.app_role.arn
 
+  # 1. Định nghĩa Volume ở cấp độ Task (ngang hàng với container_definitions)
+  volume {
+    name = "meili_data"
+    efs_volume_configuration {
+      file_system_id = aws_efs_file_system.meili_data.id
+    }
+  }
+
+  # 2. Định nghĩa container_definitions
   container_definitions = jsonencode([
     {
       name      = local.meilisearch_container_name
@@ -73,19 +82,23 @@ resource "aws_ecs_task_definition" "meilisearch" {
           protocol      = "tcp"
         }
       ]
-      environment = [
+      # 3. Mount volume vào container tại đây
+      mountPoints = [
         {
-          name  = "MEILI_ENV"
-          value = "production"
-        },
-        {
-          name  = "MEILI_NO_ANALYTICS"
-          value = "true"
+          sourceVolume  = "meili_data"
+          containerPath = "/meili_data" 
+          readOnly      = false
         }
+      ]
+      environment = [
+        { name = "MEILI_ENV", value = "production" },
+        { name = "MEILI_NO_ANALYTICS", value = "true" },
+        # BẮT BUỘC: Bảo Meilisearch lưu data vào path đã mount
+        { name = "MEILI_DB_PATH", value = "/meili_data/data.ms" } 
       ]
       secrets = [
         {
-          name      = "MEILI_MASTER_KEY"
+          name      = "Meilisearch__MasterKey"
           valueFrom = var.app_secrets_arn
         }
       ]
@@ -100,6 +113,7 @@ resource "aws_ecs_task_definition" "meilisearch" {
     }
   ])
 }
+
 
 resource "aws_ecs_service" "meilisearch" {
   name            = "${var.project_name}-meilisearch"

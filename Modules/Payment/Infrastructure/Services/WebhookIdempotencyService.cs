@@ -9,18 +9,18 @@ public class WebhookIdempotencyService(PaymentDbContext dbContext) : IWebhookIde
 {
     private readonly PaymentDbContext _dbContext = dbContext;
 
-    public Task<bool> IsProcessedAsync(string idempotencyKey, CancellationToken ct = default)
+    public Task<bool> IsProcessedAsync(string transactionId, CancellationToken ct = default)
     {
         return _dbContext.WebhookEvents
             .AsNoTracking()
-            .AnyAsync(x => x.IdempotencyKey == idempotencyKey, ct);
+            .AnyAsync(x => x.TransactionId == transactionId, ct);
     }
 
-    public async Task<bool> TryMarkAsProcessedAsync(string idempotencyKey, string paymentCode, string status, CancellationToken ct = default)
+    public async Task<bool> TryMarkAsProcessedAsync(string transactionId, string paymentCode, string status, CancellationToken ct = default)
     {
         var entry = new WebhookEvent
         {
-            IdempotencyKey = idempotencyKey,
+            TransactionId = transactionId,
             PaymentCode = paymentCode,
             EventStatus = status,
             ProcessedAtUtc = DateTime.UtcNow

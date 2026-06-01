@@ -154,10 +154,6 @@ namespace Modules.User.Infrastructure.Persistence
                            entity.Property(x => x.WardCode)
                               .HasMaxLength(20);
 
-                           entity.Property(x => x.Detail)
-                              .IsRequired()
-                              .HasMaxLength(300);
-
                            entity.Property(x => x.City)
                              .IsRequired()
                              .HasMaxLength(100);

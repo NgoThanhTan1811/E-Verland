@@ -5,8 +5,12 @@ using Modules.Media.Application.Interfaces;
 using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.DTOs.Response;
+using Modules.Product.Application.Mappings;
 using Modules.Product.Application.Services;
 using Modules.Redis.Services;
+using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Modules.Product.Application.Commands;
 
@@ -38,12 +42,18 @@ public sealed class CreateProductHandler(
         await ValidateImagePathsAsync(request.Request.ImageUrls, cancellationToken);
 
         var categories = new List<Domain.Category>();
-        if (request.Request.CategoryIds.Count != 0)
+        if (request.Request.CategoryIds?.Count != 0)
         {
-            foreach (var categoryId in request.Request.CategoryIds)
+            foreach (var categoryId in request.Request.CategoryIds!)
             {
                 var category = await _categoryRepository.GetByIdAsync(categoryId, cancellationToken)
                      ?? throw new KeyNotFoundException($"Category with ID '{categoryId}' not found.");
+
+                if (_dbContext is Microsoft.EntityFrameworkCore.DbContext efDbContext)
+                {
+                    efDbContext.Attach(category);
+                }
+
                 categories.Add(category);
             }
         }
@@ -54,11 +64,11 @@ public sealed class CreateProductHandler(
             Description = request.Request.Description,
             BasePrice = request.Request.BasePrice,
             VirtualPrice = request.Request.VirtualPrice,
-            Slug = request.Request.Slug,
+            Slug = SlugHelper.GenerateSlug(request.Request.Name),
             ImageUrls = request.Request.ImageUrls,
             Attributes = request.Request.Attributes,
             BrandId = request.Request.BrandId,
-            Status = Domain.ProductStatus.Draft,
+            Status = Domain.ProductStatus.Published,
             Categories = categories
         };
 
@@ -81,6 +91,9 @@ public sealed class CreateProductHandler(
         // Auto-generate SKUs if variants are provided
         if (request.Request.Variants != null && request.Request.Variants.Count != 0)
         {
+            if (request.Request.Stock <= 0)
+                throw new InvalidOperationException("Stock must be greater than 0 when creating variant SKUs.");
+
             var skuOptions = request.Request.Variants.Select(v =>
                 new SKUGeneratorService.SKUOption(v.Key, v.Values)).ToList();
 
@@ -93,7 +106,7 @@ public sealed class CreateProductHandler(
                     SkuCode = generatedSku.Code,
                     ProductId = product.Id,
                     Price = 0,
-                    Stock = 100,
+                    Stock = request.Request.Stock,
                     Url = string.Empty,
                     IsActive = true,
                     OptionValues = generatedSku.OptionValues
@@ -126,15 +139,21 @@ public sealed class CreateProductHandler(
         {
             Id = product.Id,
             Name = product.Name,
-            Slug = product.Slug,
             Description = product.Description,
-            BasePrice = product.BasePrice,
-            VirtualPrice = product.VirtualPrice,
+            Price = product.VirtualPrice > 0 ? product.VirtualPrice : product.BasePrice,
             ImageUrls = product.ImageUrls,
             Attributes = product.Attributes,
-            Brand = product.Brand,
-            Categories = categories,
-            Skus = product.SKUs
+            Brand = product.Brand == null ? null : new ProductBrandDto
+            {
+                Id = product.Brand.Id,
+                Name = product.Brand.Name
+            },
+            Categories = categories.Select(c => new ProductCategoryDto
+            {
+                Id = c.Id,
+                Name = c.Name
+            }).ToList(),
+            Skus = product.SKUs.Select(ProductDtoMapper.ToSkuDetailDto).ToList()
         };
     }
 
@@ -164,4 +183,6 @@ public sealed class CreateProductHandler(
             || path.StartsWith("shops/", StringComparison.OrdinalIgnoreCase)
             || path.StartsWith("reviews/", StringComparison.OrdinalIgnoreCase);
     }
+
+
 }

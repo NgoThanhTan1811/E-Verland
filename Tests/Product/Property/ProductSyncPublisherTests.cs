@@ -37,7 +37,7 @@ public class ProductSyncPublisherTests
             Categories = []
         };
 
-    private static ProductSyncPublisher CreatePublisher(ISQSService sqsService, ICloudWatchService cloudWatch, string? queueUrl = "https://sqs.us-east-1.amazonaws.com/123456789/test-queue")
+    private static ProductSyncPublisher CreatePublisher(ISQSService sqsService, ICloudWatchService cloudWatch, string? queueUrl = "https://sqs.ap-southeast-1.amazonaws.com/123456789/test-queue")
     {
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(queueUrl is null

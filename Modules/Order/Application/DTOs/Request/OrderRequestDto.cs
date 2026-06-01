@@ -3,7 +3,8 @@ using Modules.Order.Domain;
 namespace Modules.Order.Application.DTOs.Request;
 
 public sealed record CreateOrderRequestDto(
-    ShippingAddressRequestDto ShippingAddress,
+    Guid? ShippingAddressId,
+    ShippingAddressRequestDto? ShippingAddress,
     ReceiverRequestDto Receiver,
     int Weight,
     int Length,

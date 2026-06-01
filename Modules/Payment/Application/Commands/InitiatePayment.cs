@@ -106,31 +106,37 @@ public sealed class InitiatePaymentHandler(
             {
                 logger.LogWarning(ex, "Failed to publish StockReserveRequested for order {OrderId}", request.OrderId);
             }
+            var strategy = _paymentDbContext.Database.CreateExecutionStrategy();
 
-            await using var tx = await _paymentDbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
-            try
+            await strategy.ExecuteAsync(async () =>
             {
-                await repo.CreateAsync(payment, ct);
+                await using var tx = await _paymentDbContext.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
-                // If OnlineBanking, create SePay payment link
-                if (request.Method == PaymentMethod.OnlineBanking)
+                try
                 {
-                    var paymentUrl = await sePayClient.CreatePaymentLinkAsync(
-                        payment.Code,
-                        payment.Amount,
-                        $"Thanh toan don hang {payment.OrderId}",
-                        ct);
-                    payment.PaymentUrl = paymentUrl;
-                }
+                    await repo.CreateAsync(payment, ct);
 
-                await _paymentDbContext.SaveChangesAsync(ct);
-                await tx.CommitAsync(ct);
-            }
-            catch (Exception ex)
-            {
-                await tx.RollbackAsync(ct);
-                throw new InvalidOperationException("Payment persistence failed.", ex);
-            }
+                    // Nếu là OnlineBanking, gọi API tạo link thanh toán
+                    if (request.Method == PaymentMethod.OnlineBanking)
+                    {
+                        var paymentUrl = await sePayClient.CreatePaymentLinkAsync(
+                            payment.Code,
+                            payment.Amount,
+                            payment.Code,
+                            ct);
+                        payment.PaymentUrl = paymentUrl;
+                    }
+
+                    await _paymentDbContext.SaveChangesAsync(ct);
+
+                    await tx.CommitAsync(ct);
+                }
+                catch (Exception)
+                {
+                    await tx.RollbackAsync(ct);
+                    throw;
+                }
+            });
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

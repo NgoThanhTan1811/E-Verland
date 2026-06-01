@@ -26,7 +26,7 @@ namespace Modules.Cart.Infrastructure.Repositorise
             return true;
         }
 
-        public Task<CartItem?> GetByCartIdAndSkuIdAsync(Guid cartId, Guid skuId, CancellationToken ct = default)
+        public Task<CartItem?> GetByCartIdAndSkuIdAsync(Guid cartId, Guid? skuId, CancellationToken ct = default)
         {
             return _db.CartItems.AsNoTracking()
                 .FirstOrDefaultAsync(c => c.CartId == cartId && c.SkuId == skuId, ct);
@@ -47,7 +47,18 @@ namespace Modules.Cart.Infrastructure.Repositorise
 
         public Task UpdateAsync(CartItem entity, CancellationToken cancellationToken = default)
         {
-            _db.CartItems.Update(entity);
+            var trackedEntity = _db.CartItems.Local.FirstOrDefault(e => e.Id == entity.Id);
+
+            if (trackedEntity != null)
+            {
+                _db.Entry(trackedEntity).CurrentValues.SetValues(entity);
+            }
+            else
+            {
+                // Nếu chưa, thực hiện Update bình thường
+                _db.CartItems.Update(entity);
+            }
+
             return Task.CompletedTask;
         }
     }

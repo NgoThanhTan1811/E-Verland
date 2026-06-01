@@ -1,5 +1,6 @@
 using Modules.User.Application.Interfaces.Repositories;
 using Modules.User.Application.DTOs.Response;
+using Modules.User.Application.Interfaces.Services;
 using MediatR;
 using Modules.User.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -13,41 +14,43 @@ namespace Modules.User.Application.Commands;
 public sealed record CreateAddressCommand(
     Guid AccountId,
     string Street,
-    string City,
-    string Ward,
     string Detail,
-    string District,
-    string Province,
     int ProvinceId,
     int DistrictId,
-    string WardCode,
+    int WardId,
     LableAddress Label,
     bool IsDefault
 ) : IRequest<AddressResDto>;
 
-public sealed class CreateAddressHandler(IAddressRepository repo, IUserDbContext db) : IRequestHandler<CreateAddressCommand, AddressResDto>
+public sealed class CreateAddressHandler(IAddressRepository repo, IUserDbContext db, ILocationLookupService locations) : IRequestHandler<CreateAddressCommand, AddressResDto>
 {
     private readonly IAddressRepository _repo = repo;
     private readonly IUserDbContext _db = db;
+    private readonly ILocationLookupService _locations = locations;
 
     public async Task<AddressResDto> Handle(CreateAddressCommand request, CancellationToken ct)
     {
         var validationResult = AddressValidator.CreateAddress.Validate(new DTOs.Request.CreateAddressReqDto
         {
             Label = request.Label,
-            City = request.City,
-            Province = request.Province,
-            District = request.District,
-            Ward = request.Ward,
             Street = request.Street,
             Detail = request.Detail,
             ProvinceId = request.ProvinceId,
             DistrictId = request.DistrictId,
-            WardCode = request.WardCode
+            WardId = request.WardId
         });
 
         if (validationResult != ValidationResult.Success)
             throw new ValidationException(validationResult?.ErrorMessage);
+
+        var provinceName = await _locations.GetProvinceNameAsync(request.ProvinceId, ct)
+            ?? throw new KeyNotFoundException("ProvinceId not found.");
+
+        var districtName = await _locations.GetDistrictNameAsync(request.ProvinceId, request.DistrictId, ct)
+            ?? throw new KeyNotFoundException("DistrictId not found.");
+
+        var wardName = await _locations.GetWardNameAsync(request.ProvinceId, request.DistrictId, request.WardId, ct)
+            ?? throw new KeyNotFoundException("WardId not found.");
 
         if (request.IsDefault)
         {
@@ -57,16 +60,16 @@ public sealed class CreateAddressHandler(IAddressRepository repo, IUserDbContext
         var entity = new Address(
             request.AccountId,
             request.Label,
-            request.City,
-            request.Province,
-            request.District,
-            request.Ward,
+            provinceName,
+            provinceName,
+            districtName,
+            wardName,
             request.Street,
             request.Detail,
             request.IsDefault,
             request.ProvinceId,
             request.DistrictId,
-            request.WardCode
+            request.WardId.ToString()
         );
 
         await _repo.CreateAsync(entity, ct);

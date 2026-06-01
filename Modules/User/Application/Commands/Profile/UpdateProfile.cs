@@ -46,7 +46,6 @@ namespace Modules.User.Application.Commands
 
             if (validationResult != ValidationResult.Success)
                 throw new ValidationException(validationResult?.ErrorMessage);
-
             if (request.PhoneNumber is not null)
                 entity.PhoneNumber = request.PhoneNumber.Trim();
 
@@ -61,7 +60,7 @@ namespace Modules.User.Application.Commands
             entity.Update(
                 request.FirstName,
                 request.LastName,
-                request.DateOfBirth,
+                request.DateOfBirth.HasValue ? DateOnly.FromDateTime(request.DateOfBirth.Value) : (DateOnly?)null,
                 avatarRelative,
                 request.Gender,
                 request.Bio

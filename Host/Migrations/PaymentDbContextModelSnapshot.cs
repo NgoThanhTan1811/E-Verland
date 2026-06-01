@@ -163,7 +163,7 @@ namespace EVerland.Migrations
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("IdempotencyKey")
+                    b.Property<string>("TransactionId")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
@@ -198,7 +198,7 @@ namespace EVerland.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IdempotencyKey")
+                    b.HasIndex("TransactionId")
                         .IsUnique();
 
                     b.HasIndex("OrderId");

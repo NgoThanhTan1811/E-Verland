@@ -5,6 +5,7 @@ using Modules.Media.Application.Interfaces;
 using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.DTOs.Response;
+using Modules.Product.Application.Mappings;
 
 namespace Modules.Product.Application.Commands;
 
@@ -49,7 +50,7 @@ public sealed class UpdateProductHandler(
         product.Description = request.Request.Description;
         product.BasePrice = request.Request.BasePrice;
         product.VirtualPrice = request.Request.VirtualPrice;
-        product.Slug = request.Request.Slug;
+        product.Slug = Services.SlugHelper.GenerateSlug(request.Request.Name);
         product.ImageUrls = request.Request.ImageUrls;
         product.Attributes = request.Request.Attributes;
         product.BrandId = request.Request.BrandId;
@@ -89,15 +90,21 @@ public sealed class UpdateProductHandler(
         {
             Id = product.Id,
             Name = product.Name,
-            Slug = product.Slug,
             Description = product.Description,
-            BasePrice = product.BasePrice,
-            VirtualPrice = product.VirtualPrice,
+            Price = product.VirtualPrice > 0 ? product.VirtualPrice : product.BasePrice,
             ImageUrls = product.ImageUrls,
             Attributes = product.Attributes,
-            Brand = product.Brand,
-            Categories = product.Categories,
-            Skus = product.SKUs
+            Brand = product.Brand == null ? null : new ProductBrandDto
+            {
+                Id = product.Brand.Id,
+                Name = product.Brand.Name
+            },
+            Categories = product.Categories.Select(c => new ProductCategoryDto
+            {
+                Id = c.Id,
+                Name = c.Name
+            }).ToList(),
+            Skus = product.SKUs.Select(ProductDtoMapper.ToSkuDetailDto).ToList()
         };
     }
 

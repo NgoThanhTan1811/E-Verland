@@ -11,13 +11,15 @@ using Modules.Order.Application.Contracts;
 using Modules.Order.Application.DTOs.Request;
 using Modules.Order.Application.DTOs.Response;
 using Modules.Order.Domain;
+using Modules.User.Application.Interfaces.Repositories;
 using SharedKernel.Events;
 
 namespace Modules.Order.Application.Commands;
 
 public sealed record CreateOrderCommand(
     Guid UserId,
-    ShippingAddressRequestDto ShippingAddress,
+    Guid? ShippingAddressId,
+    ShippingAddressRequestDto? ShippingAddress,
     ReceiverRequestDto Receiver,
     int Weight,
     int Length,
@@ -33,25 +35,45 @@ public sealed record CreateOrderCommand(
     List<CreateOrderItemRequestDto> Items
 ) : IRequest<CreateOrderResponseDto>;
 
-public sealed class CreateOrderHandler(
-    IOrderRepository repo,
-    IOrderDbContext db,
-    IProductService productService,
-    ICloudWatchService cloudWatch,
-    ILogger<CreateOrderHandler> logger,
-    ISQSService? sqsService = null,
-    ISNSService? snsService = null,
-    IEventBridgeService? eventBridgeService = null,
-    IConfiguration? configuration = null)
-    : IRequestHandler<CreateOrderCommand, CreateOrderResponseDto>
+public sealed class CreateOrderHandler : IRequestHandler<CreateOrderCommand, CreateOrderResponseDto>
 {
-    private readonly IOrderRepository _repo = repo;
-    private readonly IOrderDbContext _db = db;
-    private readonly IProductService _productService = productService;
-    private readonly ISQSService? _sqsService = sqsService;
-    private readonly ISNSService? _snsService = snsService;
-    private readonly IEventBridgeService? _eventBridgeService = eventBridgeService;
-    private readonly IConfiguration? _configuration = configuration;
+    private readonly IOrderRepository _repo;
+    private readonly IOrderDbContext _db;
+    private readonly IProductService _productService;
+    private readonly IProfileRepository _profileRepository;
+    private readonly IAddressRepository _addressRepository;
+    private readonly ICloudWatchService _cloudWatch;
+    private readonly ILogger<CreateOrderHandler> _logger;
+    private readonly ISQSService? _sqsService;
+    private readonly ISNSService? _snsService;
+    private readonly IEventBridgeService? _eventBridgeService;
+    private readonly IConfiguration? _configuration;
+
+    public CreateOrderHandler(
+        IOrderRepository repo,
+        IOrderDbContext db,
+        IProductService productService,
+        IProfileRepository profileRepository,
+        IAddressRepository addressRepository,
+        ICloudWatchService cloudWatch,
+        ILogger<CreateOrderHandler> logger,
+        ISQSService? sqsService = null,
+        ISNSService? snsService = null,
+        IEventBridgeService? eventBridgeService = null,
+        IConfiguration? configuration = null)
+    {
+        _repo = repo;
+        _db = db;
+        _productService = productService;
+        _profileRepository = profileRepository;
+        _addressRepository = addressRepository;
+        _cloudWatch = cloudWatch;
+        _logger = logger;
+        _sqsService = sqsService;
+        _snsService = snsService;
+        _eventBridgeService = eventBridgeService;
+        _configuration = configuration;
+    }
 
     public async Task<CreateOrderResponseDto> Handle(CreateOrderCommand request, CancellationToken ct)
     {
@@ -61,24 +83,28 @@ public sealed class CreateOrderHandler(
         if (request.Weight <= 0 || request.Length <= 0 || request.Width <= 0 || request.Height <= 0)
             throw new ArgumentException("Shipping dimensions must be greater than 0");
 
-        if (request.ShippingAddress is null)
+        var shippingAddress = request.ShippingAddress;
+        if (request.ShippingAddressId.HasValue)
+        {
+            shippingAddress = await ResolveShippingAddressAsync(request.UserId, request.ShippingAddressId.Value, ct);
+        }
+
+        if (shippingAddress is null)
             throw new ArgumentException("Shipping address is required");
 
-        if (request.ShippingAddress.DistrictId <= 0 || string.IsNullOrWhiteSpace(request.ShippingAddress.WardCode))
+        if (shippingAddress.DistrictId <= 0 || string.IsNullOrWhiteSpace(shippingAddress.WardCode))
             throw new ArgumentException("Shipping address is missing district/ward codes");
 
-        if (string.IsNullOrWhiteSpace(request.ShippingAddress.Address))
+        if (string.IsNullOrWhiteSpace(shippingAddress.Address))
             throw new ArgumentException("Shipping address detail is required");
 
         var sw = Stopwatch.StartNew();
         try
         {
-            var receiverAddress = request.ShippingAddress.Address;
-
             var receiverSnapshot = ReceiverSnapshot.Create(
                 request.Receiver.Name,
                 request.Receiver.Phone,
-                receiverAddress
+                shippingAddress.Address
             );
 
             var order = new Domain.Order
@@ -133,11 +159,11 @@ public sealed class CreateOrderHandler(
             }
 
             sw.Stop();
-            logger.LogInformation("Order created. {OrderId} {UserId} {LatencyMs}", order.Id, request.UserId, sw.ElapsedMilliseconds);
-            await cloudWatch.PutMetricAsync("order.created", 1, "Count", ct: ct);
-            await cloudWatch.PutMetricAsync("order.latency_ms", sw.ElapsedMilliseconds, "Milliseconds", ct: ct);
+            _logger.LogInformation("Order created. {OrderId} {UserId} {LatencyMs}", order.Id, request.UserId, sw.ElapsedMilliseconds);
+            await _cloudWatch.PutMetricAsync("order.created", 1, "Count", ct: ct);
+            await _cloudWatch.PutMetricAsync("order.latency_ms", sw.ElapsedMilliseconds, "Milliseconds", ct: ct);
 
-            await PublishShippingDraftRequestedAsync(order, request, ct);
+            await PublishShippingDraftRequestedAsync(order, request, shippingAddress, ct);
             await PublishOrderEventAsync(order, "OrderCreated", ct);
 
             return new CreateOrderResponseDto(order.Id, order.Code);
@@ -145,10 +171,37 @@ public sealed class CreateOrderHandler(
         catch (Exception ex)
         {
             sw.Stop();
-            logger.LogError(ex, "Order creation failed. {UserId} {LatencyMs}", request.UserId, sw.ElapsedMilliseconds);
-            await cloudWatch.PutMetricAsync("order.failed", 1, "Count", ct: ct);
+            _logger.LogError(ex, "Order creation failed. {UserId} {LatencyMs}", request.UserId, sw.ElapsedMilliseconds);
+            await _cloudWatch.PutMetricAsync("order.failed", 1, "Count", ct: ct);
             throw;
         }
+    }
+
+    private async Task<ShippingAddressRequestDto> ResolveShippingAddressAsync(Guid userId, Guid addressId, CancellationToken ct)
+    {
+        var profile = await _profileRepository.GetByAccountIdAsync(userId, ct)
+            ?? throw new KeyNotFoundException("Profile not found.");
+
+        var address = await _addressRepository.GetByIdForProfileAsync(addressId, profile.Id, ct)
+            ?? throw new KeyNotFoundException("Shipping address not found.");
+
+        var detail = string.Join(", ", new[]
+        {
+            address.Detail,
+            address.Street,
+            address.Ward,
+            address.District,
+            address.Province
+        }.Where(value => !string.IsNullOrWhiteSpace(value)));
+
+        return new ShippingAddressRequestDto(
+            detail,
+            address.DistrictId ?? 0,
+            address.WardCode ?? string.Empty,
+            address.Ward,
+            address.District,
+            address.Province
+        );
     }
 
     private async Task<string> GenerateOrderCodeAsync(CancellationToken ct)
@@ -173,6 +226,7 @@ public sealed class CreateOrderHandler(
     private async Task PublishShippingDraftRequestedAsync(
         Domain.Order order,
         CreateOrderCommand request,
+        ShippingAddressRequestDto shippingAddress,
         CancellationToken ct)
     {
         if (_configuration == null || _sqsService == null)
@@ -211,12 +265,12 @@ public sealed class CreateOrderHandler(
             order.UserId,
             request.Receiver.Name,
             request.Receiver.Phone,
-            request.ShippingAddress.Address,
-            request.ShippingAddress.DistrictId,
-            request.ShippingAddress.WardCode,
-            request.ShippingAddress.WardName,
-            request.ShippingAddress.DistrictName,
-            request.ShippingAddress.ProvinceName,
+            shippingAddress.Address,
+            shippingAddress.DistrictId,
+            shippingAddress.WardCode,
+            shippingAddress.WardName,
+            shippingAddress.DistrictName,
+            shippingAddress.ProvinceName,
             request.Weight,
             request.Length,
             request.Width,
@@ -237,7 +291,7 @@ public sealed class CreateOrderHandler(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to publish shipping draft request for order {OrderId}", order.Id);
+            _logger.LogWarning(ex, "Failed to publish shipping draft request for order {OrderId}", order.Id);
         }
     }
 
@@ -286,7 +340,7 @@ public sealed class CreateOrderHandler(
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to publish order event {EventType} for order {OrderId}", eventType, order.Id);
+            _logger.LogWarning(ex, "Failed to publish order event {EventType} for order {OrderId}", eventType, order.Id);
         }
     }
 }

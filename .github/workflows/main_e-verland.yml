@@ -2,7 +2,7 @@ name: CI/CD E-Verland (AWS)
 
 on:
   push:
-    branches: [ main, v2/be ]
+    branches: [main, v2/be]
   workflow_dispatch:
 
 jobs:
@@ -48,7 +48,7 @@ jobs:
       - name: Terraform Apply
         working-directory: Infra/terraform
         env:
-          TF_VAR_cloudflare_api_token ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           TF_VAR_app_secrets_arn: ${{ secrets.APP_SECRETS_ARN }}
           TF_VAR_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
           # TRUYỀN IMAGE MỚI VÀO TERRAFORM Ở ĐÂY

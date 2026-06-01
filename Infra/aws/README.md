@@ -68,22 +68,22 @@ Add to `appsettings.json`:
 ```json
 {
   "AWS": {
-    "Region": "us-east-1",
+    "Region": "ap-southeast-1",
     "S3": {
       "BucketName": "e-verland-media",
       "BaseUrl": "https://cdn.e-verland.com"
     },
     "SQS": {
-      "OrderEventsQueueUrl": "https://sqs.us-east-1.amazonaws.com/.../orders"
+      "OrderEventsQueueUrl": "https://sqs.ap-southeast-1.amazonaws.com/.../orders"
     },
     "SNS": {
-      "OrderNotificationsTopicArn": "arn:aws:sns:us-east-1:...:orders"
+      "OrderNotificationsTopicArn": "arn:aws:sns:ap-southeast-1:...:orders"
     },
     "EventBridge": {
       "EventBusName": "e-verland-events"
     },
     "OpenSearch": {
-      "Endpoint": "https://search-e-verland-....us-east-1.es.amazonaws.com"
+      "Endpoint": "https://search-e-verland-....ap-southeast-1.es.amazonaws.com"
     }
   }
 }

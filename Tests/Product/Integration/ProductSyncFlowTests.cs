@@ -23,7 +23,7 @@ namespace Tests.Product.Integration;
 /// </summary>
 public class ProductSyncFlowTests
 {
-    private const string QueueUrl = "https://sqs.us-east-1.amazonaws.com/123/product-sync";
+    private const string QueueUrl = "https://sqs.ap-southeast-1.amazonaws.com/123/product-sync";
 
     private static ProductSyncPublisher CreateRealPublisher(ISQSService sqsService, ICloudWatchService cloudWatch)
     {
@@ -55,7 +55,7 @@ public class ProductSyncFlowTests
         ImageUrls = [],
         Attributes = [],
         CategoryIds = [],
-        Status = ProductStatus.Published    
+        Status = ProductStatus.Published
     };
 
     [Fact]
@@ -70,7 +70,7 @@ public class ProductSyncFlowTests
         var skuGenerator = new SKUGeneratorService();
         var syncPublisher = CreateRealPublisher(sqsService, cloudWatch);
         var redis = Substitute.For<IRedis>();
-        var mediaRepo= Substitute.For<IMediaFileRepository>();
+        var mediaRepo = Substitute.For<IMediaFileRepository>();
 
         sqsService.SendMessageAsync(Arg.Any<string>(), Arg.Any<ProductSyncEvent>(), Arg.Any<CancellationToken>())
             .Returns(Task.FromResult("msg-id"));
@@ -126,7 +126,7 @@ public class ProductSyncFlowTests
         cloudWatch.PutMetricAsync(Arg.Any<string>(), Arg.Any<double>(), Arg.Any<string>(),
             Arg.Any<Dictionary<string, string>>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
-        var handler = new UpdateProductHandler(productRepo, categoryRepo, dbContext, syncPublisher, cloudWatch);
+        var handler = new UpdateProdulearctHandler(productRepo, categoryRepo, dbContext, syncPublisher, cloudWatch);
 
         ProductSyncEvent? captured = null;
         sqsService.When(s => s.SendMessageAsync(QueueUrl, Arg.Any<ProductSyncEvent>(), Arg.Any<CancellationToken>()))

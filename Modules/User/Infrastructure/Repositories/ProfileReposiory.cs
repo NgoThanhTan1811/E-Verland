@@ -48,7 +48,7 @@ namespace Modules.User.Infrastructure.Repositories
 
         public async Task<Domain.Entities.Profile?> GetByAccountIdAsync(Guid accountId, CancellationToken ct = default)
         {
-            return await _db.Profiles.AsNoTracking()
+            return await _db.Profiles
                                  .FirstOrDefaultAsync(up => up.AccountId == accountId, ct);
         }
 

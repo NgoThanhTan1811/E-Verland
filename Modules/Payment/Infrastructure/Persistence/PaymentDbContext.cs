@@ -81,7 +81,7 @@ namespace Modules.Payment.Infrastructure.Persistence
                 entity.ToTable("WebhookEvents");
                 entity.HasKey(x => x.Id);
 
-                entity.Property(x => x.IdempotencyKey)
+                entity.Property(x => x.TransactionId)
                     .HasMaxLength(128)
                     .IsRequired();
 
@@ -93,7 +93,7 @@ namespace Modules.Payment.Infrastructure.Persistence
                     .HasMaxLength(30)
                     .IsRequired();
 
-                entity.HasIndex(x => x.IdempotencyKey)
+                entity.HasIndex(x => x.TransactionId)
                     .IsUnique();
             });
 

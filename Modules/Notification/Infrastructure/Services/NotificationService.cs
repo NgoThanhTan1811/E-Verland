@@ -5,7 +5,7 @@ namespace Modules.Notification.Infrastructure.Services;
 
 public class NotificationService : INotificationService
 {
-    private readonly Dictionary<Guid, StreamWriter> _userConnections = new();
+    private readonly Dictionary<Guid, Stream> _userConnections = new();
     private readonly Lock _lockObject = new();
     private readonly ILogger<NotificationService> _logger;
 
@@ -14,11 +14,11 @@ public class NotificationService : INotificationService
         _logger = logger;
     }
 
-    public void RegisterUserConnection(Guid userId, StreamWriter writer)
+    public void RegisterUserConnection(Guid userId, Stream stream)
     {
         lock (_lockObject)
         {
-            _userConnections[userId] = writer;
+            _userConnections[userId] = stream;
             _logger.LogInformation("User {UserId} connected to SSE notifications", userId);
         }
     }
@@ -36,26 +36,32 @@ public class NotificationService : INotificationService
 
     public async Task SendToUserAsync(Guid userId, Domain.Notification notification)
     {
+        Stream? stream;
         lock (_lockObject)
         {
-            if (!_userConnections.TryGetValue(userId, out var writer))
-            {
-                _logger.LogDebug("User {UserId} is not connected, notification will be stored for later retrieval", userId);
-                return;
-            }
+            _userConnections.TryGetValue(userId, out stream);
+        }
 
+        if (stream != null)
+        {
             try
             {
                 var eventData = FormatSSEMessage(notification);
-                writer.WriteLine(eventData);
-                writer.Flush();
-                _logger.LogInformation("Notification sent to user {UserId}", userId);
+                var buffer = System.Text.Encoding.UTF8.GetBytes(eventData + "\n\n");
+
+                // Dùng WriteAsync và FlushAsync thay cho WriteLine/Flush
+                await stream.WriteAsync(buffer);
+                await stream.FlushAsync();
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending notification to user {UserId}", userId);
-                _userConnections.Remove(userId);
+                UnregisterUserConnection(userId);
             }
+        }
+        else
+        {
+            _logger.LogInformation("User {UserId} is not connected. Skipping SSE notification.", userId);
         }
     }
 

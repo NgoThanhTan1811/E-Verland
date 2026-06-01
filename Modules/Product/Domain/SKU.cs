@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using SharedKernel.Entities;
 
@@ -10,6 +11,7 @@ namespace Modules.Product.Domain
     {
         public string SkuCode { get; set; } = default!;
         public Guid ProductId { get; set; }
+        [JsonIgnore]
         public Product Product { get; set; } = default!;
         public decimal Price { get; set; } = default!;
         public int Stock { get; set; } = default!;

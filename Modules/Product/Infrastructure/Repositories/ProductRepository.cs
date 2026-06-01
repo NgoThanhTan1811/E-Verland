@@ -18,7 +18,8 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
 
     public async Task<Domain.Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _db.Products.AsNoTracking()
+        return await BuildProductQuery()
+            .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
@@ -30,7 +31,7 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var existing = await _db.Products.AsTracking().FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+        var existing = await _db.Products.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
         if (existing == null) return false;
 
         _db.Entry(existing).Property(nameof(BaseEntity.IsDeleted)).CurrentValue = true;
@@ -42,7 +43,6 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
     {
         return await _db.Products
             .IgnoreQueryFilters()
-            .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
@@ -50,7 +50,6 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
     {
         var existing = await _db.Products
             .IgnoreQueryFilters()
-            .AsTracking()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
         if (existing == null)
         {
@@ -93,7 +92,6 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
     public Task<bool> IsActiveProductAsync(Guid productId, CancellationToken cancellationToken = default)
     {
         return _db.Products
-            .AsNoTracking()
             .AnyAsync(p =>
                 p.Id == productId &&
                 p.Status == ProductStatus.Published, cancellationToken);
@@ -101,14 +99,13 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
 
     public Task<int> CountProductsAsync(CancellationToken ct = default)
     {
-        return _db.Products.AsNoTracking().CountAsync(ct);
+        return _db.Products.CountAsync(ct);
     }
 
 
     public async Task<Domain.Product> ChangeStatusAsync(Guid productId, ProductStatus newStatus, CancellationToken cancellationToken = default)
     {
         var product = await _db.Products
-            .AsTracking()
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken)
                 ?? throw new KeyNotFoundException("Product not found");
 
@@ -123,7 +120,6 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
             .Include(p => p.Brand)
             .Include(p => p.Categories)
             .Include(p => p.SKUs)
-            .AsNoTracking()
             .AsQueryable();
     }
 

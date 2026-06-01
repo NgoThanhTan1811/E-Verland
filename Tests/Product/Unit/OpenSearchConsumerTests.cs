@@ -13,7 +13,7 @@ namespace Tests.Product.Unit;
 
 public class OpenSearchConsumerTests
 {
-    private const string QueueUrl = "https://sqs.us-east-1.amazonaws.com/123/product-sync";
+    private const string QueueUrl = "https://sqs.ap-southeast-1.amazonaws.com/123/product-sync";
 
     private static OpenSearchConsumer BuildConsumer(
         ISQSService sqsService,

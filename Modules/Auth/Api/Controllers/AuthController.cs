@@ -258,15 +258,8 @@ namespace Modules.Auth.Api.Controllers
         /// </summary>
         private void ClearTokenCookies()
         {
-            var expiredCookieOptions = new CookieOptions
-            {
-                Expires = DateTime.UtcNow.AddDays(-1),
-                HttpOnly = true,
-                Secure = GetCookieSecure(),
-                SameSite = SameSiteMode.Lax,
-                Domain = GetCookieDomain(),
-                Path = "/"
-            };
+            var expiredCookieOptions = GetCookieOptions();
+            expiredCookieOptions.Expires = DateTime.UtcNow.AddDays(-1);
 
             Response.Cookies.Append("access_token", string.Empty, expiredCookieOptions);
             Response.Cookies.Append("refresh_token", string.Empty, expiredCookieOptions);
@@ -277,16 +270,38 @@ namespace Modules.Auth.Api.Controllers
         /// </summary>
         private CookieOptions GetCookieOptions()
         {
+            var isHttpsRequest = HttpContext.Request.IsHttps;
+            var cookieSecure = GetCookieSecure() && isHttpsRequest;
+
             return new CookieOptions
             {
                 Expires = DateTime.UtcNow.AddMinutes(
-                    int.TryParse(_configuration["Jwt:AccessTokenMinutes"], out var minutes) ? minutes : 10),
+                    int.TryParse(_configuration["Jwt:AccessTokenMinutes"], out var minutes) ? minutes : 30),
                 HttpOnly = true,  // Required for security
-                Secure = GetCookieSecure(),
+                Secure = cookieSecure,
                 SameSite = SameSiteMode.Lax,
-                Domain = GetCookieDomain(),
+                Domain = ShouldSetCookieDomain() ? GetCookieDomain() : null,
                 Path = "/"
             };
+        }
+
+        private bool ShouldSetCookieDomain()
+        {
+            var cookieDomain = GetCookieDomain();
+            if (string.IsNullOrWhiteSpace(cookieDomain))
+            {
+                return false;
+            }
+
+            var requestHost = HttpContext.Request.Host.Host;
+            if (string.IsNullOrWhiteSpace(requestHost))
+            {
+                return false;
+            }
+
+            return !requestHost.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+                && !requestHost.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase)
+                && !requestHost.Equals("::1", StringComparison.OrdinalIgnoreCase);
         }
 
         private bool GetCookieSecure()

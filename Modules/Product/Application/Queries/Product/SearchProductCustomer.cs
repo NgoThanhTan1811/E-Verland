@@ -2,6 +2,7 @@ using MediatR;
 using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.DTOs.Response;
+using Modules.Product.Application.Mappings;
 using Modules.Redis.Services;
 using SharedKernel.Pagination;
 using System.Security.Cryptography;
@@ -15,11 +16,13 @@ public sealed record SearchProductCustomerQuery(FilterProductCustomerRequestDto 
 public sealed class SearchProductCustomerHandler(
     IProductRepository productRepository,
     IProductCacheService productCacheService,
-    IConfiguration configuration) : IRequestHandler<SearchProductCustomerQuery, PageResult<ProductListItemDto>>
+    IConfiguration configuration,
+    IUrlResolver urlResolver) : IRequestHandler<SearchProductCustomerQuery, PageResult<ProductListItemDto>>
 {
     private readonly IProductRepository _productRepository = productRepository;
     private readonly IProductCacheService _productCacheService = productCacheService;
     private readonly IConfiguration _configuration = configuration;
+    private readonly IUrlResolver _urlResolver = urlResolver;
 
     public async Task<PageResult<ProductListItemDto>> Handle(SearchProductCustomerQuery request, CancellationToken cancellationToken)
     {
@@ -35,21 +38,11 @@ public sealed class SearchProductCustomerHandler(
         var productList = products.ToList();
         var totalCount = productList.Count;
 
-        var dtos = productList.Select(p => new ProductListItemDto
+        var dtos = new List<ProductListItemDto>(productList.Count);
+        foreach (var product in productList)
         {
-            Id = p.Id,
-            Name = p.Name,
-            Description = p.Description,
-            Price = p.VirtualPrice > 0 ? p.VirtualPrice : p.BasePrice,
-            ImageUrl = p.ImageUrls.FirstOrDefault(),
-            BrandName = p.Brand?.Name,
-            BrandId = p.BrandId,
-            CategoryNames = p.Categories.Select(c => c.Name).ToList(),
-            CategoryId = p.Categories.FirstOrDefault()?.Id ?? Guid.Empty,
-            Attributes = p.Attributes,
-            SKUs = p.SKUs,
-            Status = p.Status
-        }).ToList();
+            dtos.Add(await product.ToListItemDtoAsync(_urlResolver, cancellationToken));
+        }
 
         var ttlMinutes = int.TryParse(_configuration["Cache:ProductListTtlMinutes"], out var value)
             ? Math.Max(1, value)

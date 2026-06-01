@@ -32,6 +32,7 @@ public class NotificationController(
     /// Subscribe to push notifications via Server-Sent Events (SSE)
     /// This endpoint keeps an open connection and streams notifications to the client in real-time
     /// </summary>
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpGet("subscribe")]
     [AllowAnonymous]
     public async Task Subscribe(Guid userId, CancellationToken cancellationToken)
@@ -42,38 +43,32 @@ public class NotificationController(
         Response.Headers.Append("Connection", "keep-alive");
         Response.Headers.Append("X-Accel-Buffering", "no");
 
-        var writer = new StreamWriter(Response.Body)
-        {
-            AutoFlush = true
-        };
-
         // Register user connection
-        _notificationService.RegisterUserConnection(userId, writer);
+        _notificationService.RegisterUserConnection(userId, Response.Body);
         await _cloudWatch.PutMetricAsync("notification.sse.connected", 1, "Count");
 
         try
         {
-            // Keep connection alive
             while (!cancellationToken.IsCancellationRequested)
             {
-                await Task.Delay(30000, cancellationToken); // Keep-alive ping every 30 seconds
-                await writer.WriteLineAsync($": keep-alive ping at {DateTime.UtcNow:O}");
-                await writer.FlushAsync();
+                await Task.Delay(30000, cancellationToken);
+                if (cancellationToken.IsCancellationRequested) break;
+                // Ghi dữ liệu trực tiếp vào body một cách bất đồng bộ
+                var message = $"data: : keep-alive ping at {DateTime.UtcNow:O}\n\n";
+                var buffer = System.Text.Encoding.UTF8.GetBytes(message);
+
+                await Response.Body.WriteAsync(buffer, cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
             }
         }
         catch (OperationCanceledException)
         {
             _logger.LogInformation("SSE connection cancelled for user {UserId}", userId);
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error in SSE subscription for user {UserId}", userId);
-        }
         finally
         {
             _notificationService.UnregisterUserConnection(userId);
-            await writer.FlushAsync();
-            writer.Dispose();
+            // Không cần Dispose writer vì Response.Body được quản lý bởi Kestrel
         }
     }
 
@@ -132,6 +127,7 @@ public class NotificationController(
     /// <summary>
     /// Get all unread notifications for the current user
     /// </summary>
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpGet("unread")]
     public async Task<IActionResult> GetUnreadNotifications(
         Guid userId,
@@ -153,6 +149,7 @@ public class NotificationController(
     /// <summary>
     /// Get notifications for user with pagination
     /// </summary>
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpGet("user/{userId}")]
     public async Task<IActionResult> GetUserNotifications(
         Guid userId,
@@ -175,6 +172,7 @@ public class NotificationController(
     /// <summary>
     /// Mark a notification as read
     /// </summary>
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpPost("{notificationId}/mark-as-read")]
     public async Task<IActionResult> MarkAsRead(
         Guid notificationId,
@@ -205,7 +203,7 @@ public class NotificationController(
     /// Check if a user has an active SSE connection
     /// </summary>
     [HttpGet("status/{userId}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "SellerOrCustomer")]
     public IActionResult CheckConnectionStatus(Guid userId)
     {
         var isConnected = _notificationService.IsUserConnected(userId);
@@ -216,7 +214,7 @@ public class NotificationController(
     /// Get all connected users (admin only)
     /// </summary>
     [HttpGet("connected-users")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Policy = "AdminPolicy")]
     public IActionResult GetConnectedUsers()
     {
         var connectedUsers = _notificationService.GetConnectedUsers().ToList();

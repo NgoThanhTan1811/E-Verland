@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Modules.Media.Application.Interfaces;
 using Modules.Media.Domain;
@@ -25,48 +27,75 @@ public sealed class OrphanMediaCleanupService : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var intervalHours = Math.Max(1, _options.CleanupIntervalHours);
+        using var timer = new PeriodicTimer(TimeSpan.FromHours(intervalHours));
 
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            try
+            while (await timer.WaitForNextTickAsync(stoppingToken))
             {
                 await CleanupPendingUploadsAsync(stoppingToken);
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed during orphan media cleanup.");
-            }
-
-            await Task.Delay(TimeSpan.FromHours(intervalHours), stoppingToken);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // Expected during host shutdown.
+        }
+        catch (TaskCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // Expected during host shutdown.
         }
     }
- 
+
     private async Task CleanupPendingUploadsAsync(CancellationToken ct)
     {
-        using var scope = _scopeFactory.CreateScope();
-        var repository = scope.ServiceProvider.GetRequiredService<IMediaFileRepository>();
-        var storage = scope.ServiceProvider.GetRequiredService<IMediaStorageService>();
-
-        var graceHours = Math.Max(1, _options.OrphanGracePeriodHours);
-        var threshold = DateTime.UtcNow.AddHours(-graceHours);
-
-        var stalePending = await repository.GetPendingOlderThanAsync(threshold, ct);
-        if (stalePending.Count == 0)
+        try
         {
-            return;
-        }
+            using var scope = _scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<IMediaFileRepository>();
+            var storage = scope.ServiceProvider.GetRequiredService<IMediaStorageService>();
 
-        foreach (var media in stalePending)
-        {
-            if (await storage.ExistsAsync(media.FilePath, ct))
+            var graceHours = Math.Max(1, _options.OrphanGracePeriodHours);
+            var threshold = DateTime.UtcNow.AddHours(-graceHours);
+
+            var stalePending = await repository.GetPendingOlderThanAsync(threshold, ct);
+            if (stalePending.Count == 0)
             {
-                await storage.DeleteAsync(media.FilePath, ct);
+                return;
             }
 
-            media.Status = MediaFileStatus.Orphan;
-            await repository.DeleteAsync(media.Id, ct);
-        }
+            foreach (var media in stalePending)
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    return;
+                }
 
-        _logger.LogInformation("Orphan media cleanup completed. Removed {Count} stale pending uploads.", stalePending.Count);
+                if (await storage.ExistsAsync(media.FilePath, ct))
+                {
+                    await storage.DeleteAsync(media.FilePath, ct);
+                }
+
+                media.Status = MediaFileStatus.Orphan;
+                await repository.DeleteAsync(media.Id, ct);
+            }
+
+            _logger.LogInformation("Orphan media cleanup completed. Removed {Count} stale pending uploads.", stalePending.Count);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Expected during host shutdown.
+        }
+        catch (TaskCanceledException) when (ct.IsCancellationRequested)
+        {
+            // Expected during host shutdown.
+        }
+        catch (ObjectDisposedException) when (ct.IsCancellationRequested)
+        {
+            // Expected when the host is already shutting down.
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed during orphan media cleanup.");
+        }
     }
 }

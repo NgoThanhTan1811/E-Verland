@@ -14,21 +14,23 @@ public sealed class CreateCategoryHandler(ICategoryRepository categoryRepository
 
     public async Task<CategoryDetailDto> Handle(CreateCategoryCommand request, CancellationToken cancellationToken)
     {
+        var parentCategoryId = NormalizeParentCategoryId(request.Request.ParentCategoryId);
+
         var existingCategory = await _categoryRepository.GetByNameAsync(request.Request.Name, cancellationToken);
         if (existingCategory != null)
             throw new InvalidOperationException($"Category with name '{request.Request.Name}' already exists.");
 
-        if (request.Request.ParentCategoryId.HasValue)
+        if (parentCategoryId.HasValue)
         {
-            var parentCategory = await _categoryRepository.GetByIdAsync(request.Request.ParentCategoryId.Value, cancellationToken);
+            var parentCategory = await _categoryRepository.GetByIdAsync(parentCategoryId.Value, cancellationToken);
             if (parentCategory == null)
-                throw new KeyNotFoundException($"Parent category with ID '{request.Request.ParentCategoryId}' not found.");
+                throw new KeyNotFoundException($"Parent category with ID '{parentCategoryId}' not found.");
         }
 
         var category = new Domain.Category
         {
             Name = request.Request.Name,
-            ParentCategoryId = request.Request.ParentCategoryId
+            ParentCategoryId = parentCategoryId
         };
 
         await _categoryRepository.CreateAsync(category, cancellationToken);
@@ -43,5 +45,13 @@ public sealed class CreateCategoryHandler(ICategoryRepository categoryRepository
             CreatedAt = category.CreatedAt,
             UpdatedAt = category.UpdatedAt
         };
+    }
+
+    private static Guid? NormalizeParentCategoryId(Guid? parentCategoryId)
+    {
+        if (!parentCategoryId.HasValue || parentCategoryId.Value == Guid.Empty)
+            return null;
+
+        return parentCategoryId;
     }
 }

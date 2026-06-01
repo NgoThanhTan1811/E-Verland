@@ -11,16 +11,16 @@ namespace Modules.Order.Infrastructure.Consumers;
 public sealed class PaymentStatusConsumer : BackgroundService
 {
     private readonly ISQSService _sqsService;
-    private readonly IMediator _mediator;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<PaymentStatusConsumer> _logger;
     private readonly int _pollIntervalMs = 5000;
     private readonly int _maxMessages = 10;
 
-    public PaymentStatusConsumer(ISQSService sqsService, IMediator mediator, IConfiguration configuration, ILogger<PaymentStatusConsumer> logger)
+    public PaymentStatusConsumer(ISQSService sqsService, IServiceScopeFactory scopeFactory, IConfiguration configuration, ILogger<PaymentStatusConsumer> logger)
     {
         _sqsService = sqsService;
-        _mediator = mediator;
+        _scopeFactory = scopeFactory;
         _configuration = configuration;
         _logger = logger;
     }
@@ -71,8 +71,11 @@ public sealed class PaymentStatusConsumer : BackgroundService
                             _ => OrderStatus.Pending
                         };
 
+                        using var scope = _scopeFactory.CreateScope();
+                        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
                         var command = new UpdateOrderStatusCommand(body.OrderId, targetStatus);
-                        await _mediator.Send(command, stoppingToken);
+                        await mediator.Send(command, stoppingToken);
 
                         await _sqsService.DeleteMessageAsync(queueUrl, msg.ReceiptHandle, stoppingToken);
                     }

@@ -12,7 +12,7 @@ namespace Modules.Order.Infrastructure.Consumers;
 public sealed class ShippingStatusConsumer : BackgroundService
 {
     private readonly ISQSService _sqsService;
-    private readonly IMediator _mediator;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<ShippingStatusConsumer> _logger;
     private readonly int _pollIntervalMs = 5000;
@@ -20,12 +20,12 @@ public sealed class ShippingStatusConsumer : BackgroundService
 
     public ShippingStatusConsumer(
         ISQSService sqsService,
-        IMediator mediator,
+        IServiceScopeFactory scopeFactory,
         IConfiguration configuration,
         ILogger<ShippingStatusConsumer> logger)
     {
         _sqsService = sqsService;
-        _mediator = mediator;
+        _scopeFactory = scopeFactory;
         _configuration = configuration;
         _logger = logger;
     }
@@ -75,8 +75,11 @@ public sealed class ShippingStatusConsumer : BackgroundService
                             continue;
                         }
 
+                        using var scope = _scopeFactory.CreateScope();
+                        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
                         var command = new UpdateOrderStatusCommand(body.OrderId, targetStatus.Value);
-                        await _mediator.Send(command, stoppingToken);
+                        await mediator.Send(command, stoppingToken);
 
                         await _sqsService.DeleteMessageAsync(queueUrl, msg.ReceiptHandle, stoppingToken);
                     }

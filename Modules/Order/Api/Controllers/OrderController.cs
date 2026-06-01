@@ -15,11 +15,16 @@ namespace Modules.Order.Api.Controllers;
 [ApiController]
 [EnableRateLimiting("order")]
 [Route("api/[controller]")]
-public class OrderController(IMediator mediator) : ControllerBase
+public class OrderController : ControllerBase
 {
-    private readonly IMediator _mediator = mediator;
+    private readonly IMediator _mediator;
 
-    [Authorize]
+    public OrderController(IMediator mediator)
+    {
+        _mediator = mediator;
+    }
+
+    [Authorize(Policy = "CustomerPolicy")]
     [HttpPost]
     public async Task<ActionResult<CreateOrderResponseDto>> CreateOrder(
         [FromBody] CreateOrderRequestDto dto,
@@ -30,6 +35,7 @@ public class OrderController(IMediator mediator) : ControllerBase
         {
             var command = new CreateOrderCommand(
                 userId,
+                dto.ShippingAddressId,
                 dto.ShippingAddress,
                 dto.Receiver,
                 dto.Weight,
@@ -59,13 +65,19 @@ public class OrderController(IMediator mediator) : ControllerBase
         }
     }
 
-    [Authorize]
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpGet("{id}")]
     public async Task<ActionResult<OrderDetailResponseDto>> GetOrderById(Guid id, CancellationToken ct)
     {
         try
         {
-            var query = new GetOrderByIdQuery(id, Guid.Empty);
+            var userIdRaw = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+            if (!Guid.TryParse(userIdRaw, out var userId))
+            {
+                return Unauthorized(new { message = "Invalid token." });
+            }
+
+            var query = new GetOrderByIdQuery(id, userId);
             var result = await _mediator.Send(query, ct);
             return Ok(result);
         }
@@ -75,8 +87,7 @@ public class OrderController(IMediator mediator) : ControllerBase
         }
     }
 
-
-    [Authorize]
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpGet]
     public async Task<ActionResult<PageResult<OrderOverviewResponseDto>>> GetOrders(
         [FromQuery] Guid userId,
@@ -107,7 +118,6 @@ public class OrderController(IMediator mediator) : ControllerBase
             return NotFound(new { message = ex.Message });
         }
     }
-
 
     [Authorize(Policy = "AdminPolicy")]
     [HttpGet("admin/order")]
@@ -144,8 +154,7 @@ public class OrderController(IMediator mediator) : ControllerBase
         }
     }
 
-
-    [Authorize(Policy = "AdminPolicy")]
+    [Authorize(Policy = "SellerOrCustomer")]
     [HttpPatch("{id}")]
     public async Task<ActionResult<OrderOverviewResponseDto>> UpdateOrderStatus(
         Guid id,
@@ -167,7 +176,6 @@ public class OrderController(IMediator mediator) : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
-
 
     [Authorize]
     [HttpDelete("{id}")]

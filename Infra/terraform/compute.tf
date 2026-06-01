@@ -35,13 +35,18 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
-# Tạo bản ghi DNS trên Cloudflare trỏ về ALB
-resource "cloudflare_dns_record" "api_endpoint" {
+locals {
+  subdomains = ["api", "seller", "admin"]
+}
+
+resource "cloudflare_dns_record" "subdomains" {
+  for_each = toset(local.subdomains)
+
   zone_id = data.cloudflare_zone.main.id
-  name    = "api"                # Sẽ tạo api.yourdomain.com
-  content = aws_lb.main.dns_name # Lấy từ resource aws_lb của bạn
+  name    = each.value
+  content = aws_lb.main.dns_name
   type    = "CNAME"
-  proxied = true # Bật Proxy (Đám mây cam)
+  proxied = true
   ttl     = 1
 }
 
@@ -152,13 +157,26 @@ locals {
     {
       name  = "e-verland-app"
       image = var.container_image
-      portMappings = [
-        {
-          containerPort = 8080
-          hostPort      = 8080
-          protocol      = "tcp"
-        }
+      portMappings = [{ containerPort = 8080, hostPort = 8080, protocol = "tcp" }]
+      environment = [
+        { name = "ASPNETCORE_ENVIRONMENT", value = "Production" },
+        { name = "MeiliSearch__Host", value = "http://localhost:7700" }
       ]
+      essential = true
+    },
+    {
+      name  = "meilisearch"
+      image = "getmeili/meilisearch:v1.7"
+      portMappings = [{ containerPort = 7700, hostPort = 7700, protocol = "tcp" }]
+      essential = true
+      mountPoints = [
+        { sourceVolume = "meili_data", containerPath = "/meili_data" }
+      ]
+    }
+  ]
+
+  
+      
       essential = true
 
       # Các biến môi trường công khai
@@ -191,16 +209,13 @@ locals {
         { name = "AWS__SNS__OrderEventsTopicArn", valueFrom = "${var.app_secrets_arn}:AWS__SNS__OrderEventsTopicArn::" },
         { name = "AWS__SNS__PaymentEventsTopicArn", valueFrom = "${var.app_secrets_arn}:AWS__SNS__PaymentEventsTopicArn::" },
         { name = "AWS__SNS__ProductEventsTopicArn", valueFrom = "${var.app_secrets_arn}:AWS__SNS__ProductEventsTopicArn::" },
-        # EventBridge
-        { name = "AWS__EventBridge__EventBusName", valueFrom = "${var.app_secrets_arn}:AWS__EventBridge__EventBusName::" },
-        { name = "AWS__EventBridge__OrderEventSource", valueFrom = "${var.app_secrets_arn}:AWS__EventBridge__OrderEventSource::" },
-        { name = "AWS__EventBridge__PaymentEventSource", valueFrom = "${var.app_secrets_arn}:AWS__EventBridge__PaymentEventSource::" },
-        { name = "AWS__EventBridge__ProductEventSource", valueFrom = "${var.app_secrets_arn}:AWS__EventBridge__ProductEventSource::" },
         # Credentials & DBs
         { name = "Jwt__Key", valueFrom = "${var.app_secrets_arn}:Jwt__Key::" },
         { name = "AWS__S3__ServiceUrl", valueFrom = "${var.app_secrets_arn}:AWS__S3__ServiceUrl::" },
         { name = "AWS__S3__AccessKey", valueFrom = "${var.app_secrets_arn}:AWS__S3__AccessKey::" },
         { name = "AWS__S3__SecretKey", valueFrom = "${var.app_secrets_arn}:AWS__S3__SecretKey::" },
+        { name = "Jwt__Issuer", valueFrom = "${var.app_secrets_arn}:Jwt__Issuer::" },
+        { name = "Jwt__Audience", valueFrom = "${var.app_secrets_arn}:Jwt__Audience::" },
         # Database connection strings
         { name = "ConnectionStrings__UserDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__UserDb::" },
         { name = "ConnectionStrings__AuthDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__AuthDb::" },
@@ -211,19 +226,28 @@ locals {
         { name = "ConnectionStrings__NotificationDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__NotificationDb::" },
         { name = "ConnectionStrings__MediaDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__MediaDb::" },
         { name = "ConnectionStrings__ShippingDb", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__ShippingDb::" },
-        { name = "ConnectionStrings__ChatModule", valueFrom = "${var.app_secrets_arn}:ConnectionStrings__MongoChatDb::" },
-        { name = "ConnectionStrings__Redis__URL", valueFrom = "${var.app_secrets_arn}:Redis__URL::" },
-        { name = "ConnectionStrings__Redis__Password", valueFrom = "${var.app_secrets_arn}:Redis__Password::" },
+        { name = "Redis__URL", valueFrom = "${var.app_secrets_arn}:Redis__URL::" },
+        { name = "Redis__Password", valueFrom = "${var.app_secrets_arn}:Redis__Password::" },
+        { name = "Redis__Port", valueFrom = "${var.app_secrets_arn}:Redis__Port::" },
+        { name = "Redis__Ssl", valueFrom = "${var.app_secrets_arn}:Redis__Ssl::" },
+        { name = "Redis__AbortConnect", valueFrom = "${var.app_secrets_arn}:Redis__AbortConnect::" },
+        { name = "Redis__User", valueFrom = "${var.app_secrets_arn}:Redis__User::" },
+        { name = "MongoDB__Host", valueFrom = "${var.app_secrets_arn}:MongoDB__Host::" },
+        { name = "MongoDB__User", valueFrom = "${var.app_secrets_arn}:MongoDB__User::" },
+        { name = "MongoDB__Password", valueFrom = "${var.app_secrets_arn}:MongoDB__Password::" },
+        { name = "MongoDB__AppName", valueFrom = "${var.app_secrets_arn}:MongoDB__AppName::" },
         # Các biến nhạy cảm khác
         { name = "Email__Smtp__Username", valueFrom = "${var.app_secrets_arn}:Email__Smtp__Username::" },
         { name = "Email__Smtp__Password", valueFrom = "${var.app_secrets_arn}:Email__Smtp__Password::" },
-        { name = "Sepay_Api", valueFrom = "${var.app_secrets_arn}:SePay__Api::" },
-        { name = "Sepay_Key", valueFrom = "${var.app_secrets_arn}:SePay__Key::" },
+        { name = "Email__Smtp__Host", valueFrom = "${var.app_secrets_arn}:Email__Smtp__Host::" },
+        { name = "SePay__Api", valueFrom = "${var.app_secrets_arn}:SePay__Api::" },
+        { name = "SePay__Key", valueFrom = "${var.app_secrets_arn}:SePay__Key::" },
         { name = "Grafana__AdminPassword", valueFrom = "${var.app_secrets_arn}:Grafana__AdminPassword::" },
         { name = "Meilisearch__MasterKey", valueFrom = "${var.app_secrets_arn}:Meilisearch__MasterKey::" },
         { name = "GHN__Token", valueFrom = "${var.app_secrets_arn}:GHN__Token::" },
         { name = "GHN__ShopId", valueFrom = "${var.app_secrets_arn}:GHN__ShopId::" },
         { name = "GHN__ApiUrl", valueFrom = "${var.app_secrets_arn}:GHN__ApiUrl::" },
+
 
       ]
 
@@ -236,8 +260,7 @@ locals {
         }
       }
     }
-  ]
-}
+  
 
 resource "aws_ecs_task_definition" "app" {
   family                   = "${var.project_name}-task"
@@ -248,6 +271,12 @@ resource "aws_ecs_task_definition" "app" {
   execution_role_arn       = aws_iam_role.app_role.arn
   task_role_arn            = aws_iam_role.app_role.arn
   container_definitions    = jsonencode(local.app_container_definitions)
+  volume {
+    name = "meili_data"
+    efs_volume_configuration {
+      file_system_id = aws_efs_file_system.meili_data.id
+    }
+  }
 }
 
 resource "aws_ecs_service" "app" {

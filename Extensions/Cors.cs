@@ -9,10 +9,21 @@ public static class CorsExtension
         var corsOptions = configuration.GetSection("Cors").Get<CorsOptions>()
             ?? new CorsOptions
             {
-                AllowedOrigins = ["http://localhost:3000", "http://localhost:5173"],
-                AllowedMethods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-                AllowedHeaders = ["Content-Type", "Authorization"]
+                AllowedOrigins = []
             };
+
+        if (corsOptions.AllowedOrigins is null || corsOptions.AllowedOrigins.Length == 0)
+        {
+            corsOptions.AllowedOrigins =
+            [
+                "http://localhost:5173",
+                "http://localhost:8080",
+                "https://e-verland.site",
+                "https://seller.e-verland.site",
+                "https://admin.e-verland.site",
+                "http://localhost:7700",
+            ];
+        }
 
         services.AddCors(options =>
         {
@@ -22,7 +33,7 @@ public static class CorsExtension
                     .WithOrigins(corsOptions.AllowedOrigins)
                     .AllowAnyMethod()
                     .AllowAnyHeader()
-                    .AllowCredentials() // Required for HttpOnly cookies
+                    .AllowCredentials()
                     .WithExposedHeaders("Content-Disposition");
             });
         });
