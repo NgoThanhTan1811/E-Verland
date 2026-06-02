@@ -77,6 +77,58 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
+# Tạo IP Set cho SePay (Chứa cả IPv4 và IPv6)
+resource "aws_wafv2_ip_set" "sepay_ips" {
+  name               = "sepay-allowed-ips"
+  scope              = "REGIONAL"
+  ip_address_version = "IPV6"
+  addresses          = [
+    "172.236.138.20/32",
+    "172.233.83.68/32",
+    "2400:8905::2000:8cff:fe98:45cd/128"
+    # Thêm các IP còn lại của bạn vào đây
+  ]
+}
+
+# Tạo Web ACL
+resource "aws_wafv2_web_acl" "main_acl" {
+  name  = "alb-web-acl"
+  scope = "REGIONAL"
+
+  default_action {
+    allow {} # Mặc định cho phép (hoặc chặn tùy nhu cầu)
+  }
+
+  rule {
+    name     = "AllowSePayOnly"
+    priority = 1
+    action {
+      allow {}
+    }
+    statement {
+      ip_set_reference_statement {
+        arn = aws_wafv2_ip_set.sepay_ips.arn
+      }
+    }
+    visibility_config {
+      cloudwatch_metrics_enabled = true
+      metric_name                = "AllowSePayOnly"
+      sampled_requests_enabled   = true
+    }
+  }
+
+  visibility_config {
+    cloudwatch_metrics_enabled = true
+    metric_name                = "alb-web-acl"
+    sampled_requests_enabled   = true
+  }
+}
+
+resource "aws_wafv2_web_acl_association" "alb_association" {
+  resource_arn = aws_lb.your_alb.arn # Thay bằng ARN của ALB của bạn
+  web_acl_arn  = aws_wafv2_web_acl.main_acl.arn
+}
+
 resource "aws_lb" "main" {
   name               = "${var.project_name}-alb"
   load_balancer_type = "application"
