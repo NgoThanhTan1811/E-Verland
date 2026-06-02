@@ -111,7 +111,7 @@ resource "aws_wafv2_web_acl" "main_acl" {
   scope = "REGIONAL"
 
   default_action {
-    block {}
+    allow {}
   }
 
   rule {
