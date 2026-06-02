@@ -175,6 +175,11 @@ public class PaymentController(
     [DisableRequestSizeLimit]
     public async Task<IActionResult> SePayWebhook(CancellationToken ct)
     {
+        foreach (var header in Request.Headers)
+        {
+            Console.WriteLine($"Header: {header.Key} - Value: {header.Value}");
+        }
+
         await _cloudWatch.PutMetricAsync("payment.webhook.received", 1, "Count", ct: ct);
 
         if (!IsAllowedSePaySourceIp())
@@ -226,6 +231,9 @@ public class PaymentController(
             return BadRequest(new { message = "Timestamp too old" });
         }
 
+        var payloadToHash = $"{timestampSeconds}.{rawBody}";
+        _logger.LogInformation("DEBUG: Payload dùng để băm là: {Payload}", payloadToHash);
+        
         var signedPayloadBytes = BuildSePaySignedPayloadBytes(timestampSeconds, rawBodyBytes);
         var computedSignatureBytes = HMACSHA256.HashData(
             Encoding.UTF8.GetBytes(sepayKey),
