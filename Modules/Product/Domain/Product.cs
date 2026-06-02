@@ -25,6 +25,7 @@ namespace Modules.Product.Domain
 
         // Seller/Shop relationship
         public Guid? ShopId { get; set; }
+        public string? ShopName { get; set; }
 
         // Analytics and engagement
         public int ViewCount { get; set; } = 0;

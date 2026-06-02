@@ -3,6 +3,7 @@ using Infra.AWS.SNS;
 using Infra.AWS.SQS;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Modules.Order.Application.Contracts;
@@ -14,7 +15,8 @@ namespace Modules.Order.Application.Commands;
 
 public sealed record CancelOrderCommand(
     Guid OrderId,
-    Guid UserId
+    Guid? UserId,
+    bool BypassOwnershipCheck = false
 ) : IRequest<Unit>;
 
 public sealed class CancelOrderHandler(
@@ -40,8 +42,14 @@ public sealed class CancelOrderHandler(
         var order = await _repo.GetByIdAsync(request.OrderId, ct)
             ?? throw new KeyNotFoundException("Order not found");
 
-        if (order.UserId != request.UserId)
-            throw new UnauthorizedAccessException("You can only cancel your own orders");
+        if (!request.BypassOwnershipCheck)
+        {
+            if (!request.UserId.HasValue)
+                throw new ArgumentException("UserId is required");
+
+            if (order.UserId != request.UserId.Value)
+                throw new UnauthorizedAccessException("You can only cancel your own orders");
+        }
 
         if (order.Status == OrderStatus.Canceled)
             throw new InvalidOperationException("Order is already canceled");
@@ -56,7 +64,26 @@ public sealed class CancelOrderHandler(
 
         await _repo.UpdateAsync(order, ct);
 
-        using var transaction = await _db.BeginTransactionAsync(ct);
+        var executionStrategy = (_db as DbContext)?.Database.CreateExecutionStrategy();
+        if (executionStrategy is null)
+        {
+            await ExecuteCancelOrderAsync(order, request.OrderId, ct);
+        }
+        else
+        {
+            await executionStrategy.ExecuteAsync(async () =>
+            {
+                await ExecuteCancelOrderAsync(order, request.OrderId, ct);
+            });
+        }
+
+        await _cloudWatch.PutMetricAsync("order.cancelled", 1, "Count", ct: ct);
+        return Unit.Value;
+    }
+
+    private async Task ExecuteCancelOrderAsync(Domain.Order order, Guid orderId, CancellationToken ct)
+    {
+        await using var transaction = await _db.BeginTransactionAsync(ct);
         try
         {
             order.Status = OrderStatus.Canceled;
@@ -72,12 +99,9 @@ public sealed class CancelOrderHandler(
         catch (Exception ex)
         {
             await transaction.RollbackAsync(ct);
-            _logger.LogError(ex, "Failed to cancel order {OrderId}", request.OrderId);
+            _logger.LogError(ex, "Failed to cancel order {OrderId}", orderId);
             throw new InvalidOperationException("Failed to cancel order.", ex);
         }
-
-        await _cloudWatch.PutMetricAsync("order.cancelled", 1, "Count", ct: ct);
-        return Unit.Value;
     }
 
     private async Task PublishOrderCanceledEventAsync(Domain.Order order, CancellationToken ct)

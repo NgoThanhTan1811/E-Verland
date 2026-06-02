@@ -89,7 +89,7 @@ variable "container_image" {
 variable "desired_count" {
   description = "Desired number of backend Fargate tasks (2+ for high availability)."
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "ecs_cpu" {

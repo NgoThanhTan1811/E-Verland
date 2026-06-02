@@ -28,11 +28,12 @@ public class OrderController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<CreateOrderResponseDto>> CreateOrder(
         [FromBody] CreateOrderRequestDto dto,
-        [FromQuery] Guid userId,
         CancellationToken ct)
     {
         try
         {
+            var userId = GetCurrentUserId();
+
             var command = new CreateOrderCommand(
                 userId,
                 dto.ShippingAddressId,
@@ -71,12 +72,7 @@ public class OrderController : ControllerBase
     {
         try
         {
-            var userIdRaw = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
-            if (!Guid.TryParse(userIdRaw, out var userId))
-            {
-                return Unauthorized(new { message = "Invalid token." });
-            }
-
+            var userId = GetCurrentUserId();
             var query = new GetOrderByIdQuery(id, userId);
             var result = await _mediator.Send(query, ct);
             return Ok(result);
@@ -90,7 +86,6 @@ public class OrderController : ControllerBase
     [Authorize(Policy = "SellerOrCustomer")]
     [HttpGet]
     public async Task<ActionResult<PageResult<OrderOverviewResponseDto>>> GetOrders(
-        [FromQuery] Guid userId,
         [FromQuery] OrderStatus? status,
         [FromQuery] PaymentStatus? paymentStatus,
         [FromQuery] DateTime? fromDate,
@@ -101,6 +96,8 @@ public class OrderController : ControllerBase
     {
         try
         {
+            var userId = GetCurrentUserId();
+
             var filterDto = new FilterOrdersUserRequestDto(
                 status,
                 paymentStatus,
@@ -177,12 +174,36 @@ public class OrderController : ControllerBase
         }
     }
 
-    [Authorize]
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> CancelOrder(Guid id, [FromQuery] Guid userId, CancellationToken ct)
+    [Authorize(Policy = "AdminPolicy")]
+    [HttpPatch("admin/{id}/status")]
+    public async Task<ActionResult<OrderOverviewResponseDto>> AdminUpdateOrderStatus(
+        Guid id,
+        [FromBody] UpdateOrderStatusRequest request,
+        CancellationToken ct)
     {
         try
         {
+            var command = new UpdateOrderStatusCommand(id, request.Status);
+            var result = await _mediator.Send(command, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [Authorize]
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> CancelOrder(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
             var command = new CancelOrderCommand(id, userId);
             await _mediator.Send(command, ct);
             return NoContent();
@@ -199,6 +220,37 @@ public class OrderController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    [Authorize(Policy = "AdminPolicy")]
+    [HttpDelete("admin/{id}")]
+    public async Task<IActionResult> AdminCancelOrder(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var command = new CancelOrderCommand(id, null, BypassOwnershipCheck: true);
+            await _mediator.Send(command, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    private Guid GetCurrentUserId()
+    {
+        var userIdRaw = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        if (!Guid.TryParse(userIdRaw, out var userId))
+        {
+            throw new UnauthorizedAccessException("Invalid token.");
+        }
+
+        return userId;
     }
 }
 

@@ -27,6 +27,7 @@ public static class ProductDtoMapper
             ImageUrls = imageUrls,
             BrandName = product.Brand?.Name,
             BrandId = product.BrandId,
+            ShopName = product.ShopName,
             CategoryNames = product.Categories.Select(c => c.Name).ToList(),
             CategoryId = product.Categories.FirstOrDefault()?.Id ?? Guid.Empty,
             Attributes = product.Attributes,
@@ -51,6 +52,7 @@ public static class ProductDtoMapper
             Price = product.VirtualPrice > 0 ? product.VirtualPrice : product.BasePrice,
             ImageUrls = imageUrls.Where(url => !string.IsNullOrWhiteSpace(url)).Select(url => url!).ToList(),
             Attributes = product.Attributes,
+            ShopName = product.ShopName,
             Brand = product.Brand == null ? null : new ProductBrandDto
             {
                 Id = product.Brand.Id,
