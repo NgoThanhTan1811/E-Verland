@@ -77,20 +77,20 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
-# Tạo IP Set cho SePay (Chứa cả IPv4 và IPv6)
 resource "aws_wafv2_ip_set" "sepay_ips" {
   name               = "sepay-allowed-ips"
   scope              = "REGIONAL"
-  ip_address_version = "IPV6"
-  addresses          = [
-      "172.236.138.20",
-      "172.233.83.68",
-      "171.244.35.2",
-      "151.158.108.68",
-      "151.158.109.79",
-      "103.255.238.139",
-      "2400:8905::2000:8cff:fe98:45cd",
-      "2600:3c15::2000:8aff:fedd:874b"
+  ip_address_version = "IPV6" # Để IPV6 thì mới chứa được cả 2 loại
+  
+  addresses = [
+      "172.236.138.20/32",
+      "172.233.83.68/32",
+      "171.244.35.2/32",
+      "151.158.108.68/32",
+      "151.158.109.79/32",
+      "103.255.238.139/32",
+      "2400:8905::2000:8cff:fe98:45cd/128",
+      "2600:3c15::2000:8aff:fedd:874b/128"
   ]
 }
 
