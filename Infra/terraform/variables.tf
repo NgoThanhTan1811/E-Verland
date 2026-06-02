@@ -123,3 +123,9 @@ variable "zone_id" {
   type        = string
   default     = ""
 }
+
+# variable "sepay_allowed_ips" {
+#   description = "List of allowed IPs for SePay webhook"
+#   type        = list(string)
+#   default     = []
+# }

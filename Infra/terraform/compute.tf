@@ -83,10 +83,14 @@ resource "aws_wafv2_ip_set" "sepay_ips" {
   scope              = "REGIONAL"
   ip_address_version = "IPV6"
   addresses          = [
-    "172.236.138.20/32",
-    "172.233.83.68/32",
-    "2400:8905::2000:8cff:fe98:45cd/128"
-    # Thêm các IP còn lại của bạn vào đây
+      "172.236.138.20",
+      "172.233.83.68",
+      "171.244.35.2",
+      "151.158.108.68",
+      "151.158.109.79",
+      "103.255.238.139",
+      "2400:8905::2000:8cff:fe98:45cd",
+      "2600:3c15::2000:8aff:fedd:874b"
   ]
 }
 
@@ -125,7 +129,7 @@ resource "aws_wafv2_web_acl" "main_acl" {
 }
 
 resource "aws_wafv2_web_acl_association" "alb_association" {
-  resource_arn = aws_lb.your_alb.arn # Thay bằng ARN của ALB của bạn
+  resource_arn = aws_lb.main.arn
   web_acl_arn  = aws_wafv2_web_acl.main_acl.arn
 }
 
@@ -297,6 +301,7 @@ locals {
         { name = "GHN__Token", valueFrom = "${var.app_secrets_arn}:GHN__Token::" },
         { name = "GHN__ShopId", valueFrom = "${var.app_secrets_arn}:GHN__ShopId::" },
         { name = "GHN__ApiUrl", valueFrom = "${var.app_secrets_arn}:GHN__ApiUrl::" },
+        # { name = "SePay__AllowedIps", value = join(",", var.sepay_allowed_ips) }
 
 
       ]
