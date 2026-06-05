@@ -227,16 +227,14 @@ public class PaymentController(
     {
         await _cloudWatch.PutMetricAsync("payment.webhook.received", 1, "Count", ct: ct);
 
-        _logger.LogInformation("SePay webhook received from {SourceIp}", 
+        _logger.LogInformation("SePay webhook received from {SourceIp}",
             Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown");
 
-        if (!IsAllowedSePaySourceIp())
-        {
-            await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-            _logger.LogWarning("Rejected SePay webhook: source IP {SourceIp} is not in allowlist",
-                Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown");
-            return StatusCode(StatusCodes.Status403Forbidden, new { message = "Source IP is not allowed" });
-        }
+        // NOTE: IP allowlist is intentionally skipped for SePay webhooks.
+        // The request path is: SePay → Cloudflare (proxied) → ALB → ECS.
+        // By the time the request reaches ECS, RemoteIpAddress is the ALB private IP
+        // and X-Forwarded-For contains a Cloudflare edge IP — not the originating SePay IP.
+        // Authentication is handled exclusively via HMAC-SHA256 signature verification below.
 
         // ── Read raw body bytes (body already buffered by pipeline middleware) ──
         using var bodyStream = new MemoryStream();
