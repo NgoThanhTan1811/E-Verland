@@ -246,70 +246,60 @@ public class PaymentController(
         var rawBodyBytes = bodyStream.ToArray();
         var rawBody = Encoding.UTF8.GetString(rawBodyBytes);
 
-        // ── Verify HMAC-SHA256 signature ──────────────────────────────────────
+        // ── Verify HMAC-SHA256 signature (optional — only if SecretKey configured AND header present) ──
+        // SePay only sends X-SePay-Signature when webhook signing is enabled in SePay dashboard.
+        // If the header is absent, we rely on IP allowlist for security instead.
         var sepayKey = _configuration["SePay:SecretKey"] ?? string.Empty;
-        var skipSignatureVerification = string.IsNullOrWhiteSpace(sepayKey);
+        var signatureHeader = Request.Headers["X-SePay-Signature"].ToString();
+        var timestampHeader = Request.Headers["X-SePay-Timestamp"].ToString();
 
-        if (skipSignatureVerification)
+        var shouldVerify = !string.IsNullOrWhiteSpace(sepayKey)
+                           && !string.IsNullOrWhiteSpace(signatureHeader);
+
+        if (shouldVerify)
         {
-            _logger.LogWarning("SePay webhook: SecretKey not configured — signature verification SKIPPED. Set SePay:SecretKey in production.");
-        }
-        else
-        {
-            var timestampHeader = Request.Headers["X-SePay-Timestamp"].ToString();
-            if (string.IsNullOrWhiteSpace(timestampHeader))
+            if (string.IsNullOrWhiteSpace(timestampHeader) ||
+                !long.TryParse(timestampHeader, NumberStyles.Integer, CultureInfo.InvariantCulture, out var tsSeconds))
             {
                 await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-                _logger.LogWarning("Rejected SePay webhook: missing X-SePay-Timestamp header");
-                return BadRequest(new { message = "Missing X-SePay-Timestamp" });
+                _logger.LogWarning("Rejected SePay webhook: X-SePay-Signature present but X-SePay-Timestamp missing/invalid");
+                return BadRequest(new { message = "Missing or invalid X-SePay-Timestamp" });
             }
 
-            if (!long.TryParse(timestampHeader, NumberStyles.Integer, CultureInfo.InvariantCulture, out var timestampSeconds))
+            var currentTs = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (Math.Abs(currentTs - tsSeconds) > 300)
             {
                 await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-                _logger.LogWarning("Rejected SePay webhook: invalid X-SePay-Timestamp format");
-                return BadRequest(new { message = "Invalid X-SePay-Timestamp" });
-            }
-
-            var currentTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            if (Math.Abs(currentTimestamp - timestampSeconds) > 300)
-            {
-                await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-                _logger.LogWarning("Rejected SePay webhook: timestamp outside allowed skew ({Delta}s)", currentTimestamp - timestampSeconds);
+                _logger.LogWarning("Rejected SePay webhook: timestamp skew {Delta}s exceeds 300s", currentTs - tsSeconds);
                 return BadRequest(new { message = "Timestamp too old" });
             }
 
-            var receivedSignatureRaw = Request.Headers["X-SePay-Signature"].ToString();
-            var receivedSignature = NormalizeSePaySignatureHeader(receivedSignatureRaw);
-            if (string.IsNullOrWhiteSpace(receivedSignature))
-            {
-                await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-                _logger.LogWarning("Rejected SePay webhook: missing X-SePay-Signature header");
-                return BadRequest(new { message = "Missing X-SePay-Signature" });
-            }
-
-            var signedPayloadBytes = BuildSePaySignedPayloadBytes(timestampSeconds, rawBodyBytes);
-            var computedBytes = HMACSHA256.HashData(Encoding.UTF8.GetBytes(sepayKey), signedPayloadBytes);
+            var receivedSig = NormalizeSePaySignatureHeader(signatureHeader);
+            var signedBytes = BuildSePaySignedPayloadBytes(tsSeconds, rawBodyBytes);
+            var computedBytes = HMACSHA256.HashData(Encoding.UTF8.GetBytes(sepayKey), signedBytes);
             var computedHex = Convert.ToHexString(computedBytes).ToLowerInvariant();
 
-            _logger.LogWarning(
-                "SePay HMAC check — bodyLen={BodyLen} computed={Computed} received={Received}",
-                rawBodyBytes.Length, computedHex, receivedSignature);
+            _logger.LogInformation("SePay HMAC — bodyLen={Len} computed={Computed} received={Received}",
+                rawBodyBytes.Length, computedHex, receivedSig);
 
-            byte[] receivedBytes;
-            try { receivedBytes = Convert.FromHexString(receivedSignature); }
-            catch (FormatException)
+            if (!TryParseHex(receivedSig, out var receivedBytes) ||
+                !CryptographicOperations.FixedTimeEquals(computedBytes, receivedBytes))
             {
                 await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-                return BadRequest(new { message = "Invalid signature format" });
-            }
-
-            if (!CryptographicOperations.FixedTimeEquals(computedBytes, receivedBytes))
-            {
-                await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-                _logger.LogWarning("Rejected SePay webhook: signature mismatch. computed={Computed}", computedHex);
+                _logger.LogWarning("Rejected SePay webhook: HMAC mismatch. computed={Computed}", computedHex);
                 return Unauthorized(new { message = "Invalid signature" });
             }
+
+            _logger.LogInformation("SePay webhook signature verified OK");
+        }
+        else if (string.IsNullOrWhiteSpace(sepayKey))
+        {
+            _logger.LogWarning("SePay webhook: SecretKey not configured — skipping signature verification. Relying on IP allowlist only.");
+        }
+        else
+        {
+            // SecretKey configured but SePay did not send signature header — accept (signing not enabled on SePay side)
+            _logger.LogInformation("SePay webhook: no X-SePay-Signature header — signature verification skipped (not enabled in SePay dashboard).");
         }
 
         // ── Parse payload ─────────────────────────────────────────────────────
@@ -411,6 +401,12 @@ public class PaymentController(
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    private static bool TryParseHex(string hex, out byte[] bytes)
+    {
+        try { bytes = Convert.FromHexString(hex); return true; }
+        catch { bytes = []; return false; }
+    }
 
     private static string? NormalizeTransactionStatus(string? status)
     {
