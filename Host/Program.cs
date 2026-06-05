@@ -92,6 +92,17 @@ var app = builder.Build();
 
 app.UseCustomSwagger();
 
+// Buffer request body for webhook endpoints that need to read raw bytes for HMAC verification.
+// Must be registered BEFORE all other middleware that might consume the body.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api/payment/webhook", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Request.EnableBuffering();
+    }
+    await next();
+});
+
 // Global Exception Handling
 app.UseMiddleware<ApiExceptionMiddleware>();
 if (xrayOptions?.Enabled == true)

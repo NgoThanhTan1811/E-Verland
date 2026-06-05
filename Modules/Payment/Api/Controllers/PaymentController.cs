@@ -238,8 +238,7 @@ public class PaymentController(
             return StatusCode(StatusCodes.Status403Forbidden, new { message = "Source IP is not allowed" });
         }
 
-        // ── Read raw body bytes once and reuse them for HMAC + JSON parsing ──
-        Request.EnableBuffering();
+        // ── Read raw body bytes (body already buffered by pipeline middleware) ──
         using var bodyStream = new MemoryStream();
         await Request.Body.CopyToAsync(bodyStream, ct);
         Request.Body.Position = 0;
@@ -279,8 +278,19 @@ public class PaymentController(
             var computedBytes = HMACSHA256.HashData(Encoding.UTF8.GetBytes(sepayKey), signedBytes);
             var computedHex = Convert.ToHexString(computedBytes).ToLowerInvariant();
 
-            _logger.LogInformation("SePay HMAC — bodyLen={Len} computed={Computed} received={Received}",
-                rawBodyBytes.Length, computedHex, receivedSig);
+            // Log enough detail to diagnose any mismatch:
+            // - bodyLen: how many bytes we received (must match what SePay signed)
+            // - signedLen: timestamp + "." + body length
+            // - bodyFirst32: first 32 chars of raw body (check for BOM, leading spaces, encoding issues)
+            // - signedFirst20: first 20 chars of signed payload (must start with "{timestamp}.")
+            _logger.LogWarning(
+                "SePay HMAC — bodyLen={Len} signedLen={SignedLen} bodyFirst32={BodyHead} signedFirst20={SignedHead} computed={Computed} received={Received}",
+                rawBodyBytes.Length,
+                signedBytes.Length,
+                rawBody.Length >= 32 ? rawBody[..32] : rawBody,
+                Encoding.UTF8.GetString(signedBytes, 0, Math.Min(20, signedBytes.Length)),
+                computedHex,
+                receivedSig);
 
             if (!TryParseHex(receivedSig, out var receivedBytes) ||
                 !CryptographicOperations.FixedTimeEquals(computedBytes, receivedBytes))
