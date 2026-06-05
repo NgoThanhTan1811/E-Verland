@@ -177,10 +177,18 @@ public class PaymentController(
     {
         await _cloudWatch.PutMetricAsync("payment.webhook.received", 1, "Count", ct: ct);
 
+        // Log all headers at Warning level to aid signature debugging
+        var allHeaders = string.Join(", ", Request.Headers.Keys
+            .Select(k => $"{k}={Request.Headers[k]}"));
+        _logger.LogWarning("SePay webhook received from {SourceIp}. Headers present: {Headers}",
+            Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            allHeaders);
+
         if (!IsAllowedSePaySourceIp())
         {
             await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
-            _logger.LogWarning("Rejected SePay webhook: source IP {SourceIp} is not in allowlist", Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown");
+            _logger.LogWarning("Rejected SePay webhook: source IP {SourceIp} is not in allowlist",
+                Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown");
             return StatusCode(StatusCodes.Status403Forbidden, new { message = "Source IP is not allowed" });
         }
 
