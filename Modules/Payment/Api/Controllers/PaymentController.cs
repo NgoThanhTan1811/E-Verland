@@ -234,11 +234,6 @@ public class PaymentController(
             return BadRequest(new { message = "Timestamp too old" });
         }
 
-        var signedPayloadBytes = BuildSePaySignedPayloadBytes(timestampSeconds, rawBodyBytes);
-        var computedSignatureBytes = HMACSHA256.HashData(
-            Encoding.UTF8.GetBytes(sepayKey),
-            signedPayloadBytes);
-
         var receivedSignature = NormalizeSePaySignatureHeader(Request.Headers["X-SePay-Signature"].ToString());
         if (string.IsNullOrWhiteSpace(receivedSignature))
         {
@@ -246,6 +241,23 @@ public class PaymentController(
             _logger.LogWarning("Rejected SePay webhook: missing X-SePay-Signature header");
             return BadRequest(new { message = "Missing X-SePay-Signature" });
         }
+
+        var signedPayloadBytes = BuildSePaySignedPayloadBytes(timestampSeconds, rawBodyBytes);
+        var computedSignatureBytes = HMACSHA256.HashData(
+            Encoding.UTF8.GetBytes(sepayKey),
+            signedPayloadBytes);
+
+        var computedHex = Convert.ToHexString(computedSignatureBytes).ToLowerInvariant();
+
+        // Debug: log computed vs received to diagnose mismatch
+        _logger.LogWarning(
+            "SePay signature check — rawBodyLength={BodyLength} rawBodySample={Sample} " +
+            "signedPayloadPrefix={Prefix} computed={Computed} received={Received}",
+            rawBodyBytes.Length,
+            rawBody.Length > 60 ? rawBody[..60] : rawBody,
+            Encoding.UTF8.GetString(signedPayloadBytes, 0, Math.Min(40, signedPayloadBytes.Length)),
+            computedHex,
+            receivedSignature);
 
         byte[] receivedSignatureBytes;
         try
@@ -260,7 +272,7 @@ public class PaymentController(
         }
 
         var signatureValid = CryptographicOperations.FixedTimeEquals(
-            computedSignatureBytes,
+            Convert.FromHexString(computedHex),
             receivedSignatureBytes);
 
         if (!signatureValid)
