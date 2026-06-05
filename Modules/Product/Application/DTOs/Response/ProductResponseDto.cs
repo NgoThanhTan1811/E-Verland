@@ -39,6 +39,7 @@ namespace Modules.Product.Application.DTOs.Response
         public decimal Price { get; set; }
         public List<string> ImageUrls { get; set; } = [];
 
+        public Guid? ShopId { get; set; }
         public string? ShopName { get; set; }
 
         public string? BrandName { get; set; }
@@ -66,6 +67,7 @@ namespace Modules.Product.Application.DTOs.Response
         public List<string> ImageUrls { get; set; } = [];
         public Dictionary<string, string> Attributes { get; set; } = [];
 
+        public Guid? ShopId { get; set; }
         public string? ShopName { get; set; }
         public ProductBrandDto? Brand { get; set; }
         public List<ProductCategoryDto> Categories { get; set; } = [];
