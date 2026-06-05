@@ -236,12 +236,25 @@ public class PaymentController(
         // and X-Forwarded-For contains a Cloudflare edge IP — not the originating SePay IP.
         // Authentication is handled exclusively via HMAC-SHA256 signature verification below.
 
-        // ── Read raw body bytes (body already buffered by pipeline middleware) ──
+        // ── Read raw body bytes ──────────────────────────────────────────────
+        // Call EnableBuffering() here as a safety net in case the pipeline
+        // middleware hasn't been deployed yet, or a future middleware change
+        // moves the stream position.
+        Request.EnableBuffering();
+        if (Request.Body.CanSeek)
+            Request.Body.Position = 0;
+
         using var bodyStream = new MemoryStream();
         await Request.Body.CopyToAsync(bodyStream, ct);
-        Request.Body.Position = 0;
         var rawBodyBytes = bodyStream.ToArray();
         var rawBody = Encoding.UTF8.GetString(rawBodyBytes);
+
+        if (rawBodyBytes.Length == 0)
+        {
+            await _cloudWatch.PutMetricAsync("payment.webhook.failed", 1, "Count", ct: ct);
+            _logger.LogWarning("Rejected SePay webhook: empty body");
+            return BadRequest(new { message = "Empty body" });
+        }
 
         // ── Verify HMAC-SHA256 signature (optional — only if SecretKey configured AND header present) ──
         // SePay only sends X-SePay-Signature when webhook signing is enabled in SePay dashboard.
