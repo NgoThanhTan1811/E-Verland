@@ -230,16 +230,6 @@ public class PaymentController(
         _logger.LogInformation("SePay webhook received from {SourceIp}",
             Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown");
 
-        // NOTE: IP allowlist is intentionally skipped for SePay webhooks.
-        // The request path is: SePay → Cloudflare (proxied) → ALB → ECS.
-        // By the time the request reaches ECS, RemoteIpAddress is the ALB private IP
-        // and X-Forwarded-For contains a Cloudflare edge IP — not the originating SePay IP.
-        // Authentication is handled exclusively via HMAC-SHA256 signature verification below.
-
-        // ── Read raw body bytes ──────────────────────────────────────────────
-        // Call EnableBuffering() here as a safety net in case the pipeline
-        // middleware hasn't been deployed yet, or a future middleware change
-        // moves the stream position.
         Request.EnableBuffering();
         if (Request.Body.CanSeek)
             Request.Body.Position = 0;

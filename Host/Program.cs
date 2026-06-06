@@ -17,6 +17,7 @@ using Infra.AWS.XRay;
 using Prometheus;
 using Modules.Auth.Infrastructure.Services;
 using Modules.Media.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 
 
@@ -89,6 +90,44 @@ builder.Services.Configure<RouteOptions>(o =>
 });
 
 var app = builder.Build();
+
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContextTypes = new[]
+    {
+        typeof(Modules.User.Infrastructure.Persistence.UserDbContext),
+        typeof(Modules.Auth.Infrastructure.Persistence.AuthDbContext),
+        typeof(Modules.Product.Infrastructure.Persistence.ProductDbContext),
+        typeof(Modules.Order.Infrastructure.Persistence.OrderDbContext),
+        typeof(Modules.Payment.Infrastructure.Persistence.PaymentDbContext),
+        typeof(Modules.Cart.Infrastructure.Persistence.CartDbContext),
+        typeof(Modules.Media.Infrastructure.Persistence.MediaDbContext),
+        typeof(Modules.Shipping.Infrastructure.Persistence.ShippingDbContext),
+    };
+
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    foreach (var dbContextType in dbContextTypes)
+    {
+        try
+        {
+            var db = (Microsoft.EntityFrameworkCore.DbContext)scope.ServiceProvider.GetRequiredService(dbContextType);
+            var pending = (await db.Database.GetPendingMigrationsAsync()).ToList();
+            if (pending.Count > 0)
+            {
+                logger.LogInformation("Applying {Count} pending migration(s) for {DbContext}: {Migrations}",
+                    pending.Count, dbContextType.Name, string.Join(", ", pending));
+                await db.Database.MigrateAsync();
+                logger.LogInformation("Migrations applied for {DbContext}", dbContextType.Name);
+            }
+        }
+        catch (Exception ex)
+        {
+            var logger2 = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            logger2.LogError(ex, "Migration failed for {DbContext} — app will continue but may be unstable", dbContextType.Name);
+        }
+    }
+}
 
 app.UseCustomSwagger();
 
