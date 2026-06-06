@@ -241,15 +241,28 @@ public sealed class ProcessSePayWebhookHandler(
     private async Task PublishStockConfirmAsync(Guid paymentId, Guid orderId, CancellationToken ct)
     {
         if (sqsService is null)
-            throw new InvalidOperationException("SQS service is not configured for stock confirmation.");
+        {
+            logger.LogWarning("SQS service is not configured for stock confirmation.");
+            return;
+        }
 
         var queueUrl = ResolveQueueUrl("AWS:SQS:StockConfirmQueueUrl", "SQS:StockConfirmQueueUrl",
             "AWS_SQS_STOCK_CONFIRM_QUEUE_URL");
         if (string.IsNullOrWhiteSpace(queueUrl))
-            throw new InvalidOperationException("Stock confirmation queue URL is not configured.");
+        {
+            logger.LogWarning("Stock confirmation queue URL is not configured.");
+            return;
+        }
 
-        await sqsService.SendMessageAsync(queueUrl,
-            new StockConfirmRequested(paymentId, orderId, DateTime.UtcNow), ct);
+        try
+        {
+            await sqsService.SendMessageAsync(queueUrl,
+                new StockConfirmRequested(paymentId, orderId, DateTime.UtcNow), ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to publish StockConfirmRequested for payment {PaymentId}", paymentId);
+        }
     }
 
     private async Task PublishStockReleaseAsync(Guid paymentId, Guid orderId, CancellationToken ct)
