@@ -387,20 +387,25 @@ public class PaymentController(
 
     private static string? ResolvePaymentCode(JsonElement payload)
     {
+        var content = ReadString(payload, "content", "Content");
+        if (!string.IsNullOrWhiteSpace(content))
+        {
+            // Loại bỏ khoảng trắng để xử lý trường hợp app ngân hàng/người dùng thêm dấu cách (ví dụ "PAY67061695 4")
+            var contentNoSpaces = content.Replace(" ", string.Empty);
+            var extractedCode = Regex.Match(contentNoSpaces, "PAY\\d{6,12}", RegexOptions.IgnoreCase);
+            if (extractedCode.Success)
+            {
+                return extractedCode.Value.ToUpperInvariant();
+            }
+        }
+
         var paymentCode = ReadString(payload, "payment_code", "paymentCode", "code", "PaymentCode", "des", "description", "Description");
         if (!string.IsNullOrWhiteSpace(paymentCode))
         {
             return paymentCode;
         }
 
-        var content = ReadString(payload, "content", "Content");
-        if (string.IsNullOrWhiteSpace(content))
-        {
-            return null;
-        }
-
-        var extractedCode = Regex.Match(content, "PAY\\d{8,9}", RegexOptions.IgnoreCase);
-        return extractedCode.Success ? extractedCode.Value : content;
+        return string.IsNullOrWhiteSpace(content) ? null : content;
     }
 
     private static string NormalizeSePaySignatureHeader(string signature)
