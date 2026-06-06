@@ -1,3 +1,5 @@
+using Modules.Shipping.Domain;
+
 namespace Modules.Shipping.Application.DTOs.Request;
 
 public sealed record ShippingAddressRequestDto(
@@ -62,3 +64,5 @@ public sealed record CalculateShippingFeeRequestDto(
     string? Coupon,
     List<ShippingItemRequestDto>? Items
 );
+
+public sealed record UpdateShippingStatusRequestDto(ShippingStatus Status);

@@ -1,6 +1,5 @@
 using MediatR;
 using Modules.Shipping.Application.Contracts;
-using Modules.Shipping.Application.DTOs.External;
 using Modules.Shipping.Application.DTOs.Request;
 using Modules.Shipping.Application.DTOs.Response;
 
@@ -8,60 +7,33 @@ namespace Modules.Shipping.Application.Queries;
 
 public sealed record CalculateShippingFeeQuery(CalculateShippingFeeRequestDto Payload) : IRequest<ShippingFeeResponseDto>;
 
-public sealed class CalculateShippingFeeHandler(IGhnClient ghnClient)
+/// <summary>
+/// Returns a fixed mock shipping fee. GHN API is not called because shipping is managed
+/// in draft/manual mode — the fee is for display purposes only.
+/// </summary>
+public sealed class CalculateShippingFeeHandler
     : IRequestHandler<CalculateShippingFeeQuery, ShippingFeeResponseDto>
 {
-    private readonly IGhnClient _ghnClient = ghnClient;
+    // Fixed fee shown to the customer while in draft mode.
+    private const decimal MockServiceFee = 30_000m;
 
-    public async Task<ShippingFeeResponseDto> Handle(CalculateShippingFeeQuery request, CancellationToken ct)
+    public Task<ShippingFeeResponseDto> Handle(CalculateShippingFeeQuery request, CancellationToken ct)
     {
-        var payload = request.Payload;
-
-        var items = payload.Items?.Select(i => new GhnFeeItem(
-            i.Name,
-            i.Quantity,
-            i.Height,
-            i.Weight,
-            i.Length,
-            i.Width)).ToList();
-
-        var ghnRequest = new GhnFeeRequest(
-            FromDistrictId: payload.FromDistrictId,
-            FromWardCode: payload.FromWardCode,
-            ServiceId: payload.ServiceId,
-            ServiceTypeId: payload.ServiceTypeId,
-            ToDistrictId: payload.ToDistrictId,
-            ToWardCode: payload.ToWardCode,
-            Height: payload.Height,
-            Length: payload.Length,
-            Weight: payload.Weight,
-            Width: payload.Width,
-            InsuranceValue: payload.InsuranceValue,
-            CodFailedAmount: payload.CodFailedAmount,
-            CodValue: payload.CodValue,
-            Coupon: payload.Coupon,
-            Items: items
+        var result = new ShippingFeeResponseDto(
+            Total: MockServiceFee,
+            ServiceFee: MockServiceFee,
+            InsuranceFee: 0,
+            PickStationFee: 0,
+            CouponValue: 0,
+            R2SFee: 0,
+            DocumentReturn: 0,
+            DoubleCheck: 0,
+            CodFee: 0,
+            PickRemoteAreasFee: 0,
+            DeliverRemoteAreasFee: 0,
+            CodFailedFee: 0
         );
 
-        var response = await _ghnClient.CalculateFeeAsync(ghnRequest, ct);
-        if (response.Data is null)
-        {
-            throw new InvalidOperationException("GHN fee response is empty");
-        }
-
-        return new ShippingFeeResponseDto(
-            response.Data.Total,
-            response.Data.ServiceFee,
-            response.Data.InsuranceFee,
-            response.Data.PickStationFee,
-            response.Data.CouponValue,
-            response.Data.R2SFee,
-            response.Data.DocumentReturn,
-            response.Data.DoubleCheck,
-            response.Data.CodFee,
-            response.Data.PickRemoteAreasFee,
-            response.Data.DeliverRemoteAreasFee,
-            response.Data.CodFailedFee
-        );
+        return Task.FromResult(result);
     }
 }

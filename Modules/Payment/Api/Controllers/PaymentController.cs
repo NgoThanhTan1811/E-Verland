@@ -38,7 +38,7 @@ public class PaymentController(
     private readonly ILogger<PaymentController> _logger = logger;
 
     // ── Commands ─────────────────────────────────────────────────────────────
-
+    
 
     [Authorize]
     [HttpPost]
