@@ -58,7 +58,6 @@ namespace Modules.Payment.Infrastructure.Persistence
 
                 entity.Property(x => x.Method)
                     .HasConversion<string>()
-                    .HasDefaultValue(PaymentMethod.COD)
                     .IsRequired();
 
                 entity.Property(x => x.Status)
