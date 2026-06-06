@@ -45,6 +45,7 @@ namespace Modules.Product.Application.DTOs.Request
         public string? Keyword { get; set; }
         public Guid? CategoryId { get; set; }
         public Guid? BrandId { get; set; }
+        public Guid? ShopId { get; set; }
         public ProductStatus? Status { get; set; }
         public decimal? MinPrice { get; set; }
         public decimal? MaxPrice { get; set; }

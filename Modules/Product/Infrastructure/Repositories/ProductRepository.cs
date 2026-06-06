@@ -68,6 +68,12 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
         query = ApplyBrandFilter(query, filter.BrandId);
         query = ApplyCategoryFilter(query, filter.CategoryId);
         query = ApplyStatusFilter(query, filter.Status);
+        
+        if (filter.ShopId.HasValue)
+        {
+            query = query.Where(p => p.ShopId == filter.ShopId.Value);
+        }
+
         query = ApplyPriceFilter(query, filter.MinPrice, filter.MaxPrice, useVirtualPrice: false);
         query = ApplySort(query, filter.SortBy);
         query = ApplyPaging(query, filter.Page, filter.Limit);

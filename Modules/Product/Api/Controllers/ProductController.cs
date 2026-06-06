@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Modules.Product.Application.Commands;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.Queries;
+using System.Security.Claims;
 
 namespace Modules.Product.Api.Controllers;
 
@@ -22,7 +23,9 @@ public class ProductController(IMediator mediator) : ControllerBase
     {
         try
         {
-            var command = new CreateProductCommand(request);
+            var (userId, role) = GetCurrentUser();
+            Guid? shopId = role == "Seller" ? userId : null;
+            var command = new CreateProductCommand(request, shopId);
             var result = await _mediator.Send(command, cancellationToken);
             return CreatedAtAction(nameof(GetProductById), new { id = result.Id }, result);
         }
@@ -84,6 +87,12 @@ public class ProductController(IMediator mediator) : ControllerBase
     [HttpGet("admin/search")]
     public async Task<IActionResult> SearchProductsAdmin([FromQuery] FilterProductAdminRequestDto filter, CancellationToken cancellationToken)
     {
+        var (userId, role) = GetCurrentUser();
+        if (role == "Seller")
+        {
+            filter.ShopId = userId;
+        }
+
         var query = new SearchProductAdminQuery(filter);
         var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
@@ -95,6 +104,18 @@ public class ProductController(IMediator mediator) : ControllerBase
         var query = new SearchProductCustomerQuery(filter);
         var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
+    }
+
+    private (Guid UserId, string Role) GetCurrentUser()
+    {
+        var userIdRaw = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        if (!Guid.TryParse(userIdRaw, out var userId))
+        {
+            throw new UnauthorizedAccessException("Invalid token.");
+        }
+
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+        return (userId, role);
     }
 }
 
