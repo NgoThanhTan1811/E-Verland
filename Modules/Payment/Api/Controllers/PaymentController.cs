@@ -359,7 +359,7 @@ public class PaymentController(
                 {
                     code = "PAYMENT_PROCESSING_FAILED",
                     message = "Payment processing failed and has been compensated.",
-                    detail = ex.Message
+                    detail = ex.InnerException?.Message ?? ex.Message
                 });
             }
         }
