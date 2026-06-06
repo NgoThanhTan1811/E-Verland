@@ -170,6 +170,7 @@ locals {
         { name = "AWS__SQS__ProductSyncDeadLetterQueueUrl",  valueFrom = "${var.app_secrets_arn}:AWS__SQS__ProductSyncDeadLetterQueueUrl::" },
         { name = "AWS__SQS__NotificationEventsQueueUrl",     valueFrom = "${var.app_secrets_arn}:AWS__SQS__NotificationEventsQueueUrl::" },
         { name = "AWS__SQS__StockReserveQueueUrl",           valueFrom = "${var.app_secrets_arn}:AWS__SQS__StockReserveQueueUrl::" },
+        { name = "AWS__SQS__ShippingDraftQueueUrl",          valueFrom = "${var.app_secrets_arn}:AWS__SQS__ShippingDraftQueueUrl::" },
         # SNS
         { name = "AWS__SNS__NotificationTopicArn",           valueFrom = "${var.app_secrets_arn}:AWS__SNS__NotificationTopicArn::" },
         { name = "AWS__SNS__OrderEventsTopicArn",            valueFrom = "${var.app_secrets_arn}:AWS__SNS__OrderEventsTopicArn::" },

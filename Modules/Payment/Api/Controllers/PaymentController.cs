@@ -39,52 +39,6 @@ public class PaymentController(
 
     // ── Commands ─────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Debug endpoint — DEVELOPMENT ONLY. Verifies SePay HMAC signature and returns computed hash.
-    /// POST /api/payment/webhook/debug-signature
-    /// Headers: X-SePay-Timestamp, X-SePay-Signature
-    /// Body: raw JSON payload
-    /// </summary>
-    [AllowAnonymous]
-    [HttpPost("webhook/debug-signature")]
-    [DisableRequestSizeLimit]
-    [ApiExplorerSettings(IgnoreApi = false)]
-    public async Task<IActionResult> DebugSignature(CancellationToken ct)
-    {
-        if (!_hostEnvironment.IsDevelopment())
-            return NotFound();
-
-        Request.EnableBuffering();
-        using var ms = new MemoryStream();
-        await Request.Body.CopyToAsync(ms, ct);
-        var rawBodyBytes = ms.ToArray();
-        var rawBody = Encoding.UTF8.GetString(rawBodyBytes);
-
-        var sepayKey = _configuration["SePay:SecretKey"] ?? string.Empty;
-        var timestampHeader = Request.Headers["X-SePay-Timestamp"].ToString();
-        var receivedSig = NormalizeSePaySignatureHeader(Request.Headers["X-SePay-Signature"].ToString());
-
-        string? computedHex = null;
-        if (!string.IsNullOrWhiteSpace(sepayKey) &&
-            long.TryParse(timestampHeader, out var ts))
-        {
-            var signed = BuildSePaySignedPayloadBytes(ts, rawBodyBytes);
-            computedHex = Convert.ToHexString(HMACSHA256.HashData(
-                Encoding.UTF8.GetBytes(sepayKey), signed)).ToLowerInvariant();
-        }
-
-        return Ok(new
-        {
-            bodyLengthBytes = rawBodyBytes.Length,
-            bodyPreview = rawBody.Length > 120 ? rawBody[..120] + "..." : rawBody,
-            timestamp = timestampHeader,
-            receivedSignature = receivedSig,
-            computedSignature = computedHex,
-            match = computedHex != null && computedHex == receivedSig,
-            secretKeyConfigured = !string.IsNullOrWhiteSpace(sepayKey),
-            secretKeyPrefix = sepayKey.Length > 8 ? sepayKey[..8] + "..." : "(too short)"
-        });
-    }
 
     [Authorize]
     [HttpPost]
