@@ -41,6 +41,8 @@ public sealed class SearchProductAdminHandler(
             Id = p.Id,
             Name = p.Name,
             Slug = p.Slug,
+            ShopId = p.ShopId,
+            ShopName = p.ShopName,
             BasePrice = p.BasePrice,
             VirtualPrice = p.VirtualPrice,
             BrandName = p.Brand?.Name,

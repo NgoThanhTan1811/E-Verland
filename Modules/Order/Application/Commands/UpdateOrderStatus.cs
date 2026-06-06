@@ -13,7 +13,9 @@ namespace Modules.Order.Application.Commands;
 
 public sealed record UpdateOrderStatusCommand(
     Guid OrderId,
-    OrderStatus Status
+    OrderStatus Status,
+    Guid? UserId = null,
+    bool BypassOwnershipCheck = false
 ) : IRequest<OrderOverviewResponseDto>;
 
 public sealed class UpdateOrderStatusHandler(
@@ -40,6 +42,15 @@ public sealed class UpdateOrderStatusHandler(
     {
         var order = await _repo.GetByIdAsync(request.OrderId, ct)
             ?? throw new KeyNotFoundException("Order not found");
+
+        if (!request.BypassOwnershipCheck)
+        {
+            if (!request.UserId.HasValue)
+                throw new ArgumentException("UserId is required");
+
+            if (order.UserId != request.UserId.Value && order.ShopId != request.UserId.Value)
+                throw new UnauthorizedAccessException("You can only update your own orders");
+        }
 
         if (order.Status == OrderStatus.Canceled)
             throw new InvalidOperationException("Cannot update a canceled order");

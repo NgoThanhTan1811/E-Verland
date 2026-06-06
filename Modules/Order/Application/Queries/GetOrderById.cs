@@ -20,7 +20,7 @@ public sealed class GetOrderByIdHandler(IOrderRepository repo, IMapper mapper) :
         var order = await _repo.GetByIdAsync(request.OrderId, ct)
             ?? throw new KeyNotFoundException("Order not found");
 
-        if (order.UserId != request.UserId)
+        if (order.UserId != request.UserId && order.ShopId != request.UserId)
             throw new UnauthorizedAccessException("You can only view your own orders");
 
         return _mapper.Map<OrderDetailResponseDto>(order);

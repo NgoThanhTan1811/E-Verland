@@ -16,14 +16,14 @@ namespace EVerland.Migrations.OrderDb
                 table: "orders",
                 type: "uuid",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+                defaultValue: new Guid());
 
             migrationBuilder.AddColumn<Guid>(
                 name: "SellerId",
                 table: "order_items",
                 type: "uuid",
                 nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+                defaultValue: new Guid());
         }
 
         /// <inheritdoc />

@@ -92,6 +92,9 @@ public sealed class UpdateProductHandler(
             Name = product.Name,
             Description = product.Description,
             Price = product.VirtualPrice > 0 ? product.VirtualPrice : product.BasePrice,
+            BasePrice = product.BasePrice,
+            VirtualPrice = product.VirtualPrice,
+            Status = product.Status,
             ImageUrls = product.ImageUrls,
             Attributes = product.Attributes,
             Brand = product.Brand == null ? null : new ProductBrandDto

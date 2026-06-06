@@ -14,7 +14,7 @@ using System.Text.RegularExpressions;
 
 namespace Modules.Product.Application.Commands;
 
-public sealed record CreateProductCommand(CreateProductRequestDto Request, Guid? ShopId = null) : IRequest<ProductDetailDto>;
+public sealed record CreateProductCommand(CreateProductRequestDto Request, Guid? ShopId = null, string? ShopName = null) : IRequest<ProductDetailDto>;
 
 public sealed class CreateProductHandler(
     IProductRepository productRepository,
@@ -70,7 +70,8 @@ public sealed class CreateProductHandler(
             BrandId = request.Request.BrandId,
             Status = Domain.ProductStatus.Published,
             Categories = categories,
-            ShopId = request.ShopId
+            ShopId = request.ShopId,
+            ShopName = request.ShopName
         };
 
         AWSXRayRecorder.Instance.BeginSubsegment("Product.DB");
@@ -142,6 +143,9 @@ public sealed class CreateProductHandler(
             Name = product.Name,
             Description = product.Description,
             Price = product.VirtualPrice > 0 ? product.VirtualPrice : product.BasePrice,
+            BasePrice = product.BasePrice,
+            VirtualPrice = product.VirtualPrice,
+            Status = product.Status,
             ImageUrls = product.ImageUrls,
             Attributes = product.Attributes,
             Brand = product.Brand == null ? null : new ProductBrandDto

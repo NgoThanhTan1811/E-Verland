@@ -20,7 +20,7 @@ public class SkuController(IMediator mediator) : ControllerBase
     [Authorize(Policy = "AdminOrSeller")]
     public async Task<IActionResult> CreateSku([FromBody] CreateSkuRequestDto request, CancellationToken cancellationToken)
     {
-        var (userId, role) = GetCurrentUser();
+        var (userId, role, shopName) = GetCurrentUser();
         var command = new CreateSkuCommand(request);
         var result = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetSkuById), new { id = result.Id }, result);
@@ -30,7 +30,7 @@ public class SkuController(IMediator mediator) : ControllerBase
     [Authorize(Policy = "AdminOrSeller")]
     public async Task<IActionResult> UpdateSku(Guid id, [FromBody] UpdateSkuRequestDto request, CancellationToken cancellationToken)
     {
-        var (userId, role) = GetCurrentUser();
+        var (userId, role, shopName) = GetCurrentUser();
         var command = new UpdateSkuCommand(id, request);
         var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);
@@ -40,7 +40,7 @@ public class SkuController(IMediator mediator) : ControllerBase
     [Authorize(Policy = "AdminOrSeller")]
     public async Task<IActionResult> AddSkusToProduct(Guid productId, [FromBody] AddSkusToProductRequestDto request, CancellationToken cancellationToken)
     {   
-        var (userId, role) = GetCurrentUser();
+        var (userId, role, shopName) = GetCurrentUser();
         var command = new AddSkusToProductCommand(productId, request.Variants, request.Stock);
         var result = await _mediator.Send(command, cancellationToken);
         return CreatedAtAction(nameof(GetSkuById), new { id = result.FirstOrDefault()?.Id ?? Guid.Empty }, result);
@@ -69,13 +69,13 @@ public class SkuController(IMediator mediator) : ControllerBase
     [HttpGet("admin/search")]
     public async Task<IActionResult> SearchSkus([FromQuery] SearchSkuAdminRequestDto filter, CancellationToken cancellationToken)
     {
-        var (userId, role) = GetCurrentUser();
+        var (userId, role, shopName) = GetCurrentUser();
         var query = new SearchSkuAdminQuery(filter);
         var result = await _mediator.Send(query, cancellationToken);
         return Ok(result);
     }
 
-    private (Guid UserId, string Role) GetCurrentUser()
+    private (Guid UserId, string Role, string ShopName) GetCurrentUser()
     {
         var userIdRaw = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         if (!Guid.TryParse(userIdRaw, out var userId))
@@ -84,6 +84,7 @@ public class SkuController(IMediator mediator) : ControllerBase
         }
 
         var role = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
-        return (userId, role);
+        var shopName = User.FindFirstValue(ClaimTypes.Name) ?? string.Empty;
+        return (userId, role, shopName);
     }
 }

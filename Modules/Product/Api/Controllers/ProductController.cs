@@ -23,9 +23,9 @@ public class ProductController(IMediator mediator) : ControllerBase
     {
         try
         {
-            var (userId, role) = GetCurrentUser();
+            var (userId, role, shopName) = GetCurrentUser();
             Guid? shopId = role == "Seller" ? userId : null;
-            var command = new CreateProductCommand(request, shopId);
+            var command = new CreateProductCommand(request, shopId, shopName);
             var result = await _mediator.Send(command, cancellationToken);
             return CreatedAtAction(nameof(GetProductById), new { id = result.Id }, result);
         }
@@ -87,10 +87,11 @@ public class ProductController(IMediator mediator) : ControllerBase
     [HttpGet("admin/search")]
     public async Task<IActionResult> SearchProductsAdmin([FromQuery] FilterProductAdminRequestDto filter, CancellationToken cancellationToken)
     {
-        var (userId, role) = GetCurrentUser();
+        var (userId, role, shopName) = GetCurrentUser();
         if (role == "Seller")
         {
             filter.ShopId = userId;
+            filter.ShopName = shopName;
         }
 
         var query = new SearchProductAdminQuery(filter);
@@ -106,7 +107,7 @@ public class ProductController(IMediator mediator) : ControllerBase
         return Ok(result);
     }
 
-    private (Guid UserId, string Role) GetCurrentUser()
+    private (Guid UserId, string Role, string ShopName) GetCurrentUser()
     {
         var userIdRaw = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
         if (!Guid.TryParse(userIdRaw, out var userId))
@@ -115,7 +116,8 @@ public class ProductController(IMediator mediator) : ControllerBase
         }
 
         var role = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
-        return (userId, role);
+        var shopName = User.FindFirstValue(ClaimTypes.Name) ?? string.Empty;
+        return (userId, role, shopName);
     }
 }
 

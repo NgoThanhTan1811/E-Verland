@@ -41,6 +41,7 @@ builder.Services.AddControllers()
 
         // Giữ nguyên các cấu hình đặt tên camelCase nếu có của bạn
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
     });
 
 // Health Checks
