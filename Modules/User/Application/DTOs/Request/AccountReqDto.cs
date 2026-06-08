@@ -27,9 +27,9 @@ public record UpdateMyAccountReqDto
 }
 public record AccountFilter : IPagingFilter
 {
-    public string? Keyword;
-    public StatusUser? Status;
-    public RoleUser? Role;
+    public string? Keyword { get; set; }
+    public StatusUser? Status { get; set; }
+    public RoleUser? Role { get; set; }
 
     public int Page { get; set; } = 1;
     public int Limit { get; set; } = 20;

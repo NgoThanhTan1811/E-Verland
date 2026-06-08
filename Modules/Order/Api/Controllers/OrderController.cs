@@ -83,6 +83,22 @@ public class OrderController : ControllerBase
         }
     }
 
+    [Authorize(Policy = "AdminPolicy")]
+    [HttpGet("admin/{id}")]
+    public async Task<ActionResult<OrderDetailResponseDto>> AdminGetOrderById(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var query = new GetOrderByIdQuery(id, null, BypassOwnershipCheck: true);
+            var result = await _mediator.Send(query, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
     [Authorize(Policy = "SellerOrCustomer")]
     [HttpGet]
     public async Task<ActionResult<PageResult<OrderOverviewResponseDto>>> GetOrders(

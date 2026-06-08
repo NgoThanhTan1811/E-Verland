@@ -1,4 +1,5 @@
 
+using System.Security.Claims;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -61,6 +62,26 @@ public partial class ChatController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving conversation");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [Authorize(Policy = "SellerOrCustomer")]
+    [HttpGet("conversations")]
+    public async Task<IActionResult> GetMyConversations(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userIdRaw = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+            if (!Guid.TryParse(userIdRaw, out var userId)) return Unauthorized();
+
+            var query = new GetForAdminQuery(userId);
+            var result = await _mediator.Send(query, cancellationToken);
+            return Ok(new { conversations = result });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving my conversations");
             return BadRequest(new { message = ex.Message });
         }
     }

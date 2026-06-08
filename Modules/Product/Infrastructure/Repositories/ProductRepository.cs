@@ -19,7 +19,6 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
     public async Task<Domain.Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await BuildProductQuery()
-            .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
     }
 
@@ -31,7 +30,7 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
 
     public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var existing = await _db.Products.FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+        var existing = await _db.Products.AsTracking().FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
         if (existing == null) return false;
 
         _db.Entry(existing).Property(nameof(BaseEntity.IsDeleted)).CurrentValue = true;
@@ -50,6 +49,7 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
     {
         var existing = await _db.Products
             .IgnoreQueryFilters()
+            .AsTracking()
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
         if (existing == null)
         {
@@ -61,7 +61,7 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
         return true;
     }
 
-    public async Task<IEnumerable<Domain.Product>> GetSearchProductsAdminAsync(FilterProductAdminRequestDto filter, CancellationToken ct = default)
+    public async Task<(IEnumerable<Domain.Product> Items, int TotalCount)> GetSearchProductsAdminAsync(FilterProductAdminRequestDto filter, CancellationToken ct = default)
     {
         var query = BuildProductQuery();
         query = ApplyKeywordFilter(query, filter.Keyword);
@@ -75,13 +75,17 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
         }
 
         query = ApplyPriceFilter(query, filter.MinPrice, filter.MaxPrice, useVirtualPrice: false);
+        
+        var totalCount = await query.CountAsync(ct);
+
         query = ApplySort(query, filter.SortBy);
         query = ApplyPaging(query, filter.Page, filter.Limit);
 
-        return await query.ToListAsync(ct);
+        var items = await query.ToListAsync(ct);
+        return (items, totalCount);
     }
 
-    public async Task<IEnumerable<Domain.Product>> GetSearchProductsCustomerAsync(FilterProductCustomerRequestDto filter, CancellationToken ct = default)
+    public async Task<(IEnumerable<Domain.Product> Items, int TotalCount)> GetSearchProductsCustomerAsync(FilterProductCustomerRequestDto filter, CancellationToken ct = default)
     {
         var query = BuildProductQuery();
         query = ApplyKeywordFilter(query, filter.Keyword);
@@ -89,10 +93,14 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
         query = ApplyCategoryFilter(query, filter.CategoryId);
         query = ApplyStatusFilter(query, ProductStatus.Published);
         query = ApplyPriceFilter(query, filter.MinPrice, filter.MaxPrice, useVirtualPrice: true);
+        
+        var totalCount = await query.CountAsync(ct);
+
         query = ApplySort(query, "newest");
         query = ApplyPaging(query, filter.Page, filter.Limit);
 
-        return await query.ToListAsync(ct);
+        var items = await query.ToListAsync(ct);
+        return (items, totalCount);
     }
 
     public Task<bool> IsActiveProductAsync(Guid productId, CancellationToken cancellationToken = default)
@@ -112,6 +120,7 @@ public class ProductRepository(ProductDbContext db) : IProductRepository
     public async Task<Domain.Product> ChangeStatusAsync(Guid productId, ProductStatus newStatus, CancellationToken cancellationToken = default)
     {
         var product = await _db.Products
+            .AsTracking()
             .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken)
                 ?? throw new KeyNotFoundException("Product not found");
 

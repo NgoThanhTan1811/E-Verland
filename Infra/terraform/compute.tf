@@ -34,11 +34,11 @@ resource "aws_security_group" "alb_sg" {
 }
 
 locals {
-  subdomains = ["api", "seller", "admin"]
+  records = ["@", "api", "seller", "admin"]
 }
 
 resource "cloudflare_dns_record" "subdomains" {
-  for_each = toset(local.subdomains)
+  for_each = toset(local.records)
 
   zone_id = data.cloudflare_zone.main.id
   name    = each.value

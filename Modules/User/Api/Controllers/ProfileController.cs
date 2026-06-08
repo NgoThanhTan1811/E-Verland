@@ -59,21 +59,21 @@ public class ProfileController(IMediator mediator) : ControllerBase
         }
     }
 
-    // [HttpGet("account/{accountId}")]
-    // [Authorize(Policy = "AdminPolicy")]
-    // public async Task<ActionResult<ProfileResDto>> GetProfileByAccount(Guid accountId, CancellationToken ct)
-    // {
-    //     try
-    //     {
-    //         var query = new GetProfileByAccountQuery(accountId);
-    //         var result = await _mediator.Send(query, ct);
-    //         return Ok(result);
-    //     }
-    //     catch (KeyNotFoundException ex)
-    //     {
-    //         return NotFound(new { message = ex.Message });
-    //     }
-    // }
+    [HttpGet("account/{accountId}")]
+    [Authorize(Policy = "AdminPolicy")]
+    public async Task<ActionResult<ProfileResDto>> GetProfileByAccount(Guid accountId, CancellationToken ct)
+    {
+        try
+        {
+            var query = new GetProfileByAccountQuery(accountId);
+            var result = await _mediator.Send(query, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
 
     [HttpGet]
     [Authorize(Policy = "AdminPolicy")]
