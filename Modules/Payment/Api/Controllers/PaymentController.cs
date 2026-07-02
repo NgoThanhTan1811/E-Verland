@@ -179,6 +179,11 @@ public class PaymentController(
     [DisableRequestSizeLimit]
     public async Task<IActionResult> SePayWebhook(CancellationToken ct)
     {
+        foreach (var header in Request.Headers)
+        {
+            Console.WriteLine($"Header: {header.Key} - Value: {header.Value}");
+        }
+
         await _cloudWatch.PutMetricAsync("payment.webhook.received", 1, "Count", ct: ct);
 
         _logger.LogInformation("SePay webhook received from {SourceIp}",
