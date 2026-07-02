@@ -88,6 +88,16 @@ public sealed class ShippingRequestConsumer : BackgroundService
                 }
             }
             catch (OperationCanceledException) { break; }
+            catch (System.Net.Http.HttpRequestException ex) when (
+                ex.InnerException is System.Net.Sockets.SocketException)
+            {
+                // DNS/network unreachable — likely running locally without AWS connectivity.
+                // Back off 30 s instead of spamming the log every 5 s.
+                _logger.LogWarning(
+                    "ShippingDraft queue unreachable (no AWS connectivity?). Retrying in 30 s. {Message}",
+                    ex.Message);
+                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error polling ShippingDraft queue");

@@ -12,6 +12,9 @@ namespace Modules.Product.Application.DTOs.Response
         public string Name { get; set; } = default!;
         public string Slug { get; set; } = default!;
 
+        public Guid? ShopId { get; set; }
+        public string? ShopName { get; set; }
+
         public decimal BasePrice { get; set; }
         public decimal VirtualPrice { get; set; }
 
@@ -39,6 +42,7 @@ namespace Modules.Product.Application.DTOs.Response
         public decimal Price { get; set; }
         public List<string> ImageUrls { get; set; } = [];
 
+        public Guid? ShopId { get; set; }
         public string? ShopName { get; set; }
 
         public string? BrandName { get; set; }
@@ -62,10 +66,14 @@ namespace Modules.Product.Application.DTOs.Response
         public string Description { get; set; } = default!;
 
         public decimal Price { get; set; }
+        public decimal BasePrice { get; set; }
+        public decimal VirtualPrice { get; set; }
+        public ProductStatus Status { get; set; }
 
         public List<string> ImageUrls { get; set; } = [];
         public Dictionary<string, string> Attributes { get; set; } = [];
 
+        public Guid? ShopId { get; set; }
         public string? ShopName { get; set; }
         public ProductBrandDto? Brand { get; set; }
         public List<ProductCategoryDto> Categories { get; set; } = [];

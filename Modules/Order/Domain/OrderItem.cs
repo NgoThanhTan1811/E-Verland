@@ -6,6 +6,7 @@ public sealed class OrderItem : BaseEntity
     public Guid OrderId { get; private set; }
     public Guid ProductId { get; private set; }
     public Guid SkuId { get; private set; }
+    public Guid SellerId { get; private set; }
 
     public string ProductName { get; private set; } = default!;
     public int UnitPrice { get; private set; }

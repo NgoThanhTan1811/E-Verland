@@ -7,7 +7,8 @@ namespace Modules.Order.Application.Queries;
 
 public sealed record GetOrderByIdQuery(
     Guid OrderId,
-    Guid UserId
+    Guid? UserId,
+    bool BypassOwnershipCheck = false
 ) : IRequest<OrderDetailResponseDto>;
 
 public sealed class GetOrderByIdHandler(IOrderRepository repo, IMapper mapper) : IRequestHandler<GetOrderByIdQuery, OrderDetailResponseDto>
@@ -20,7 +21,7 @@ public sealed class GetOrderByIdHandler(IOrderRepository repo, IMapper mapper) :
         var order = await _repo.GetByIdAsync(request.OrderId, ct)
             ?? throw new KeyNotFoundException("Order not found");
 
-        if (order.UserId != request.UserId)
+        if (!request.BypassOwnershipCheck && order.UserId != request.UserId && order.ShopId != request.UserId)
             throw new UnauthorizedAccessException("You can only view your own orders");
 
         return _mapper.Map<OrderDetailResponseDto>(order);

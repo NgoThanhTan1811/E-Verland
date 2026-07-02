@@ -83,6 +83,22 @@ public class OrderController : ControllerBase
         }
     }
 
+    [Authorize(Policy = "AdminPolicy")]
+    [HttpGet("admin/{id}")]
+    public async Task<ActionResult<OrderDetailResponseDto>> AdminGetOrderById(Guid id, CancellationToken ct)
+    {
+        try
+        {
+            var query = new GetOrderByIdQuery(id, null, BypassOwnershipCheck: true);
+            var result = await _mediator.Send(query, ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
     [Authorize(Policy = "SellerOrCustomer")]
     [HttpGet]
     public async Task<ActionResult<PageResult<OrderOverviewResponseDto>>> GetOrders(
@@ -101,8 +117,8 @@ public class OrderController : ControllerBase
             var filterDto = new FilterOrdersUserRequestDto(
                 status,
                 paymentStatus,
-                fromDate,
-                toDate,
+                NormalizeToUtc(fromDate),
+                NormalizeToUtc(toDate, isEndOfDay: true),
                 page,
                 limit
             );
@@ -136,8 +152,8 @@ public class OrderController : ControllerBase
                 status,
                 paymentStatus,
                 paymentMethod,
-                fromDate,
-                toDate,
+                NormalizeToUtc(fromDate),
+                NormalizeToUtc(toDate, isEndOfDay: true),
                 page,
                 limit
             );
@@ -160,7 +176,8 @@ public class OrderController : ControllerBase
     {
         try
         {
-            var command = new UpdateOrderStatusCommand(id, request.Status);
+            var userId = GetCurrentUserId();
+            var command = new UpdateOrderStatusCommand(id, request.Status, userId);
             var result = await _mediator.Send(command, ct);
             return Ok(result);
         }
@@ -183,7 +200,7 @@ public class OrderController : ControllerBase
     {
         try
         {
-            var command = new UpdateOrderStatusCommand(id, request.Status);
+            var command = new UpdateOrderStatusCommand(id, request.Status, null, true);
             var result = await _mediator.Send(command, ct);
             return Ok(result);
         }
@@ -251,6 +268,22 @@ public class OrderController : ControllerBase
         }
 
         return userId;
+    }
+
+    private static DateTime? NormalizeToUtc(DateTime? date, bool isEndOfDay = false)
+    {
+        if (!date.HasValue) return null;
+        
+        var d = date.Value;
+        if (isEndOfDay && d.TimeOfDay == TimeSpan.Zero)
+        {
+            d = d.Date.AddDays(1).AddTicks(-1);
+        }
+
+        if (d.Kind == DateTimeKind.Unspecified)
+            return DateTime.SpecifyKind(d, DateTimeKind.Utc);
+            
+        return d.ToUniversalTime();
     }
 }
 

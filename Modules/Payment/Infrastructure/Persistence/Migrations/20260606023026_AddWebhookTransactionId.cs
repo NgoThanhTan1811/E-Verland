@@ -1,8 +1,8 @@
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace EVerland.Migrations
+namespace EVerland.Migrations.PaymentDb
 {
     public partial class AddWebhookTransactionId : Migration
     {

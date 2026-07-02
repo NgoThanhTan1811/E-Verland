@@ -22,6 +22,7 @@ public static class CorsExtension
                 "https://seller.e-verland.site",
                 "https://admin.e-verland.site",
                 "http://localhost:7700",
+                "http://localhost:3000"
             ];
         }
 

@@ -10,6 +10,7 @@ namespace Modules.Order.Domain
     {
         public string Code { get; set; } = default!;
         public Guid UserId { get; set; }
+        public Guid ShopId { get; set; }
         
         public decimal TotalPrice { get; set; }
         public decimal GrandTotal => TotalPrice - (Discount ?? 0);

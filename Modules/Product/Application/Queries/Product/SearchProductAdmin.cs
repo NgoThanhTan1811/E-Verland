@@ -3,7 +3,7 @@ using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.DTOs.Response;
 using Modules.Product.Application.Mappings;
-using Modules.Redis.Services;
+using Modules.Redis.Infrastructure;
 using SharedKernel.Pagination;
 using System.Security.Cryptography;
 using System.Text;
@@ -15,32 +15,32 @@ public sealed record SearchProductAdminQuery(FilterProductAdminRequestDto Filter
 
 public sealed class SearchProductAdminHandler(
     IProductRepository productRepository,
-    IProductCacheService productCacheService,
+    ICacheService cacheService,
     IConfiguration configuration) : IRequestHandler<SearchProductAdminQuery, PageResult<ProductAdminListItemDto>>
 {
     private readonly IProductRepository _productRepository = productRepository;
-    private readonly IProductCacheService _productCacheService = productCacheService;
+    private readonly ICacheService _cacheService = cacheService;
     private readonly IConfiguration _configuration = configuration;
 
     public async Task<PageResult<ProductAdminListItemDto>> Handle(SearchProductAdminQuery request, CancellationToken cancellationToken)
     {
-        var cacheKey = BuildCacheKey("admin", request.Filter);
-        var cached = await _productCacheService.GetProductsAsync<ProductAdminListItemDto>(cacheKey);
+        var cacheKey = BuildCacheKey("admin:page", request.Filter);
+        var cached = await _cacheService.GetAsync<PageResult<ProductAdminListItemDto>>(cacheKey);
         if (cached is not null)
         {
-            var cachedList = cached.ToList();
-            return Pagination.PaginationResult(cachedList, cachedList.Count, request.Filter);
+            return cached;
         }
 
-        var products = await _productRepository.GetSearchProductsAdminAsync(request.Filter, cancellationToken);
+        var (products, totalCount) = await _productRepository.GetSearchProductsAdminAsync(request.Filter, cancellationToken);
         var productList = products.ToList();
-        var totalCount = productList.Count;
 
         var dtos = productList.Select(p => new ProductAdminListItemDto
         {
             Id = p.Id,
             Name = p.Name,
             Slug = p.Slug,
+            ShopId = p.ShopId,
+            ShopName = p.ShopName,
             BasePrice = p.BasePrice,
             VirtualPrice = p.VirtualPrice,
             BrandName = p.Brand?.Name,
@@ -57,9 +57,11 @@ public sealed class SearchProductAdminHandler(
         var ttlMinutes = int.TryParse(_configuration["Cache:ProductListTtlMinutes"], out var value)
             ? Math.Max(1, value)
             : 10;
-        await _productCacheService.CacheProductsAsync(cacheKey, dtos, TimeSpan.FromMinutes(ttlMinutes));
+        
+        var result = Pagination.PaginationResult(dtos, totalCount, request.Filter);
+        await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromMinutes(ttlMinutes));
 
-        return Pagination.PaginationResult(dtos, totalCount, request.Filter);
+        return result;
     }
 
     private static string BuildCacheKey(string segment, FilterProductAdminRequestDto filter)

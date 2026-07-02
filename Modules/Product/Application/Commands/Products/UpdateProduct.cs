@@ -6,6 +6,7 @@ using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.DTOs.Response;
 using Modules.Product.Application.Mappings;
+using Modules.Redis.Services;
 
 namespace Modules.Product.Application.Commands;
 
@@ -17,7 +18,8 @@ public sealed class UpdateProductHandler(
     IProductDbContext dbContext,
     IProductSyncPublisher syncPublisher,
     ICloudWatchService cloudWatch,
-    IMediaFileRepository mediaFileRepository) : IRequestHandler<UpdateProductCommand, ProductDetailDto>
+    IMediaFileRepository mediaFileRepository,
+    IProductCacheService productCacheService) : IRequestHandler<UpdateProductCommand, ProductDetailDto>
 {
     private readonly IProductRepository _productRepository = productRepository;
     private readonly ICategoryRepository _categoryRepository = categoryRepository;
@@ -25,6 +27,7 @@ public sealed class UpdateProductHandler(
     private readonly IProductSyncPublisher _syncPublisher = syncPublisher;
     private readonly ICloudWatchService _cloudWatch = cloudWatch;
     private readonly IMediaFileRepository _mediaFileRepository = mediaFileRepository;
+    private readonly IProductCacheService _productCacheService = productCacheService;
 
     public async Task<ProductDetailDto> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
     {
@@ -73,6 +76,9 @@ public sealed class UpdateProductHandler(
             AWSXRayRecorder.Instance.EndSubsegment();
         }
 
+        // Invalidate product cache
+        await _productCacheService.InvalidateProductAsync(product.Id.ToString("N"));
+
         await _syncPublisher.PublishAsync(product, "Updated", cancellationToken);
         await _cloudWatch.PutMetricAsync("product.updated", 1, "Count", ct: cancellationToken);
 
@@ -92,6 +98,9 @@ public sealed class UpdateProductHandler(
             Name = product.Name,
             Description = product.Description,
             Price = product.VirtualPrice > 0 ? product.VirtualPrice : product.BasePrice,
+            BasePrice = product.BasePrice,
+            VirtualPrice = product.VirtualPrice,
+            Status = product.Status,
             ImageUrls = product.ImageUrls,
             Attributes = product.Attributes,
             Brand = product.Brand == null ? null : new ProductBrandDto

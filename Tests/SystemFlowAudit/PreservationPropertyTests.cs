@@ -45,10 +45,13 @@ public class PreservationPropertyTests
 
         cloudWatch.PutMetricAsync(Arg.Any<string>(), Arg.Any<double>(), Arg.Any<string>(), Arg.Any<System.Collections.Generic.Dictionary<string, string>>(), Arg.Any<System.Threading.CancellationToken>()).Returns(System.Threading.Tasks.Task.CompletedTask);
 
+        var hostEnv = NSubstitute.Substitute.For<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>();
+
         var controller = new PaymentController(
             mediator,
             cloudWatch,
             config,
+            hostEnv,
             NullLogger<PaymentController>.Instance);
 
         return (controller, mediator, cloudWatch);

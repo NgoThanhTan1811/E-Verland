@@ -47,7 +47,7 @@ public sealed class CancelOrderHandler(
             if (!request.UserId.HasValue)
                 throw new ArgumentException("UserId is required");
 
-            if (order.UserId != request.UserId.Value)
+            if (order.UserId != request.UserId.Value && order.ShopId != request.UserId.Value)
                 throw new UnauthorizedAccessException("You can only cancel your own orders");
         }
 

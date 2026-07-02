@@ -1,10 +1,15 @@
 namespace Modules.Dashboard.Application.DTOs;
 
 public sealed record AdminDashboardDto(
+    int TotalProducts,
     IReadOnlyDictionary<string, int> TotalOrdersByStatus,
     decimal TotalRevenue,
     IReadOnlyList<TopProductMetricDto> TopProducts,
     IReadOnlyList<TopSellerMetricDto> TopSellers,
+    decimal PlatformCash,
+    decimal CustomerLiability,
+    decimal SellerPending,
+    decimal SellerAvailable,
     DateTime GeneratedAtUtc
 );
 

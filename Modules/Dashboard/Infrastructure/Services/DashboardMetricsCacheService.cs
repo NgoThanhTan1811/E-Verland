@@ -4,6 +4,7 @@ using Modules.Dashboard.Application.Contracts;
 using Modules.Dashboard.Application.DTOs;
 using Modules.Dashboard.Infrastructure.Options;
 using Modules.Order.Infrastructure.Persistence;
+using Modules.Payment.Domain;
 using Modules.Payment.Infrastructure.Persistence;
 using Modules.Product.Infrastructure.Persistence;
 using Modules.Redis.Infrastructure;
@@ -12,8 +13,8 @@ namespace Modules.Dashboard.Infrastructure.Services;
 
 public sealed class DashboardMetricsCacheService : IDashboardMetricsCache
 {
-    private const string AdminSnapshotKey = "dashboard:admin:snapshot:v1";
-    private const string SellerSnapshotKeyPrefix = "dashboard:seller:snapshot:v1:";
+    private const string AdminSnapshotKey = "dashboard:admin:snapshot:v2";
+    private const string SellerSnapshotKeyPrefix = "dashboard:seller:snapshot:v2:";
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ICacheService _cacheService;
@@ -45,10 +46,15 @@ public sealed class DashboardMetricsCacheService : IDashboardMetricsCache
         cached = await _cacheService.GetAsync<CachedSnapshot<AdminDashboardDto>>(AdminSnapshotKey);
 
         return cached?.Payload ?? new AdminDashboardDto(
+            TotalProducts: 0,
             TotalOrdersByStatus: new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             TotalRevenue: 0,
             TopProducts: [],
             TopSellers: [],
+            PlatformCash: 0,
+            CustomerLiability: 0,
+            SellerPending: 0,
+            SellerAvailable: 0,
             GeneratedAtUtc: DateTime.UtcNow);
     }
 
@@ -66,9 +72,12 @@ public sealed class DashboardMetricsCacheService : IDashboardMetricsCache
 
         return cached?.Payload ?? new SellerDashboardDto(
             SellerId: sellerId,
+            TotalProducts: 0,
             TotalOrdersByStatus: new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase),
             TotalRevenue: 0,
             TopProducts: [],
+            PendingBalance: 0,
+            AvailableBalance: 0,
             GeneratedAtUtc: DateTime.UtcNow);
     }
 
@@ -160,14 +169,41 @@ public sealed class DashboardMetricsCacheService : IDashboardMetricsCache
                 .ToList();
 
             var ordersByStatus = orderStatusRows.ToDictionary(x => x.Status, x => x.Count, StringComparer.OrdinalIgnoreCase);
-            var adminSnapshot = new AdminDashboardDto(ordersByStatus, totalRevenue, topProducts, topSellers, generatedAtUtc);
+
+            var latestSnapshots = await paymentDb.BalanceSnapshots
+                .AsNoTracking()
+                .GroupBy(x => x.AccountType)
+                .Select(g => g.OrderByDescending(x => x.SnapshotAtUtc).FirstOrDefault())
+                .ToListAsync(ct);
+
+            var platformCash = latestSnapshots.FirstOrDefault(x => x?.AccountType == LedgerAccountType.PlatformCash)?.Balance ?? 0m;
+            var customerLiability = latestSnapshots.FirstOrDefault(x => x?.AccountType == LedgerAccountType.CustomerLiability)?.Balance ?? 0m;
+            var sellerPending = latestSnapshots.FirstOrDefault(x => x?.AccountType == LedgerAccountType.SellerPending)?.Balance ?? 0m;
+            var sellerAvailable = latestSnapshots.FirstOrDefault(x => x?.AccountType == LedgerAccountType.SellerAvailable)?.Balance ?? 0m;
+
+            var totalProductsAdmin = await productDb.Products.CountAsync(ct);
+
+            var adminSnapshot = new AdminDashboardDto(totalProductsAdmin, ordersByStatus, totalRevenue, topProducts, topSellers, platformCash, customerLiability, sellerPending, sellerAvailable, generatedAtUtc);
 
             await _cacheService.SetAsync(
                 AdminSnapshotKey,
                 new CachedSnapshot<AdminDashboardDto>(adminSnapshot, generatedAtUtc),
                 cacheTtl);
 
-            var sellerSnapshots = BuildSellerSnapshots(orderItemFacts, productLookupById, generatedAtUtc);
+            var sellerBalancesMap = await paymentDb.SellerBalances
+                .AsNoTracking()
+                .GroupBy(x => x.SellerId)
+                .Select(g => new { SellerId = g.Key, Pending = g.Sum(x => x.PendingAmount), Available = g.Sum(x => x.AvailableAmount) })
+                .ToDictionaryAsync(x => x.SellerId, x => (x.Pending, x.Available), ct);
+
+            var totalProductsBySeller = await productDb.Products
+                .AsNoTracking()
+                .Where(p => p.ShopId != null)
+                .GroupBy(p => p.ShopId)
+                .Select(g => new { SellerId = g.Key!.Value, Count = g.Count() })
+                .ToDictionaryAsync(x => x.SellerId, x => x.Count, ct);
+
+            var sellerSnapshots = BuildSellerSnapshots(orderItemFacts, productLookupById, sellerBalancesMap, totalProductsBySeller, generatedAtUtc);
             foreach (var sellerSnapshot in sellerSnapshots)
             {
                 await _cacheService.SetAsync(
@@ -185,6 +221,8 @@ public sealed class DashboardMetricsCacheService : IDashboardMetricsCache
     private List<SellerDashboardDto> BuildSellerSnapshots(
         IReadOnlyList<OrderItemFact> facts,
         IReadOnlyDictionary<Guid, ProductLookup> productLookupById,
+        IReadOnlyDictionary<Guid, (decimal Pending, decimal Available)> sellerBalancesMap,
+        IReadOnlyDictionary<Guid, int> totalProductsBySeller,
         DateTime generatedAtUtc)
     {
         var sellerFacts = facts
@@ -234,9 +272,12 @@ public sealed class DashboardMetricsCacheService : IDashboardMetricsCache
 
             snapshots.Add(new SellerDashboardDto(
                 SellerId: sellerGroup.Key,
+                TotalProducts: totalProductsBySeller.TryGetValue(sellerGroup.Key, out var count) ? count : 0,
                 TotalOrdersByStatus: orderStatusCounts,
                 TotalRevenue: totalRevenue,
                 TopProducts: topProducts,
+                PendingBalance: sellerBalancesMap.TryGetValue(sellerGroup.Key, out var b) ? b.Pending : 0m,
+                AvailableBalance: sellerBalancesMap.TryGetValue(sellerGroup.Key, out var b2) ? b2.Available : 0m,
                 GeneratedAtUtc: generatedAtUtc));
         }
 

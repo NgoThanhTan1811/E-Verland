@@ -143,68 +143,72 @@ public class LedgerService(PaymentDbContext dbContext) : ILedgerService
             throw new InvalidOperationException("Ledger amount must be greater than zero.");
         }
 
-        var alreadyExists = await _dbContext.LedgerTransactions
-            .AsNoTracking()
-            .AnyAsync(x => x.IdempotencyKey == idempotencyKey, ct);
-
-        if (alreadyExists)
+        var strategy = _dbContext.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
         {
-            return false;
-        }
+            var alreadyExists = await _dbContext.LedgerTransactions
+                .AsNoTracking()
+                .AnyAsync(x => x.IdempotencyKey == idempotencyKey, ct);
 
-        var debitAmount = amount;
-        var creditAmount = amount;
+            if (alreadyExists)
+            {
+                return false;
+            }
 
-        if (debitAmount != creditAmount)
-        {
-            throw new InvalidOperationException("Debit and credit totals must be equal for a ledger transaction.");
-        }
+            var debitAmount = amount;
+            var creditAmount = amount;
 
-        await using var tx = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
+            if (debitAmount != creditAmount)
+            {
+                throw new InvalidOperationException("Debit and credit totals must be equal for a ledger transaction.");
+            }
 
-        var ledgerTransaction = new LedgerTransaction
-        {
-            IdempotencyKey = idempotencyKey,
-            OrderId = orderId,
-            PayoutId = payoutId,
-            Currency = currency,
-            TimestampUtc = DateTime.UtcNow,
-            Status = status
-        };
-        ledgerTransaction.SetCreatedBy(createdBy);
+            await using var tx = await _dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
 
-        var debitEntry = new LedgerEntry
-        {
-            LedgerTransactionId = ledgerTransaction.Id,
-            EntryType = LedgerEntryType.Debit,
-            AccountType = debitAccount,
-            Amount = debitAmount,
-            Currency = currency,
-            TimestampUtc = DateTime.UtcNow
-        };
-        debitEntry.SetCreatedBy(createdBy);
+            var ledgerTransaction = new LedgerTransaction
+            {
+                IdempotencyKey = idempotencyKey,
+                OrderId = orderId,
+                PayoutId = payoutId,
+                Currency = currency,
+                TimestampUtc = DateTime.UtcNow,
+                Status = status
+            };
+            ledgerTransaction.SetCreatedBy(createdBy);
 
-        var creditEntry = new LedgerEntry
-        {
-            LedgerTransactionId = ledgerTransaction.Id,
-            EntryType = LedgerEntryType.Credit,
-            AccountType = creditAccount,
-            Amount = creditAmount,
-            Currency = currency,
-            TimestampUtc = DateTime.UtcNow
-        };
-        creditEntry.SetCreatedBy(createdBy);
+            var debitEntry = new LedgerEntry
+            {
+                LedgerTransactionId = ledgerTransaction.Id,
+                EntryType = LedgerEntryType.Debit,
+                AccountType = debitAccount,
+                Amount = debitAmount,
+                Currency = currency,
+                TimestampUtc = DateTime.UtcNow
+            };
+            debitEntry.SetCreatedBy(createdBy);
 
-        _dbContext.LedgerTransactions.Add(ledgerTransaction);
-        _dbContext.LedgerEntries.AddRange(debitEntry, creditEntry);
+            var creditEntry = new LedgerEntry
+            {
+                LedgerTransactionId = ledgerTransaction.Id,
+                EntryType = LedgerEntryType.Credit,
+                AccountType = creditAccount,
+                Amount = creditAmount,
+                Currency = currency,
+                TimestampUtc = DateTime.UtcNow
+            };
+            creditEntry.SetCreatedBy(createdBy);
 
-        await UpsertSnapshotAsync(ledgerTransaction.Id, debitAccount, -debitAmount, ct);
-        await UpsertSnapshotAsync(ledgerTransaction.Id, creditAccount, creditAmount, ct);
+            _dbContext.LedgerTransactions.Add(ledgerTransaction);
+            _dbContext.LedgerEntries.AddRange(debitEntry, creditEntry);
 
-        await _dbContext.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+            await UpsertSnapshotAsync(ledgerTransaction.Id, debitAccount, -debitAmount, ct);
+            await UpsertSnapshotAsync(ledgerTransaction.Id, creditAccount, creditAmount, ct);
 
-        return true;
+            await _dbContext.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+
+            return true;
+        });
     }
 
     private async Task UpsertSnapshotAsync(

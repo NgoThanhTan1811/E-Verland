@@ -83,14 +83,15 @@ public sealed class UpdatePaymentStatusHandler(
 
         var payload = new
         {
-            paymentId = payment.Id,
-            paymentCode = payment.Code,
-            orderId = payment.OrderId,
-            userId = payment.UserId,
-            amount = payment.Amount,
-            status = payment.Status.ToString(),
-            method = payment.Method.ToString(),
-            eventType
+            PaymentId = payment.Id,
+            PaymentCode = payment.Code,
+            OrderId = payment.OrderId,
+            UserId = payment.UserId,
+            Amount = payment.Amount,
+            NewStatus = payment.Status.ToString(),
+            Method = payment.Method.ToString(),
+            EventType = eventType,
+            OccurredAt = DateTime.UtcNow
         };
 
         try

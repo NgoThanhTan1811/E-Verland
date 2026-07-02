@@ -7,8 +7,8 @@ namespace Modules.Product.Application.Contracts
 {
     public interface IProductRepository : IRepository<Domain.Product>
     {
-        Task<IEnumerable<Domain.Product>> GetSearchProductsAdminAsync(FilterProductAdminRequestDto filter, CancellationToken ct = default);
-        Task<IEnumerable<Domain.Product>> GetSearchProductsCustomerAsync(FilterProductCustomerRequestDto filter, CancellationToken ct = default);
+        Task<(IEnumerable<Domain.Product> Items, int TotalCount)> GetSearchProductsAdminAsync(FilterProductAdminRequestDto filter, CancellationToken ct = default);
+        Task<(IEnumerable<Domain.Product> Items, int TotalCount)> GetSearchProductsCustomerAsync(FilterProductCustomerRequestDto filter, CancellationToken ct = default);
         Task<Domain.Product?> GetByIdIncludingDeletedAsync(Guid id, CancellationToken cancellationToken = default);
         Task<bool> RestoreAsync(Guid id, CancellationToken cancellationToken = default);
         Task<Domain.Product> ChangeStatusAsync(Guid productId, ProductStatus newStatus, CancellationToken cancellationToken = default);

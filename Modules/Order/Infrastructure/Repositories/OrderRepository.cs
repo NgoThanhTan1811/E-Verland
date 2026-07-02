@@ -45,7 +45,7 @@ namespace Modules.Order.Infrastructure.Repositories
 
         public async Task<bool> IsOwnedByUserAsync(Guid orderId, Guid userId, CancellationToken ct = default)
         {
-            return await _db.Orders.AnyAsync(o => o.Id == orderId && o.UserId == userId, ct);
+            return await _db.Orders.AnyAsync(o => o.Id == orderId && (o.UserId == userId || o.ShopId == userId), ct);
         }
 
         public Task UpdateAsync(Domain.Order entity, CancellationToken cancellationToken = default)
@@ -58,7 +58,7 @@ namespace Modules.Order.Infrastructure.Repositories
         {
             var query = _db.Orders
                 .AsNoTracking()
-                .Where(o => o.UserId == userId);
+                .Where(o => o.UserId == userId || o.ShopId == userId);
 
             var totalItems = await query.CountAsync(ct);
 
@@ -93,7 +93,7 @@ namespace Modules.Order.Infrastructure.Repositories
 
             // Apply filters
             if (userId.HasValue && userId != Guid.Empty)
-                query = query.Where(o => o.UserId == userId.Value);
+                query = query.Where(o => o.UserId == userId.Value || o.ShopId == userId.Value);
 
             if (status.HasValue)
                 query = query.Where(o => o.Status == status.Value);

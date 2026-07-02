@@ -44,7 +44,14 @@ public class ChatMongoDbContext
         }
 
         // Use standard Guid representation (as string)
-        BsonSerializer.TryRegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
+        try
+        {
+            BsonSerializer.TryRegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
+        }
+        catch (BsonSerializationException)
+        {
+            // Ignore if another GuidSerializer is already registered globally
+        }
     }
 
     public ChatMongoDbContext(IMongoClient mongoClient, string databaseName = "chat")

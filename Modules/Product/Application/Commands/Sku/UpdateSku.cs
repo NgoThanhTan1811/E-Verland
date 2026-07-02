@@ -1,17 +1,20 @@
 using MediatR;
+using Modules.Product.Application.Commands;
 using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.DTOs.Response;
+using Modules.Redis.Services;
 
 namespace Modules.Product.Application.Commands;
 
 public sealed record UpdateSkuCommand(Guid Id, UpdateSkuRequestDto Request) : IRequest<SkuDetailDto>;
 
-public sealed class UpdateSkuHandler(ISkuRepository skuRepository, IProductRepository productRepository, IProductDbContext dbContext) : IRequestHandler<UpdateSkuCommand, SkuDetailDto>
+public sealed class UpdateSkuHandler(ISkuRepository skuRepository, IProductRepository productRepository, IProductDbContext dbContext, IProductCacheService productCacheService) : MediatR.IRequestHandler<UpdateSkuCommand, SkuDetailDto>
 {
     private readonly ISkuRepository _skuRepository = skuRepository;
     private readonly IProductRepository _productRepository = productRepository;
     private readonly IProductDbContext _dbContext = dbContext;
+    private readonly IProductCacheService _productCacheService = productCacheService;
 
     public async Task<SkuDetailDto> Handle(UpdateSkuCommand request, CancellationToken cancellationToken)
     {
@@ -37,6 +40,9 @@ public sealed class UpdateSkuHandler(ISkuRepository skuRepository, IProductRepos
 
         await _skuRepository.UpdateAsync(sku, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        // Invalidate the cache for the parent product so it fetches fresh data
+        await _productCacheService.InvalidateProductAsync(sku.ProductId.ToString("N"));
 
         return new SkuDetailDto
         {

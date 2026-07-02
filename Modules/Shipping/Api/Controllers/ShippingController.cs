@@ -6,6 +6,7 @@ using Modules.Shipping.Application.DTOs.External;
 using Modules.Shipping.Application.DTOs.Request;
 using Modules.Shipping.Application.DTOs.Response;
 using Modules.Shipping.Application.Queries;
+using Modules.Shipping.Domain;
 
 namespace Modules.Shipping.Api.Controllers;
 
@@ -90,6 +91,28 @@ public sealed class ShippingController(IMediator mediator) : ControllerBase
         try
         {
             var result = await _mediator.Send(new ActivateShippingOrderCommand(orderId), ct);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [Authorize(Policy = "AdminPolicy")]
+    [HttpPatch("status/{orderId}")]
+    public async Task<ActionResult<ShippingOrderResponseDto>> UpdateStatus(
+        Guid orderId,
+        [FromBody] UpdateShippingStatusRequestDto dto,
+        CancellationToken ct)
+    {
+        try
+        {
+            var result = await _mediator.Send(new UpdateShippingStatusCommand(orderId, dto.Status), ct);
             return Ok(result);
         }
         catch (KeyNotFoundException ex)

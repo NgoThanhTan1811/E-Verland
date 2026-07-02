@@ -75,7 +75,7 @@ public class AccountController(IMediator mediator) : ControllerBase
     // }
 
     [HttpGet("{id}")]
-    [Authorize]
+    [Authorize(Policy = "AdminPolicy")]
     public async Task<ActionResult<AccountResDto>> GetAccountById(Guid id, CancellationToken ct)
     {
         try

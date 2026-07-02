@@ -11,7 +11,6 @@ resource "aws_security_group" "alb_sg" {
   description = "Only allow traffic from Cloudflare"
   vpc_id      = module.vpc.vpc_id
 
-  # Cổng 443 (HTTPS) - Chỉ nhận từ dải IP Cloudflare
   ingress {
     from_port   = 443
     to_port     = 443
@@ -19,7 +18,6 @@ resource "aws_security_group" "alb_sg" {
     cidr_blocks = data.cloudflare_ip_ranges.cloudflare.ipv4_cidrs
   }
 
-  # Cổng 80 (HTTP) - Redirect về HTTPS
   ingress {
     from_port   = 80
     to_port     = 80
@@ -36,11 +34,11 @@ resource "aws_security_group" "alb_sg" {
 }
 
 locals {
-  subdomains = ["api", "seller", "admin"]
+  records = ["@", "api", "seller", "admin"]
 }
 
 resource "cloudflare_dns_record" "subdomains" {
-  for_each = toset(local.subdomains)
+  for_each = toset(local.records)
 
   zone_id = data.cloudflare_zone.main.id
   name    = each.value
@@ -61,13 +59,6 @@ resource "aws_security_group" "ecs_sg" {
     protocol        = "tcp"
     security_groups = [aws_security_group.alb_sg.id]
   }
-
-  # ingress {
-  #   from_port       = 8080
-  #   to_port         = 8080
-  #   protocol        = "tcp"
-  #   security_groups = [aws_security_group.observability_sg.id]
-  # }
 
   egress {
     from_port   = 0
@@ -178,7 +169,6 @@ resource "aws_lb_target_group" "app" {
   }
 }
 
-# HTTP listener — redirects all traffic to HTTPS
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
@@ -194,14 +184,12 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-// Khai báo Data Source để Terraform tự đi tìm Certificate đã tạo
 data "aws_acm_certificate" "e_verland_cert" {
   domain      = "*.e-verland.site"
   statuses    = ["ISSUED"]
   most_recent = true
 }
 
-# HTTPS listener — terminates TLS and forwards to target group
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.main.arn
   port              = 443
@@ -233,6 +221,94 @@ locals {
     {
       name         = "e-verland-app"
       image        = var.container_image
+      essential    = true
+      portMappings = [{ containerPort = 8080, hostPort = 8080, protocol = "tcp" }]
+
+      environment = [
+        { name = "ASPNETCORE_ENVIRONMENT",       value = "Production" },
+        { name = "ASPNETCORE_URLS",              value = "http://+:8080" },
+        { name = "App__BackendUrl",              value = var.backend_url },
+        { name = "App__FrontendUrl",             value = var.frontend_url },
+        { name = "Domain",                       value = var.domain_name },
+        { name = "AWS_REGION",                   value = var.aws_region },
+        { name = "Storage__Provider",            value = var.storage_provider },
+        { name = "AWS__S3__BucketName",          value = var.s3_bucket_name },
+        { name = "AWS__S3__Region",              value = var.s3_region },
+        { name = "AWS__S3__ForcePathStyle",      value = tostring(var.s3_force_path_style) },
+        { name = "AWS__SQS__MaxReceiveCount",    value = "3" },
+      ]
+
+      secrets = [
+        # SQS
+        { name = "AWS__SQS__OrderEventsQueueUrl",            valueFrom = "${var.app_secrets_arn}:AWS__SQS__OrderEventsQueueUrl::" },
+        { name = "AWS__SQS__PaymentEventsQueueUrl",          valueFrom = "${var.app_secrets_arn}:AWS__SQS__PaymentEventsQueueUrl::" },
+        { name = "AWS__SQS__ProductSyncQueueUrl",            valueFrom = "${var.app_secrets_arn}:AWS__SQS__ProductSyncQueueUrl::" },
+        { name = "AWS__SQS__ProductSyncDeadLetterQueueUrl",  valueFrom = "${var.app_secrets_arn}:AWS__SQS__ProductSyncDeadLetterQueueUrl::" },
+        { name = "AWS__SQS__NotificationEventsQueueUrl",     valueFrom = "${var.app_secrets_arn}:AWS__SQS__NotificationEventsQueueUrl::" },
+        { name = "AWS__SQS__StockReserveQueueUrl",           valueFrom = "${var.app_secrets_arn}:AWS__SQS__StockReserveQueueUrl::" },
+        { name = "AWS__SQS__ShippingDraftQueueUrl",          valueFrom = "${var.app_secrets_arn}:AWS__SQS__ShippingDraftQueueUrl::" },
+        { name = "AWS__SQS__ShippingStatusQueueUrl",         valueFrom = "${var.app_secrets_arn}:AWS__SQS__ShippingStatusQueueUrl::" },
+        { name = "AWS__SQS__StockConfirmQueueUrl",           valueFrom = "${var.app_secrets_arn}:AWS__SQS__StockConfirmQueueUrl::" },
+        # SNS
+        { name = "AWS__SNS__NotificationTopicArn",           valueFrom = "${var.app_secrets_arn}:AWS__SNS__NotificationTopicArn::" },
+        { name = "AWS__SNS__OrderEventsTopicArn",            valueFrom = "${var.app_secrets_arn}:AWS__SNS__OrderEventsTopicArn::" },
+        { name = "AWS__SNS__PaymentEventsTopicArn",          valueFrom = "${var.app_secrets_arn}:AWS__SNS__PaymentEventsTopicArn::" },
+        { name = "AWS__SNS__ProductEventsTopicArn",          valueFrom = "${var.app_secrets_arn}:AWS__SNS__ProductEventsTopicArn::" },
+        # AWS credentials / S3
+        { name = "Jwt__Key",                                 valueFrom = "${var.app_secrets_arn}:Jwt__Key::" },
+        { name = "Jwt__Issuer",                              valueFrom = "${var.app_secrets_arn}:Jwt__Issuer::" },
+        { name = "Jwt__Audience",                            valueFrom = "${var.app_secrets_arn}:Jwt__Audience::" },
+        { name = "AWS__S3__ServiceUrl",                      valueFrom = "${var.app_secrets_arn}:AWS__S3__ServiceUrl::" },
+        { name = "AWS__S3__AccessKey",                       valueFrom = "${var.app_secrets_arn}:AWS__S3__AccessKey::" },
+        { name = "AWS__S3__SecretKey",                       valueFrom = "${var.app_secrets_arn}:AWS__S3__SecretKey::" },
+        # Connection strings
+        { name = "ConnectionStrings__UserDb",                valueFrom = "${var.app_secrets_arn}:ConnectionStrings__UserDb::" },
+        { name = "ConnectionStrings__AuthDb",                valueFrom = "${var.app_secrets_arn}:ConnectionStrings__AuthDb::" },
+        { name = "ConnectionStrings__PaymentDb",             valueFrom = "${var.app_secrets_arn}:ConnectionStrings__PaymentDb::" },
+        { name = "ConnectionStrings__ProductDb",             valueFrom = "${var.app_secrets_arn}:ConnectionStrings__ProductDb::" },
+        { name = "ConnectionStrings__OrderDb",               valueFrom = "${var.app_secrets_arn}:ConnectionStrings__OrderDb::" },
+        { name = "ConnectionStrings__CartDb",                valueFrom = "${var.app_secrets_arn}:ConnectionStrings__CartDb::" },
+        { name = "ConnectionStrings__NotificationDb",        valueFrom = "${var.app_secrets_arn}:ConnectionStrings__NotificationDb::" },
+        { name = "ConnectionStrings__MediaDb",               valueFrom = "${var.app_secrets_arn}:ConnectionStrings__MediaDb::" },
+        { name = "ConnectionStrings__ShippingDb",            valueFrom = "${var.app_secrets_arn}:ConnectionStrings__ShippingDb::" },
+        # Redis
+        { name = "Redis__URL",                               valueFrom = "${var.app_secrets_arn}:Redis__URL::" },
+        { name = "Redis__Password",                          valueFrom = "${var.app_secrets_arn}:Redis__Password::" },
+        { name = "Redis__Port",                              valueFrom = "${var.app_secrets_arn}:Redis__Port::" },
+        { name = "Redis__Ssl",                               valueFrom = "${var.app_secrets_arn}:Redis__Ssl::" },
+        { name = "Redis__AbortConnect",                      valueFrom = "${var.app_secrets_arn}:Redis__AbortConnect::" },
+        { name = "Redis__User",                              valueFrom = "${var.app_secrets_arn}:Redis__User::" },
+        # MongoDB
+        { name = "MongoDB__Host",                            valueFrom = "${var.app_secrets_arn}:MongoDB__Host::" },
+        { name = "MongoDB__User",                            valueFrom = "${var.app_secrets_arn}:MongoDB__User::" },
+        { name = "MongoDB__Password",                        valueFrom = "${var.app_secrets_arn}:MongoDB__Password::" },
+        { name = "MongoDB__AppName",                         valueFrom = "${var.app_secrets_arn}:MongoDB__AppName::" },
+        # Email
+        { name = "Email__Smtp__Username",                    valueFrom = "${var.app_secrets_arn}:Email__Smtp__Username::" },
+        { name = "Email__Smtp__Password",                    valueFrom = "${var.app_secrets_arn}:Email__Smtp__Password::" },
+        { name = "Email__Smtp__Host",                        valueFrom = "${var.app_secrets_arn}:Email__Smtp__Host::" },
+        # SePay
+        { name = "SePay__ApiKey",                            valueFrom = "${var.app_secrets_arn}:SePay__ApiKey::" },
+        { name = "SePay__SecretKey",                         valueFrom = "${var.app_secrets_arn}:SePay__SecretKey::" },
+        # Misc
+        { name = "Grafana__AdminPassword",                   valueFrom = "${var.app_secrets_arn}:Grafana__AdminPassword::" },
+        { name = "Meilisearch__MasterKey",                   valueFrom = "${var.app_secrets_arn}:Meilisearch__MasterKey::" },
+        { name = "GHN__Token",                               valueFrom = "${var.app_secrets_arn}:GHN__Token::" },
+        { name = "GHN__ShopId",                              valueFrom = "${var.app_secrets_arn}:GHN__ShopId::" },
+        { name = "GHN__ApiUrl",                              valueFrom = "${var.app_secrets_arn}:GHN__ApiUrl::" },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          awslogs-group         = "/ecs/${var.project_name}-app"
+          awslogs-region        = var.aws_region
+          awslogs-stream-prefix = "ecs"
+        }
+      }
+    }
+  ]
+}
       portMappings = [{ containerPort = 8080, hostPort = 8080, protocol = "tcp" }]
       environment = [
         { name = "ASPNETCORE_ENVIRONMENT", value = "Production" },
@@ -346,7 +422,6 @@ resource "aws_ecs_task_definition" "app" {
   execution_role_arn       = aws_iam_role.app_role.arn
   task_role_arn            = aws_iam_role.app_role.arn
   container_definitions    = jsonencode(local.app_container_definitions)
-
 }
 
 resource "aws_ecs_service" "app" {
@@ -367,10 +442,6 @@ resource "aws_ecs_service" "app" {
     container_name   = local.app_container_definitions[0].name
     container_port   = 8080
   }
-
-  # service_registries {
-  #   registry_arn = aws_service_discovery_service.app.arn
-  # }
 
   depends_on = [aws_lb_listener.https]
 }

@@ -3,7 +3,7 @@ using Modules.Product.Application.Contracts;
 using Modules.Product.Application.DTOs.Request;
 using Modules.Product.Application.DTOs.Response;
 using Modules.Product.Application.Mappings;
-using Modules.Redis.Services;
+using Modules.Redis.Infrastructure;
 using SharedKernel.Pagination;
 using System.Security.Cryptography;
 using System.Text;
@@ -15,28 +15,26 @@ public sealed record SearchProductCustomerQuery(FilterProductCustomerRequestDto 
 
 public sealed class SearchProductCustomerHandler(
     IProductRepository productRepository,
-    IProductCacheService productCacheService,
+    ICacheService cacheService,
     IConfiguration configuration,
     IUrlResolver urlResolver) : IRequestHandler<SearchProductCustomerQuery, PageResult<ProductListItemDto>>
 {
     private readonly IProductRepository _productRepository = productRepository;
-    private readonly IProductCacheService _productCacheService = productCacheService;
+    private readonly ICacheService _cacheService = cacheService;
     private readonly IConfiguration _configuration = configuration;
     private readonly IUrlResolver _urlResolver = urlResolver;
 
     public async Task<PageResult<ProductListItemDto>> Handle(SearchProductCustomerQuery request, CancellationToken cancellationToken)
     {
-        var cacheKey = BuildCacheKey("customer", request.Filter);
-        var cached = await _productCacheService.GetProductsAsync<ProductListItemDto>(cacheKey);
+        var cacheKey = BuildCacheKey("customer:page", request.Filter);
+        var cached = await _cacheService.GetAsync<PageResult<ProductListItemDto>>(cacheKey);
         if (cached is not null)
         {
-            var cachedList = cached.ToList();
-            return Pagination.PaginationResult(cachedList, cachedList.Count, request.Filter);
+            return cached;
         }
 
-        var products = await _productRepository.GetSearchProductsCustomerAsync(request.Filter, cancellationToken);
+        var (products, totalCount) = await _productRepository.GetSearchProductsCustomerAsync(request.Filter, cancellationToken);
         var productList = products.ToList();
-        var totalCount = productList.Count;
 
         var dtos = new List<ProductListItemDto>(productList.Count);
         foreach (var product in productList)
@@ -47,9 +45,11 @@ public sealed class SearchProductCustomerHandler(
         var ttlMinutes = int.TryParse(_configuration["Cache:ProductListTtlMinutes"], out var value)
             ? Math.Max(1, value)
             : 10;
-        await _productCacheService.CacheProductsAsync(cacheKey, dtos, TimeSpan.FromMinutes(ttlMinutes));
+        
+        var result = Pagination.PaginationResult(dtos, totalCount, request.Filter);
+        await _cacheService.SetAsync(cacheKey, result, TimeSpan.FromMinutes(ttlMinutes));
 
-        return Pagination.PaginationResult(dtos, totalCount, request.Filter);
+        return result;
     }
 
     private static string BuildCacheKey(string segment, FilterProductCustomerRequestDto filter)

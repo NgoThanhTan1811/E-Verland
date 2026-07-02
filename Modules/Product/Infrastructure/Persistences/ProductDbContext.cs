@@ -158,7 +158,7 @@ public class ProductDbContext(DbContextOptions<ProductDbContext> options) : DbCo
 
             entity.HasIndex(x => x.OptionValues).HasMethod("GIN");
 
-            entity.HasIndex(x => x.SkuCode).IsUnique();
+            entity.HasIndex(x => x.Id).IsUnique();
             entity.HasIndex(x => x.ProductId);
             entity.HasIndex(x => x.IsActive);
             entity.HasIndex(x => x.Stock);
